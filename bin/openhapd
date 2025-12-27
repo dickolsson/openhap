@@ -1,0 +1,129 @@
+#!/usr/bin/env perl
+use v5.36;
+use Getopt::Long;
+use FindBin qw($RealBin);
+use lib "$RealBin/../lib";
+
+use OpenHAP::HAP;
+use OpenHAP::Config;
+use OpenHAP::Log qw(:all);
+use OpenHAP::MQTT;
+use OpenHAP::Daemon;
+use OpenHAP::DeviceLoader;
+
+# Default configuration
+my $config_file  = '/etc/openhapd.conf';
+my $foreground   = 0;
+my $check_config = 0;
+my $verbose      = 0;
+
+GetOptions(
+	'c|config=s'   => \$config_file,
+	'f|foreground' => \$foreground,
+	'n|check'      => \$check_config,
+	'v|verbose+'   => \$verbose,
+	'h|help'       => \&usage,
+) or usage();
+
+# Load configuration
+my $config = OpenHAP::Config->new( file => $config_file );
+$config->load() if -f $config_file;
+
+if ($check_config) {
+	print "Configuration file $config_file is valid\n";
+	exit 0;
+}
+
+# Initialize logging
+my $log_level    = $config->get( 'log_level',    'info' );
+my $log_facility = $config->get( 'log_facility', 'daemon' );
+
+OpenHAP::Log->init(
+	ident      => 'openhapd',
+	foreground => $foreground,
+	level      => $log_level,
+	facility   => $log_facility,
+	verbose    => $verbose,
+);
+
+# Daemonize unless running in foreground
+if ( !$foreground ) {
+	OpenHAP::Daemon->daemonize('/var/log/openhapd.log');
+}
+
+# Get HAP settings
+my $hap_name = $config->get( 'hap_name', 'OpenHAP Bridge' );
+my $hap_port = $config->get( 'hap_port', 51827 );
+my $hap_pin  = $config->get( 'hap_pin',  '1995-1018' );
+my $db_path  = $config->get( 'db_path',  '/var/db/openhapd' );
+
+# Create HAP server
+my $hap = OpenHAP::HAP->new(
+	port         => $hap_port,
+	pin          => $hap_pin,
+	name         => $hap_name,
+	storage_path => $db_path,
+);
+
+# Initialize MQTT client
+my $mqtt_host = $config->get( 'mqtt_host', '127.0.0.1' );
+my $mqtt_port = $config->get( 'mqtt_port', 1883 );
+my $mqtt_user = $config->get('mqtt_user');
+my $mqtt_pass = $config->get('mqtt_pass');
+
+my $mqtt = OpenHAP::MQTT->new(
+	host     => $mqtt_host,
+	port     => $mqtt_port,
+	username => $mqtt_user,
+	password => $mqtt_pass,
+);
+
+# Try to connect to MQTT with timeout
+if ( $mqtt->mqtt_connect(5) ) {
+	log_info( 'Connected to MQTT broker at %s:%d', $mqtt_host, $mqtt_port );
+	$hap->set_mqtt_client($mqtt);
+}
+else {
+	log_warning('MQTT broker not available, will retry in background');
+	$hap->set_mqtt_client($mqtt);    # Set client anyway for reconnection
+}
+
+# Load devices from configuration
+my $loader = OpenHAP::DeviceLoader->new();
+$loader->load_devices( $config, $hap, $mqtt );
+
+# Log mDNS information
+log_info( 'mDNS service: _hap._tcp port %d', $hap_port );
+log_info(
+	'mDNS TXT: c#=%d ff=0 id=%s md=%s pv=1.1 s#=1 sf=%d ci=2',
+	$hap->get_config_number(),
+	$hap->get_device_id(),
+	$hap_name,
+	$hap->is_paired() ? 0 : 1
+);
+
+if ( !$hap->is_paired() ) {
+	log_notice( 'Not paired - use Home app with PIN: %s', $hap_pin );
+}
+
+# Run server
+log_info('Starting OpenHAP server');
+$hap->run();
+
+sub usage()
+{
+	print STDERR <<EOF;
+Usage: openhapd [options]
+
+Options:
+    -c, --config FILE    Configuration file (default: /etc/openhapd.conf)
+    -f, --foreground     Run in foreground (log to stderr)
+    -n, --check          Check configuration and exit
+    -v, --verbose        Increase verbosity (can be repeated)
+    -h, --help           Show this help
+
+See openhapd(8) for more information.
+
+EOF
+	exit 1;
+}

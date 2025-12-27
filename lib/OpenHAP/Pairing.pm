@@ -1,0 +1,356 @@
+use v5.36;
+
+package OpenHAP::Pairing;
+use OpenHAP::TLV;
+use OpenHAP::SRP;
+use OpenHAP::Crypto;
+use OpenHAP::Log qw(:all);
+use OpenHAP::PIN qw(normalize_pin);
+use Digest::SHA  qw(sha512);
+
+# TLV Types for pairing
+use constant {
+	kTLVType_Method        => 0x00,
+	kTLVType_Identifier    => 0x01,
+	kTLVType_Salt          => 0x02,
+	kTLVType_PublicKey     => 0x03,
+	kTLVType_Proof         => 0x04,
+	kTLVType_EncryptedData => 0x05,
+	kTLVType_State         => 0x06,
+	kTLVType_Error         => 0x07,
+	kTLVType_RetryDelay    => 0x08,
+	kTLVType_Certificate   => 0x09,
+	kTLVType_Signature     => 0x0A,
+	kTLVType_Permissions   => 0x0B,
+	kTLVType_FragmentData  => 0x0C,
+	kTLVType_FragmentLast  => 0x0D,
+	kTLVType_Separator     => 0xFF,
+};
+
+# Error codes
+use constant {
+	kTLVError_Unknown        => 0x01,
+	kTLVError_Authentication => 0x02,
+	kTLVError_Backoff        => 0x03,
+	kTLVError_MaxPeers       => 0x04,
+	kTLVError_MaxTries       => 0x05,
+	kTLVError_Unavailable    => 0x06,
+	kTLVError_Busy           => 0x07,
+};
+
+sub new( $class, %args )
+{
+
+	my $self = bless {
+		pin     => normalize_pin( $args{pin} ) // die "PIN required",
+		storage => $args{storage},
+		accessory_ltsk => $args{accessory_ltsk},
+		accessory_ltpk => $args{accessory_ltpk},
+	}, $class;
+
+	return $self;
+}
+
+sub handle_pair_setup( $self, $body, $session )
+{
+
+	my %request = OpenHAP::TLV::decode($body);
+	my $state   = unpack( 'C', $request{ kTLVType_State() } );
+	log_debug( 'Pair-setup M%d received', $state );
+
+	if ( $state == 1 ) {
+		return $self->_pair_setup_m1_m2($session);
+	}
+	elsif ( $state == 3 ) {
+		return $self->_pair_setup_m3_m4( \%request, $session );
+	}
+	elsif ( $state == 5 ) {
+		return $self->_pair_setup_m5_m6( \%request, $session );
+	}
+
+	return $self->_error_response( kTLVError_Unknown, 2 );
+}
+
+sub _pair_setup_m1_m2( $self, $session )
+{
+
+	# Initialize SRP
+	my $srp  = OpenHAP::SRP->new( password => $self->{pin} );
+	my $salt = $srp->generate_salt();
+	$srp->compute_verifier( $salt, $self->{pin} );
+	my $B = $srp->generate_server_public();
+
+	# Store SRP session
+	$session->{pairing_state}{srp} = $srp;
+
+	# M2: Send salt and public key
+	my $response = OpenHAP::TLV::encode(
+		kTLVType_State,     pack( 'C',  2 ),
+		kTLVType_PublicKey, pack( 'H*', $B->as_hex() ),
+		kTLVType_Salt,      $salt,
+	);
+
+	return $response;
+}
+
+sub _pair_setup_m3_m4( $self, $request, $session )
+{
+
+	my $srp = $session->{pairing_state}{srp};
+	return $self->_error_response( kTLVError_Unknown, 4 ) unless $srp;
+
+	my $A  = $request->{ kTLVType_PublicKey() };
+	my $M1 = $request->{ kTLVType_Proof() };
+
+	# Compute session key and verify proof
+	$srp->compute_session_key($A);
+
+	unless ( $srp->verify_client_proof($M1) ) {
+		return $self->_error_response( kTLVError_Authentication, 4 );
+	}
+
+	# Generate server proof
+	my $M2 = $srp->generate_server_proof();
+	log_debug('Pair-setup M3 verified, sending M4');
+
+	# M4: Send proof
+	my $response = OpenHAP::TLV::encode( kTLVType_State, pack( 'C', 4 ),
+		kTLVType_Proof, $M2, );
+
+	return $response;
+}
+
+sub _pair_setup_m5_m6( $self, $request, $session )
+{
+
+	my $srp = $session->{pairing_state}{srp};
+	return $self->_error_response( kTLVError_Unknown, 6 ) unless $srp;
+
+	my $encrypted_data = $request->{ kTLVType_EncryptedData() };
+
+	# Derive encryption key from SRP session key
+	my $session_key = $srp->get_session_key();
+	my $encrypt_key = OpenHAP::Crypto::hkdf_sha512( $session_key,
+		'Pair-Setup-Encrypt-Salt', 'Pair-Setup-Encrypt-Info', 32 );
+
+	# Decrypt data
+	my $nonce    = pack('x[4]') . 'PS-Msg05';
+	my $auth_tag = substr( $encrypted_data, -16, 16, '' );
+	my $decrypted =
+	    OpenHAP::Crypto::chacha20_poly1305_decrypt( $encrypt_key, $nonce,
+		$encrypted_data, $auth_tag );
+
+	return $self->_error_response( kTLVError_Authentication, 6 )
+	    unless defined $decrypted;
+
+	# Parse decrypted TLV
+	my %inner                 = OpenHAP::TLV::decode($decrypted);
+	my $ios_device_pairing_id = $inner{ kTLVType_Identifier() };
+	my $ios_device_ltpk       = $inner{ kTLVType_PublicKey() };
+	my $ios_device_signature  = $inner{ kTLVType_Signature() };
+
+	# Verify signature
+	my $ios_device_x = OpenHAP::Crypto::hkdf_sha512(
+		$session_key,
+		'Pair-Setup-Controller-Sign-Salt',
+		'Pair-Setup-Controller-Sign-Info', 32
+	);
+	my $ios_device_info =
+	    $ios_device_x . $ios_device_pairing_id . $ios_device_ltpk;
+
+	unless (
+		OpenHAP::Crypto::verify_ed25519(
+			$ios_device_signature, $ios_device_info,
+			$ios_device_ltpk
+		) )
+	{
+		return $self->_error_response( kTLVError_Authentication, 6 );
+	}
+
+	# Save pairing
+	$self->{storage}
+	    ->save_pairing( $ios_device_pairing_id, $ios_device_ltpk, 1 );
+	log_debug( 'Pair-setup M5 verified, pairing saved for %s',
+		$ios_device_pairing_id );
+
+	# Generate accessory signature
+	my $accessory_x = OpenHAP::Crypto::hkdf_sha512(
+		$session_key,
+		'Pair-Setup-Accessory-Sign-Salt',
+		'Pair-Setup-Accessory-Sign-Info', 32
+	);
+	my $accessory_pairing_id = 'OpenHAP';
+	my $accessory_info =
+	    $accessory_x . $accessory_pairing_id . $self->{accessory_ltpk};
+	my $accessory_signature = OpenHAP::Crypto::sign_ed25519(
+		$accessory_info,
+		$self->{accessory_ltsk},
+		$self->{accessory_ltpk} );
+
+	# Build response TLV
+	my $response_tlv = OpenHAP::TLV::encode(
+		kTLVType_Identifier, $accessory_pairing_id,
+		kTLVType_PublicKey,  $self->{accessory_ltpk},
+		kTLVType_Signature,  $accessory_signature,
+	);
+
+	# Encrypt response
+	my $response_nonce = pack('x[4]') . 'PS-Msg06';
+	my ( $response_encrypted, $response_tag ) =
+	    OpenHAP::Crypto::chacha20_poly1305_encrypt( $encrypt_key,
+		$response_nonce, $response_tlv );
+
+	# M6: Send encrypted data
+	my $response = OpenHAP::TLV::encode(
+		kTLVType_State,         pack( 'C', 6 ),
+		kTLVType_EncryptedData, $response_encrypted . $response_tag,
+	);
+
+	return $response;
+}
+
+sub handle_pair_verify( $self, $body, $session )
+{
+
+	my %request = OpenHAP::TLV::decode($body);
+	my $state   = unpack( 'C', $request{ kTLVType_State() } );
+	log_debug( 'Pair-verify M%d received', $state );
+
+	if ( $state == 1 ) {
+		return $self->_pair_verify_m1_m2( \%request, $session );
+	}
+	elsif ( $state == 3 ) {
+		return $self->_pair_verify_m3_m4( \%request, $session );
+	}
+
+	return $self->_error_response( kTLVError_Unknown, 2 );
+}
+
+sub _pair_verify_m1_m2( $self, $request, $session )
+{
+
+	my $ios_public_key = $request->{ kTLVType_PublicKey() };
+	log_debug('Pair-verify M1: generating ephemeral keypair');
+
+	# Generate accessory ephemeral keypair
+	my ( $accessory_secret, $accessory_public ) =
+	    OpenHAP::Crypto::generate_keypair_x25519();
+
+	# Compute shared secret
+	my $shared_secret =
+	    OpenHAP::Crypto::derive_shared_secret( $accessory_secret,
+		$ios_public_key );
+
+	# Store for next step
+	$session->{pairing_state}{accessory_secret} = $accessory_secret;
+	$session->{pairing_state}{accessory_public} = $accessory_public;
+	$session->{pairing_state}{ios_public_key}   = $ios_public_key;
+	$session->{pairing_state}{shared_secret}    = $shared_secret;
+
+	# Generate accessory info and signature
+	my $accessory_pairing_id = 'OpenHAP';
+	my $accessory_info =
+	    $accessory_public . $accessory_pairing_id . $ios_public_key;
+	my $accessory_signature = OpenHAP::Crypto::sign_ed25519(
+		$accessory_info,
+		$self->{accessory_ltsk},
+		$self->{accessory_ltpk} );
+
+	# Build sub-TLV
+	my $sub_tlv = OpenHAP::TLV::encode(
+		kTLVType_Identifier, $accessory_pairing_id,
+		kTLVType_Signature,  $accessory_signature,
+	);
+
+	# Derive session key and encrypt
+	my $session_key = OpenHAP::Crypto::hkdf_sha512( $shared_secret,
+		'Pair-Verify-Encrypt-Salt', 'Pair-Verify-Encrypt-Info', 32 );
+
+	my $nonce = pack('x[4]') . 'PV-Msg02';
+	my ( $encrypted, $tag ) =
+	    OpenHAP::Crypto::chacha20_poly1305_encrypt( $session_key, $nonce,
+		$sub_tlv );
+
+	# M2: Send public key and encrypted data
+	my $response = OpenHAP::TLV::encode(
+		kTLVType_State,         pack( 'C', 2 ),
+		kTLVType_PublicKey,     $accessory_public,
+		kTLVType_EncryptedData, $encrypted . $tag,
+	);
+
+	return $response;
+}
+
+sub _pair_verify_m3_m4( $self, $request, $session )
+{
+
+	my $encrypted_data = $request->{ kTLVType_EncryptedData() };
+
+	my $shared_secret    = $session->{pairing_state}{shared_secret};
+	my $accessory_public = $session->{pairing_state}{accessory_public};
+	my $ios_public_key   = $session->{pairing_state}{ios_public_key};
+
+	# Derive session key
+	my $session_key = OpenHAP::Crypto::hkdf_sha512( $shared_secret,
+		'Pair-Verify-Encrypt-Salt', 'Pair-Verify-Encrypt-Info', 32 );
+
+	# Decrypt
+	my $nonce    = pack('x[4]') . 'PV-Msg03';
+	my $auth_tag = substr( $encrypted_data, -16, 16, '' );
+	my $decrypted =
+	    OpenHAP::Crypto::chacha20_poly1305_decrypt( $session_key, $nonce,
+		$encrypted_data, $auth_tag );
+
+	return $self->_error_response( kTLVError_Authentication, 4 )
+	    unless defined $decrypted;
+
+	# Parse inner TLV
+	my %inner          = OpenHAP::TLV::decode($decrypted);
+	my $ios_pairing_id = $inner{ kTLVType_Identifier() };
+	my $ios_signature  = $inner{ kTLVType_Signature() };
+
+	# Load pairing
+	my $pairings = $self->{storage}->load_pairings();
+	my $pairing  = $pairings->{$ios_pairing_id};
+
+	return $self->_error_response( kTLVError_Authentication, 4 )
+	    unless $pairing;
+
+	# Verify signature
+	my $ios_info = $ios_public_key . $ios_pairing_id . $accessory_public;
+	unless (
+		OpenHAP::Crypto::verify_ed25519(
+			$ios_signature, $ios_info, $pairing->{ltpk} ) )
+	{
+		return $self->_error_response( kTLVError_Authentication, 4 );
+	}
+
+	# Derive session encryption keys
+	my $encrypt_key =
+	    OpenHAP::Crypto::hkdf_sha512( $shared_secret, 'Control-Salt',
+		'Control-Write-Encryption-Key', 32 );
+	my $decrypt_key =
+	    OpenHAP::Crypto::hkdf_sha512( $shared_secret, 'Control-Salt',
+		'Control-Read-Encryption-Key', 32 );
+
+	# Set up encrypted session
+	$session->set_encryption( $encrypt_key, $decrypt_key );
+	$session->set_verified($ios_pairing_id);
+	log_debug('Pair-verify M3 verified successfully, session encrypted');
+
+	# M4: Success
+	my $response = OpenHAP::TLV::encode( kTLVType_State, pack( 'C', 4 ), );
+
+	return $response;
+}
+
+sub _error_response( $self, $error_code, $state )
+{
+
+	return OpenHAP::TLV::encode(
+		kTLVType_State, pack( 'C', $state ),
+		kTLVType_Error, pack( 'C', $error_code ),
+	);
+}
+
+1;

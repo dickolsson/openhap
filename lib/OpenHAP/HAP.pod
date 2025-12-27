@@ -1,0 +1,23 @@
+=head1 NAME
+
+OpenHAP::HAP - Main HAP server
+
+=head1 SYNOPSIS
+
+    use OpenHAP::HAP;
+
+    my $server = OpenHAP::HAP->new(
+        port => 51827,
+        pin => '123-45-678',
+        name => 'My Bridge',
+    );
+
+    $server->add_accessory($accessory);
+    $server->run();
+
+=head1 DESCRIPTION
+
+This module implements the main HAP server with HTTP endpoints,
+pairing, and accessory management.
+
+=cut

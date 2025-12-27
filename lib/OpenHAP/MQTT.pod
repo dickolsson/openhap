@@ -1,0 +1,22 @@
+=head1 NAME
+
+OpenHAP::MQTT - MQTT client wrapper for OpenHAP
+
+=head1 SYNOPSIS
+
+    use OpenHAP::MQTT;
+
+    my $mqtt = OpenHAP::MQTT->new(
+        host => '127.0.0.1',
+        port => 1883,
+    );
+
+    $mqtt->mqtt_connect();
+    $mqtt->subscribe('stat/device/POWER', sub { ... });
+    $mqtt->publish('cmnd/device/POWER', 'ON');
+
+=head1 DESCRIPTION
+
+This module provides a simple MQTT client wrapper for OpenHAP.
+
+=cut

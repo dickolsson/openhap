@@ -1,0 +1,73 @@
+use v5.36;
+
+package OpenHAP::Bridge;
+use OpenHAP::Log qw(:all);
+require OpenHAP::Accessory;
+our @ISA = qw(OpenHAP::Accessory);
+
+sub new( $class, %args )
+{
+	my $self = $class->SUPER::new(
+		aid               => 1,    # Bridge is always accessory 1
+		name              => $args{name}         // 'OpenHAP Bridge',
+		manufacturer      => $args{manufacturer} // 'OpenBSD',
+		model             => $args{model}        // 'OpenHAP',
+		serial            => $args{serial}       // 'BRIDGE-001',
+		firmware_revision => $args{firmware_revision} // '1.0.0',
+	);
+
+	$self->{bridged_accessories} = [];
+
+	return $self;
+}
+
+sub add_bridged_accessory( $self, $accessory )
+{
+	log_debug( 'Adding bridged accessory: AID=%d, name=%s',
+		$accessory->{aid}, $accessory->{name} );
+	push @{ $self->{bridged_accessories} }, $accessory;
+
+	# Forward event callbacks
+	$accessory->add_event_callback(
+		sub( $aid, $iid ) {
+			$self->notify_change($iid);
+		} );
+}
+
+sub get_bridged_accessories($self)
+{
+	return @{ $self->{bridged_accessories} };
+}
+
+sub get_all_accessories($self)
+{
+	return ( $self, @{ $self->{bridged_accessories} } );
+}
+
+sub get_accessory( $self, $aid )
+{
+	return $self if $self->{aid} == $aid;
+
+	for my $acc ( @{ $self->{bridged_accessories} } ) {
+		return $acc if $acc->{aid} == $aid;
+	}
+
+	return;
+}
+
+sub to_json($self)
+{
+	my @accessories;
+
+	# Add bridge itself
+	push @accessories, $self->SUPER::to_json();
+
+	# Add bridged accessories
+	for my $acc ( @{ $self->{bridged_accessories} } ) {
+		push @accessories, $acc->to_json;
+	}
+
+	return { accessories => \@accessories };
+}
+
+1;

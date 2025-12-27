@@ -1,0 +1,166 @@
+#!/usr/bin/env perl
+use v5.36;
+use Getopt::Long qw(:config no_ignore_case);
+use FindBin      qw($RealBin);
+use lib "$RealBin/../lib";
+
+use OpenHAP::Config;
+use OpenHAP::Daemon;
+use OpenHAP::DeviceLoader;
+use OpenHAP::Storage;
+
+# Default configuration
+my $config_file = '/etc/openhapd.conf';
+
+GetOptions(
+	'c|config=s' => \$config_file,
+	'h|help'     => \&usage,
+) or usage();
+
+my $command = shift @ARGV // 'help';
+
+my %commands = (
+	check   => \&cmd_check,
+	status  => \&cmd_status,
+	devices => \&cmd_devices,
+	help    => \&usage,
+);
+
+if ( exists $commands{$command} ) {
+	$commands{$command}->();
+}
+else {
+	die "Unknown command: $command\n";
+}
+
+# cmd_check():
+#	Validate configuration file syntax.
+sub cmd_check()
+{
+	my $config = OpenHAP::Config->new( file => $config_file );
+
+	eval { $config->load() if -f $config_file; };
+	if ($@) {
+		print STDERR "Configuration error: $@\n";
+		exit 1;
+	}
+
+	my @devices = $config->get_devices();
+	printf "Configuration file %s is valid\n", $config_file;
+	printf "  Configured devices: %d\n",       scalar @devices;
+
+	exit 0;
+}
+
+# cmd_status():
+#	Show daemon status and pairing information.
+sub cmd_status()
+{
+	my $pidfile = '/var/run/openhapd.pid';
+	my $pid     = OpenHAP::Daemon->check_running($pidfile);
+
+	if ( defined $pid ) {
+		printf "openhapd is running (PID %d)\n", $pid;
+	}
+	else {
+		print "openhapd is not running\n";
+	}
+
+	# Check pairing status from storage
+	my $db_path = get_db_path();
+	if ( -d $db_path ) {
+		my $storage = OpenHAP::Storage->new( path => $db_path );
+		eval { $storage->load(); };
+
+		if ( $@ || !$storage ) {
+			print "Pairing status: unknown (cannot read storage)\n";
+		}
+		elsif ( $storage->is_paired() ) {
+			my $pairings = $storage->count_pairings();
+			printf "Pairing status: paired (%d controller%s)\n",
+			    $pairings, $pairings == 1 ? '' : 's';
+		}
+		else {
+			print "Pairing status: not paired\n";
+			print "Use Home app to pair with setup code\n";
+		}
+	}
+	else {
+		print "Pairing status: not initialized\n";
+	}
+
+	exit 0;
+}
+
+# cmd_devices():
+#	List configured devices from configuration file.
+sub cmd_devices()
+{
+	my $config = OpenHAP::Config->new( file => $config_file );
+
+	eval { $config->load() if -f $config_file; };
+	if ($@) {
+		print STDERR "Configuration error: $@\n";
+		exit 1;
+	}
+
+	my @devices = $config->get_devices();
+
+	if ( @devices == 0 ) {
+		print "No devices configured\n";
+		exit 0;
+	}
+
+	printf "Configured devices: %d\n\n", scalar @devices;
+
+	for my $device (@devices) {
+		my $type    = $device->{type}    // 'unknown';
+		my $subtype = $device->{subtype} // 'unknown';
+		my $name    = $device->{name}    // '<unnamed>';
+		my $topic   = $device->{topic}   // '<no topic>';
+		my $id      = $device->{id}      // '<no id>';
+
+		printf "  %s\n",             $name;
+		printf "    Type:  %s/%s\n", $type, $subtype;
+		printf "    Topic: %s\n",    $topic;
+		printf "    ID:    %s\n",    $id;
+		print "\n";
+	}
+
+	exit 0;
+}
+
+# get_db_path():
+#	Get database path from config or use default.
+sub get_db_path()
+{
+	my $config = eval {
+		my $c = OpenHAP::Config->new( file => $config_file );
+		$c->load() if -f $config_file;
+		return $c;
+	};
+
+	return '/var/db/openhapd' unless $config;
+	return $config->get( 'db_path', '/var/db/openhapd' );
+}
+
+sub usage()
+{
+	print STDERR <<EOF;
+Usage: hapctl [options] <command>
+
+Commands:
+    check      Validate configuration file
+    status     Show daemon status and pairing information
+    devices    List configured devices
+    help       Show this help
+
+Options:
+    -c, --config FILE    Configuration file (default: /etc/openhapd.conf)
+    -h, --help           Show this help
+
+See hapctl(8) for more information.
+
+EOF
+	exit 1;
+}

@@ -1,0 +1,25 @@
+=head1 NAME
+
+OpenHAP::Storage - Persistent storage for pairing data
+
+=head1 SYNOPSIS
+
+    use OpenHAP::Storage;
+
+    my $storage = OpenHAP::Storage->new(db_path => '/var/db/openhapd');
+
+    # Load/save accessory keys
+    my ($ltsk, $ltpk) = $storage->load_accessory_keys();
+    $storage->save_accessory_keys($ltsk, $ltpk);
+
+    # Manage pairings
+    my $pairings = $storage->load_pairings();
+    $storage->save_pairing($controller_id, $ltpk, $permissions);
+    $storage->remove_pairing($controller_id);
+
+=head1 DESCRIPTION
+
+This module handles persistent storage of pairing data, accessory keys,
+and configuration state.
+
+=cut

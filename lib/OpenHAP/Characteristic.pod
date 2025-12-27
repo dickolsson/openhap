@@ -1,0 +1,26 @@
+=head1 NAME
+
+OpenHAP::Characteristic - HAP characteristic definitions
+
+=head1 SYNOPSIS
+
+    use OpenHAP::Characteristic;
+
+    my $char = OpenHAP::Characteristic->new(
+        type => 'CurrentTemperature',
+        iid => 13,
+        format => 'float',
+        perms => ['pr', 'ev'],
+        value => 21.5,
+        unit => 'celsius',
+    );
+
+    my $value = $char->get_value();
+    $char->set_value(22.0);
+
+=head1 DESCRIPTION
+
+This module represents HAP characteristics with their properties,
+values, and permissions.
+
+=cut

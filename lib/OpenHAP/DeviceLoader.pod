@@ -1,0 +1,147 @@
+=head1 NAME
+
+OpenHAP::DeviceLoader - Device configuration loading and instantiation
+
+=head1 SYNOPSIS
+
+    use OpenHAP::DeviceLoader;
+    use OpenHAP::Config;
+    use OpenHAP::HAP;
+    use OpenHAP::MQTT;
+    
+    my $config = OpenHAP::Config->new(file => '/etc/openhapd.conf');
+    $config->load();
+    
+    my $hap = OpenHAP::HAP->new(...);
+    my $mqtt = OpenHAP::MQTT->new(...);
+    
+    my $loader = OpenHAP::DeviceLoader->new();
+    my $count = $loader->load_devices($config, $hap, $mqtt);
+    
+    print "Loaded $count devices\n";
+
+=head1 DESCRIPTION
+
+OpenHAP::DeviceLoader handles loading device configurations, validating
+them, instantiating the appropriate device classes, and registering them
+with the HAP bridge. It centralizes device management logic and provides
+extensibility for adding new device types.
+
+=head1 METHODS
+
+=head2 new
+
+    my $loader = OpenHAP::DeviceLoader->new()
+
+Create a new device loader instance. The loader maintains an internal
+counter for assigning Accessory IDs (AIDs), starting at 2 (AID 1 is
+reserved for the bridge itself).
+
+=head2 load_devices
+
+    my $count = $loader->load_devices($config, $hap, $mqtt)
+
+Load all devices from the configuration and add them to the HAP bridge.
+Returns the number of successfully loaded devices.
+
+The method:
+
+=over 4
+
+=item * Retrieves device list from configuration
+
+=item * Validates each device configuration
+
+=item * Instantiates appropriate device classes
+
+=item * Subscribes devices to MQTT topics (if connected)
+
+=item * Registers devices with HAP bridge
+
+=item * Logs progress and errors
+
+=back
+
+Errors are logged but don't stop processing of remaining devices.
+
+=head2 get_devices
+
+    my @devices = $loader->get_devices()
+
+Return a list of all successfully loaded device accessory objects.
+
+=head1 DEVICE VALIDATION
+
+Each device configuration must include:
+
+=over 4
+
+=item * B<name> - Human-readable device name
+
+=item * B<type> - Device type (e.g., 'tasmota')
+
+=item * B<subtype> - Device subtype (e.g., 'thermostat')
+
+=item * B<topic> - MQTT topic for communication
+
+=item * B<id> - Unique identifier (defaults to topic if not specified)
+
+=back
+
+Devices missing required fields are skipped with appropriate error logging.
+
+=head1 SUPPORTED DEVICES
+
+Currently supported device types:
+
+=over 4
+
+=item * B<tasmota/thermostat> - Tasmota-based thermostat devices
+
+=back
+
+Additional device types can be added by:
+
+=over 4
+
+=item 1. Adding type check to _is_supported_device()
+
+=item 2. Adding instantiation case to _instantiate_device()
+
+=item 3. Ensuring device class implements required interface
+
+=back
+
+=head1 ERROR HANDLING
+
+The loader uses eval blocks to catch errors during device instantiation
+and MQTT subscription. Errors are logged but don't stop processing of
+other devices. This ensures one misconfigured device doesn't prevent
+the entire system from starting.
+
+=head1 LOGGING
+
+The loader logs at various levels:
+
+=over 4
+
+=item * B<debug> - Device processing details, MQTT subscriptions
+
+=item * B<info> - Successfully loaded devices, summary counts
+
+=item * B<warning> - Missing optional fields, recoverable issues
+
+=item * B<error> - Invalid configurations, instantiation failures
+
+=back
+
+=head1 SEE ALSO
+
+L<OpenHAP::Config>, L<OpenHAP::HAP>, L<OpenHAP::MQTT>,
+L<OpenHAP::Tasmota::Thermostat>
+
+=head1 AUTHOR
+
+Dick Olsson <hi@dickolsson.com>
+
+=cut

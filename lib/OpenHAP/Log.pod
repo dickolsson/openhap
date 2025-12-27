@@ -1,0 +1,248 @@
+=head1 NAME
+
+OpenHAP::Log - Logging subsystem using OpenBSD syslog conventions
+
+=head1 SYNOPSIS
+
+    use OpenHAP::Log;
+
+    # Initialize logging (typically once at startup)
+    OpenHAP::Log->init(
+        ident      => 'openhapd',
+        foreground => 0,
+        level      => 'info',
+        facility   => 'daemon',
+    );
+
+    # Log messages at various levels
+    OpenHAP::Log->write_log('info', 'Server started on port %d', $port);
+    OpenHAP::Log->write_log('warning', 'Connection timeout');
+    OpenHAP::Log->write_log('err', 'Failed to open file: %s', $!);
+
+    # Or use exported convenience functions
+    use OpenHAP::Log qw(:all);
+
+    log_info('Server started on port %d', $port);
+    log_warning('Connection timeout');
+    log_err('Failed to open file: %s', $!);
+
+    # Clean up at exit
+    OpenHAP::Log->finalize;
+
+=head1 DESCRIPTION
+
+OpenHAP::Log provides a logging subsystem following OpenBSD conventions.
+It supports:
+
+=over 4
+
+=item *
+
+Standard syslog(3) log levels and facilities
+
+=item *
+
+Foreground mode with timestamped, colored stderr output
+
+=item *
+
+Daemon mode with proper syslog integration
+
+=item *
+
+Printf-style message formatting
+
+=back
+
+=head1 CLASS METHODS
+
+=head2 init
+
+    OpenHAP::Log->init(%args);
+
+Initialize the logging subsystem. This should be called once at program
+startup. Options:
+
+=over 4
+
+=item C<ident> (string)
+
+Program identifier for syslog. Default: C<openhapd>.
+
+=item C<foreground> (boolean)
+
+If true, log to stderr instead of syslog. Default: C<0>.
+
+=item C<level> (string)
+
+Minimum log level. Messages below this level are discarded.
+Valid values: C<debug>, C<info>, C<notice>, C<warning>, C<err>,
+C<crit>, C<alert>, C<emerg>. Default: C<info>.
+
+=item C<facility> (string)
+
+Syslog facility. Valid values: C<auth>, C<authpriv>, C<cron>, C<daemon>,
+C<ftp>, C<kern>, C<local0>-C<local7>, C<lpr>, C<mail>, C<news>,
+C<syslog>, C<user>, C<uucp>. Default: C<daemon>.
+
+=item C<verbose> (integer)
+
+Verbosity level. If greater than 0, sets log level to C<debug>.
+Default: C<0>.
+
+=back
+
+=head2 close
+
+    OpenHAP::Log->finalize;
+
+Close the logging subsystem, releasing syslog resources.
+
+=head2 log
+
+    OpenHAP::Log->write_log($level, $message, @args);
+
+Log a message at the specified level.
+
+=over 4
+
+=item C<$level>
+
+Log level: C<debug>, C<info>, C<notice>, C<warning>, C<err>,
+C<crit>, C<alert>, or C<emerg>.
+
+=item C<$message>
+
+Message format string (printf-style).
+
+=item C<@args>
+
+Optional format arguments.
+
+=back
+
+=head2 is_initialized
+
+    my $bool = OpenHAP::Log->is_initialized;
+
+Returns true if the logging subsystem has been initialized.
+
+=head2 get_level
+
+    my $level = OpenHAP::Log->get_level;
+
+Returns the current numeric log level.
+
+=head2 is_foreground
+
+    my $bool = OpenHAP::Log->is_foreground;
+
+Returns true if logging to stderr (foreground mode).
+
+=head1 EXPORTED FUNCTIONS
+
+The following functions can be exported and called without the class prefix:
+
+    use OpenHAP::Log qw(:all);
+
+=over 4
+
+=item log_debug($message, @args)
+
+=item log_info($message, @args)
+
+=item log_notice($message, @args)
+
+=item log_warning($message, @args)
+
+=item log_err($message, @args)
+
+=item log_crit($message, @args)
+
+=item log_alert($message, @args)
+
+=item log_emerg($message, @args)
+
+=back
+
+=head1 LOG LEVELS
+
+Following syslog(3) conventions:
+
+    Level    Severity
+    -----    --------
+    debug    Debug messages
+    info     Informational messages
+    notice   Normal but significant conditions
+    warning  Warning conditions
+    err      Error conditions
+    crit     Critical conditions
+    alert    Action must be taken immediately
+    emerg    System is unusable
+
+=head1 EXAMPLES
+
+=head2 Daemon Mode
+
+    # In /etc/syslog.conf:
+    #   daemon.info  /var/log/daemon
+    #   daemon.debug /var/log/debug
+
+    OpenHAP::Log->init(
+        ident    => 'openhapd',
+        level    => 'info',
+        facility => 'daemon',
+    );
+
+    log_info('OpenHAP starting');
+    log_debug('Debug info here');  # Not logged (level < info)
+
+=head2 Foreground Mode
+
+    OpenHAP::Log->init(
+        foreground => 1,
+        level      => 'debug',
+    );
+
+    # Output:
+    # [2025-01-15 10:30:45] INFO: Server started
+    # [2025-01-15 10:30:45] DEBUG: Processing request
+
+=head2 Using with Verbose Flag
+
+    GetOptions('v|verbose+' => \my $verbose);
+
+    OpenHAP::Log->init(
+        foreground => $foreground,
+        verbose    => $verbose,
+    );
+
+=head1 OPENBSD CONVENTIONS
+
+This module follows OpenBSD conventions:
+
+=over 4
+
+=item *
+
+Uses standard syslog(3) facilities and priorities
+
+=item *
+
+Logs to daemon facility by default (appropriate for daemons)
+
+=item *
+
+Supports foreground mode for debugging with C<-f> flag
+
+=item *
+
+Uses pid and ndelay options for reliable syslog delivery
+
+=back
+
+=head1 SEE ALSO
+
+L<syslog(3)>, L<syslog.conf(5)>, L<Sys::Syslog>
+
+=cut

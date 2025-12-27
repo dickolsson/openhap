@@ -1,0 +1,37 @@
+# OpenHAP Configuration File
+# /etc/openhapd.conf
+#
+# See openhapd.conf(5) for complete documentation.
+
+# HAP Settings
+hap_name = "Home Bridge"
+hap_port = 51827
+hap_pin = 1995-1018
+hap_model = "OpenHAP"
+hap_manufacturer = "OpenBSD"
+
+# Storage
+db_path = /var/db/openhapd
+
+# Logging
+log_level = info
+log_facility = daemon
+
+# MQTT Broker
+mqtt_host = 127.0.0.1
+mqtt_port = 1883
+# mqtt_user = username
+# mqtt_pass = password
+
+# Devices
+# Thermostat example
+device tasmota thermostat bedroom {
+    name = "Bedroom Thermostat"
+    topic = tasmota_AABBCC
+}
+
+# Another thermostat
+device tasmota thermostat living_room {
+    name = "Living Room Thermostat"
+    topic = tasmota_DDEEFF
+}

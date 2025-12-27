@@ -1,0 +1,197 @@
+#!/usr/bin/expect -f
+#
+# Automated OpenBSD installation via serial console
+#
+# Usage: install-openbsd.exp <host> <port> [root_password] [proxy_url]
+#
+
+set timeout 300
+
+if {[llength $argv] < 2} {
+    puts stderr "Usage: install-openbsd.exp <host> <port> \[root_password\] \[proxy_url\]"
+    exit 1
+}
+
+set host [lindex $argv 0]
+set port [lindex $argv 1]
+set root_password [lindex $argv 2]
+set proxy_url [lindex $argv 3]
+
+if {$root_password eq ""} {
+    set root_password "openbsd"
+}
+
+if {$proxy_url eq ""} {
+    set proxy_url "none"
+}
+
+log_user 1
+
+# Helper proc to send response after matching
+proc respond {response} {
+    sleep 0.3
+    send "$response\r"
+}
+
+# Connect to console
+spawn telnet $host $port
+
+# Wait for telnet connection
+expect {
+    "Connected to localhost" {
+        send_user "\n==> Connected to VM console\n"
+    }
+    timeout {
+        send_user "\n==> ERROR: Failed to connect to VM console\n"
+        exit 1
+    }
+}
+
+# Wait for the installer menu
+send_user "\n==> Waiting for OpenBSD installer...\n"
+
+# Send an empty line to trigger prompt if already at installer
+sleep 2
+send "\r"
+
+expect {
+    "(I)nstall" {
+        send_user "\n==> Installer ready, starting installation\n"
+    }
+    "Welcome to the OpenBSD" {
+        # Wait a bit more for the menu to appear
+        exp_continue
+    }
+    "boot>" {
+        send "\r"
+        exp_continue
+    }
+    timeout {
+        send_user "\n==> ERROR: Timeout waiting for installer\n"
+        exit 1
+    }
+}
+
+# Start installation
+sleep 0.5
+send "i\r"
+
+# Terminal type
+expect "Terminal type?" { respond "" }
+
+# System hostname
+expect "System hostname?" { respond "openbsd-test" }
+
+# Network interface
+expect "Network interface to configure?" { respond "" }
+
+# IPv4 address
+expect "IPv4 address" { respond "dhcp" }
+
+# IPv6 address
+expect "IPv6 address" { respond "none" }
+
+# Done with network interfaces
+expect "Network interface to configure?" { respond "done" }
+
+# Password for root - wait for the actual prompt
+expect "Password for root account?" 
+sleep 0.5
+send "$root_password\r"
+
+expect "Password for root account? (again)" 
+sleep 0.5
+send "$root_password\r"
+
+# Start sshd
+expect "Start sshd(8)" { respond "yes" }
+
+# Setup a user
+expect "Setup a user?" { respond "no" }
+
+# Allow root ssh login
+expect "Allow root ssh login?" { respond "yes" }
+
+# Timezone
+expect "What timezone are you in?" { respond "UTC" }
+
+# Root disk
+expect "Which disk is the root disk?" { respond "" }
+
+# Disk encryption - no
+expect "Encrypt the root disk" { respond "no" }
+
+# Use whole disk or GPT
+expect {
+    "Use (W)hole disk" { respond "w" }
+    "whole disk" { respond "w" }
+}
+
+# Auto layout
+expect {
+    "Use (A)uto layout" { respond "a" }
+    "Auto layout" { respond "a" }
+}
+
+# Additional disks to initialize - none
+expect "Which disk do you wish to initialize?" { respond "done" }
+
+# Location of sets
+expect "Location of sets?" { respond "http" }
+
+# HTTP proxy
+expect "HTTP proxy URL?" { respond $proxy_url }
+
+# HTTP server
+expect "HTTP Server?" { respond "cdn.openbsd.org" }
+
+# Server directory - accept default
+expect "Server directory?" { respond "" }
+
+# Select sets - skip games and X
+expect "Set name(s)?" {
+    sleep 0.3
+    send -- "-game* -x*\r"
+}
+
+# Confirm selection
+expect "Set name(s)?" { respond "done" }
+
+send_user "\n==> Downloading and installing sets (this may take several minutes)...\n"
+
+# Wait for sets to install and prompt for more sets
+set timeout 900
+expect {
+    "Continue without verification?" { 
+        respond "yes" 
+        exp_continue
+    }
+    "Location of sets?" { respond "done" }
+    timeout {
+        send_user "\n==> ERROR: Timeout during set installation\n"
+        exit 1
+    }
+}
+
+# Time confirmation (may or may not appear)
+set timeout 60
+expect {
+    "Time appears wrong" { 
+        respond "yes"
+        exp_continue
+    }
+    "CONGRATULATIONS" {
+        send_user "\n==> Installation completed!\n"
+    }
+}
+
+# Reboot - choose halt instead so we can restart without miniroot
+expect "(R)eboot?" { respond "h" }
+
+send_user "\n==> System halting - VM will need to be restarted\n"
+send_user "==> Installation script finished successfully\n"
+
+# Wait for system to halt
+sleep 5
+expect eof
+exit 0

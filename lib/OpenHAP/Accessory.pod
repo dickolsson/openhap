@@ -1,0 +1,23 @@
+=head1 NAME
+
+OpenHAP::Accessory - Base class for HAP accessories
+
+=head1 SYNOPSIS
+
+    use OpenHAP::Accessory;
+
+    my $accessory = OpenHAP::Accessory->new(
+        aid => 1,
+        name => 'My Accessory',
+        manufacturer => 'Acme Corp',
+        model => 'Model X',
+    );
+
+    $accessory->add_service($service);
+
+=head1 DESCRIPTION
+
+This module provides the base class for HomeKit accessories with
+required Accessory Information service.
+
+=cut

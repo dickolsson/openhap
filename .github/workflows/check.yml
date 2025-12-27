@@ -1,0 +1,74 @@
+name: Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Perl
+        uses: ./.github/actions/setup-perl
+        with:
+          perl-version: '5.38'
+      
+      - name: Install Perl::Tidy
+        run: cpanm --notest Perl::Tidy
+      
+      - name: Check formatting
+        run: make format
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Perl
+        uses: ./.github/actions/setup-perl
+        with:
+          perl-version: '5.38'
+      
+      - name: Install dependencies
+        run: make deps
+      
+      - name: Install Perl::Critic
+        run: cpanm --notest Perl::Critic
+      
+      - name: Check lint
+        run: make lint
+      
+      - name: Check Perl syntax
+        run: |
+          find lib -name "*.pm" -exec perl -I lib -cw {} \;
+          find bin -type f -exec perl -I lib -cw {} \;
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        perl-version: ['5.36', '5.38']
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Perl
+        uses: ./.github/actions/setup-perl
+        with:
+          perl-version: ${{ matrix.perl-version }}
+      
+      - name: Install dependencies
+        run: make deps
+      
+      - name: Run tests
+        run: make test

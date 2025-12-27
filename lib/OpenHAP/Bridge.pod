@@ -1,0 +1,20 @@
+=head1 NAME
+
+OpenHAP::Bridge - HAP bridge accessory
+
+=head1 SYNOPSIS
+
+    use OpenHAP::Bridge;
+
+    my $bridge = OpenHAP::Bridge->new(
+        name => 'My Home Bridge',
+    );
+
+    $bridge->add_bridged_accessory($accessory);
+
+=head1 DESCRIPTION
+
+This module represents a HAP bridge that can contain multiple
+bridged accessories.
+
+=cut

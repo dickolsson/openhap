@@ -1,0 +1,242 @@
+.\" $OpenBSD$
+.\"
+.\" Copyright (c) 2025 Dick Olsson <dick@aglim.se>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: December 26 2025 $
+.Dt OPENHAPD.CONF 5
+.Os
+.Sh NAME
+.Nm openhapd.conf
+.Nd OpenHAP daemon configuration file
+.Sh DESCRIPTION
+.Nm
+is the configuration file for the
+.Xr openhapd 8
+daemon.
+The file uses a simple key-value format with device blocks for
+defining HomeKit accessories.
+.Pp
+Lines beginning with
+.Sq #
+are comments and are ignored.
+.Sh GLOBAL OPTIONS
+The following global options are available:
+.Bl -tag -width Ds
+.It Ic hap_name Ar string
+The name of the HomeKit bridge as it appears in the iOS Home app.
+Default:
+.Dq OpenHAP Bridge .
+.It Ic hap_port Ar number
+TCP port for the HAP server.
+Default: 51827.
+.It Ic hap_pin Ar XXXX-XXXX
+The 8-digit setup code used for pairing.
+Format: XXXX-XXXX where X is a digit 0-9.
+Dashes are for readability only and are stripped during processing.
+The PIN is validated as an 8-digit number.
+The PIN is validated as an 8-digit number.
+Certain values are invalid per the HAP specification
+(after stripping dashes):
+00000000, 11111111, 22222222, 33333333, 44444444,
+55555555, 66666666, 77777777, 88888888, 99999999,
+12345678, 87654321.
+Default: 1995-1018.
+.It Ic hap_model Ar string
+Model name reported to HomeKit.
+Default:
+.Dq OpenHAP .
+.It Ic hap_manufacturer Ar string
+Manufacturer name reported to HomeKit.
+Default:
+.Dq OpenBSD .
+.It Ic db_path Ar path
+Directory for storing pairing database and cryptographic keys.
+Default:
+.Pa /var/db/openhapd .
+.It Ic log_level Ar level
+Logging verbosity level.
+Valid values:
+.Cm debug , info , notice , warning , err , crit , alert , emerg .
+Default:
+.Cm info .
+.It Ic log_facility Ar facility
+Syslog facility for log messages.
+Valid values:
+.Cm daemon , local0 Ns \(en Ns Cm local7 , user .
+Default:
+.Cm daemon .
+.It Ic mqtt_host Ar hostname
+Hostname or IP address of the MQTT broker.
+Default: 127.0.0.1.
+.It Ic mqtt_port Ar number
+TCP port of the MQTT broker.
+Default: 1883.
+.It Ic mqtt_user Ar username
+Username for MQTT authentication.
+Optional.
+.It Ic mqtt_pass Ar password
+Password for MQTT authentication.
+Optional.
+.El
+.Sh DEVICE BLOCKS
+Devices are defined using the following syntax:
+.Bd -literal -offset indent
+device <type> <subtype> <id> {
+    name = "<display name>"
+    topic = "<mqtt topic>"
+    [additional options...]
+}
+.Ed
+.Pp
+The parameters are:
+.Bl -tag -width "subtypeXX"
+.It Ar type
+Device driver type.
+Currently only
+.Cm tasmota
+is supported.
+.It Ar subtype
+Device subtype.
+For
+.Cm tasmota ,
+valid values are:
+.Cm thermostat , heater , sensor .
+.It Ar id
+Unique identifier for the device within the configuration.
+Used for internal reference.
+.It Ic name
+Display name shown in the iOS Home app.
+Required.
+.It Ic topic
+MQTT topic prefix for the device.
+For Tasmota devices, this is the topic configured in the device's
+MQTT settings (default:
+.Dq tasmota_%06X
+where %06X is the last 6 hex digits of the MAC address).
+Required.
+.El
+.Pp
+Additional options depend on the device subtype:
+.Ss Thermostat Options
+Tasmota thermostat devices support the following options:
+.Bl -tag -width "target_temp_topicXX"
+.It Ic current_temp_topic Ar topic
+MQTT topic for current temperature readings.
+Default:
+.Ar topic Ns /SENSOR .
+.It Ic target_temp_topic Ar topic
+MQTT topic for target temperature.
+Default:
+.Ar topic Ns /TARGET .
+.It Ic state_topic Ar topic
+MQTT topic for heater state (on/off).
+Default:
+.Ar topic Ns /STATE .
+.It Ic min_temp Ar celsius
+Minimum temperature in Celsius.
+Default: 10.0.
+.It Ic max_temp Ar celsius
+Maximum temperature in Celsius.
+Default: 30.0.
+.It Ic temp_step Ar celsius
+Temperature adjustment step size.
+Default: 0.5.
+.El
+.Sh FILES
+.Bl -tag -width "/var/db/openhapd/XX" -compact
+.It Pa /etc/openhapd.conf
+Default configuration file location.
+.It Pa /etc/examples/openhapd.conf
+Example configuration file installed by
+.Cm make install .
+.El
+.Sh EXAMPLES
+Minimal configuration with a single thermostat:
+.Bd -literal -offset indent
+hap_name = "Home Bridge"
+hap_pin = 9876-5432
+
+mqtt_host = 192.168.1.10
+
+device tasmota thermostat bedroom {
+    name = "Bedroom Thermostat"
+    topic = tasmota_AABBCC
+}
+.Ed
+.Pp
+Multiple devices with custom MQTT settings:
+.Bd -literal -offset indent
+hap_name = "OpenHAP"
+hap_port = 51827
+hap_pin = 1112-2333
+
+mqtt_host = mqtt.local
+mqtt_port = 1883
+mqtt_user = homekit
+mqtt_pass = secretpassword
+
+log_level = debug
+log_facility = local0
+
+device tasmota thermostat bedroom {
+    name = "Bedroom"
+    topic = tasmota_AABBCC
+    min_temp = 15.0
+    max_temp = 25.0
+}
+
+device tasmota thermostat living_room {
+    name = "Living Room"
+    topic = tasmota_DDEEFF
+}
+
+device tasmota thermostat kitchen {
+    name = "Kitchen"
+    topic = tasmota_112233
+}
+.Ed
+.Sh SEE ALSO
+.Xr openhapd 8 ,
+.Xr hapctl 8 ,
+.Xr mosquitto 8 ,
+.Xr mdnsd 8 ,
+.Xr syslog.conf 5
+.Sh STANDARDS
+The MQTT topic structure follows the Tasmota firmware conventions.
+See
+.Lk https://tasmota.github.io/docs/MQTT/
+for details on Tasmota MQTT topics.
+.Sh HISTORY
+The
+.Nm
+file format first appeared with
+.Xr openhapd 8
+in 2025.
+.Sh AUTHORS
+.An Dick Olsson Aq Mt dick@aglim.se
+.Sh CAVEATS
+The
+.Ic hap_pin
+is stored in plain text in the configuration file.
+Ensure appropriate file permissions (mode 0600, owned by root).
+.Pp
+Changing the
+.Ic hap_name
+or
+.Ic hap_pin
+after pairing may require re-pairing all controllers.
+.Pp
+MQTT passwords are stored in plain text.
+Consider using certificate-based authentication for production deployments.

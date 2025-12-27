@@ -1,0 +1,22 @@
+=head1 NAME
+
+OpenHAP::Tasmota::Sensor - Tasmota temperature sensor HAP accessory
+
+=head1 SYNOPSIS
+
+    use OpenHAP::Tasmota::Sensor;
+
+    my $sensor = OpenHAP::Tasmota::Sensor->new(
+        aid => 3,
+        name => 'Kitchen Temperature',
+        mqtt_topic => 'tasmota_112233',
+        mqtt_client => $mqtt,
+        sensor_type => 'DS18B20',
+    );
+
+=head1 DESCRIPTION
+
+This module implements a HAP temperature sensor accessory for Tasmota
+devices with temperature sensors (DS18B20, DHT22, etc).
+
+=cut

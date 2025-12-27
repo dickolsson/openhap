@@ -1,0 +1,35 @@
+=head1 NAME
+
+OpenHAP::TLV - TLV8 encoding/decoding for HAP protocol
+
+=head1 SYNOPSIS
+
+    use OpenHAP::TLV;
+
+    # Encode
+    my $encoded = OpenHAP::TLV::encode(
+        0x06 => pack('C', 1),  # State
+        0x00 => pack('C', 0),  # Method
+    );
+
+    # Decode
+    my %decoded = OpenHAP::TLV::decode($encoded);
+
+=head1 DESCRIPTION
+
+This module implements TLV8 (Type-Length-Value with 8-bit fields) encoding
+and decoding as specified in the HomeKit Accessory Protocol.
+
+=head1 FUNCTIONS
+
+=head2 encode(%items)
+
+Encodes a hash of type => value pairs into TLV8 format.
+Values longer than 255 bytes are automatically split into chunks.
+
+=head2 decode($data)
+
+Decodes TLV8 data into a hash of type => value pairs.
+Automatically concatenates chunks with the same type.
+
+=cut

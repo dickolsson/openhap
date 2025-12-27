@@ -1,0 +1,25 @@
+=head1 NAME
+
+OpenHAP::Session - Encrypted session state for HAP connections
+
+=head1 SYNOPSIS
+
+    use OpenHAP::Session;
+
+    my $session = OpenHAP::Session->new(socket => $socket);
+
+    # After pair-verify
+    $session->set_encryption($encrypt_key, $decrypt_key);
+    $session->set_verified($controller_id);
+
+    # Encrypt/decrypt data
+    my $encrypted = $session->encrypt($plaintext);
+    my $plaintext = $session->decrypt($encrypted);
+
+=head1 DESCRIPTION
+
+This module manages the encrypted session state for HAP connections,
+including ChaCha20-Poly1305 encryption/decryption with proper nonce
+management and frame handling.
+
+=cut

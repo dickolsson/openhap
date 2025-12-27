@@ -1,0 +1,51 @@
+{
+	"name": "OpenHAP Perl Development",
+	"image": "perl:5.38",
+	
+	"features": {
+		"ghcr.io/devcontainers/features/git:1": {
+			"version": "latest"
+		},
+		"ghcr.io/devcontainers/features/github-cli:1": {
+			"version": "latest"
+		}
+	},
+	
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"richterger.perl",
+				"editorconfig.editorconfig",
+				"github.vscode-pull-request-github",
+				"github.copilot",
+				"github.copilot-chat"
+			],
+			"settings": {
+				"perl.perlInc": [
+					"${workspaceFolder}/lib"
+				],
+				"perl.perlcritic.enabled": true,
+				"perl.perlcritic.severity": 4,
+				"perl.perltidy.enabled": true,
+				"editor.tabSize": 8,
+				"editor.insertSpaces": false,
+				"editor.detectIndentation": false,
+				"files.trimTrailingWhitespace": true,
+				"files.insertFinalNewline": true,
+				"[perl]": {
+					"editor.defaultFormatter": "richterger.perl",
+					"editor.tabSize": 8,
+					"editor.insertSpaces": false
+				}
+			}
+		}
+	},
+	
+	"postCreateCommand": "cpanm --notest App::cpanminus && cpanm --notest --installdeps . && cpanm --notest Perl::Critic Perl::Tidy",
+	
+	"remoteUser": "root",
+	
+	"mounts": [
+		"source=${localWorkspaceFolder}/.devcontainer/bash_history,target=/root/.bash_history,type=bind,consistency=cached"
+	]
+}

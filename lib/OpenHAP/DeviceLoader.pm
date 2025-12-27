@@ -1,0 +1,199 @@
+# ex:ts=8 sw=4:
+# $OpenBSD$
+#
+# Copyright (c) 2025 Dick Olsson <hi@dickolsson.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+use v5.36;
+
+package OpenHAP::DeviceLoader;
+
+use OpenHAP::Log qw(:all);
+use OpenHAP::Tasmota::Thermostat;
+
+# $class->new():
+#	Create new device loader instance.
+sub new($class)
+{
+	bless {
+		next_aid => 2,    # AID 1 is the bridge
+		devices  => [],
+	}, $class;
+}
+
+# $self->load_devices($config, $hap, $mqtt):
+#	Load devices from configuration and add them to HAP bridge.
+#	Returns number of successfully loaded devices.
+sub load_devices( $self, $config, $hap, $mqtt )
+{
+	my @devices = $config->get_devices();
+	log_debug( 'Loading %d device(s) from configuration', scalar @devices );
+
+	my $loaded_count   = 0;
+	my $mqtt_connected = $mqtt->is_connected();
+
+	for my $device (@devices) {
+		my $accessory =
+		    $self->_create_device( $device, $mqtt, $mqtt_connected );
+		next unless defined $accessory;
+
+		$hap->add_accessory($accessory);
+		push @{ $self->{devices} }, $accessory;
+		$loaded_count++;
+
+		log_info(
+			'Added %s: %s (AID=%d)',
+			$self->_device_type_name($device),
+			$device->{name}, $accessory->{aid} );
+	}
+
+	log_info( 'Loaded %d device(s), %d skipped',
+		$loaded_count, scalar(@devices) - $loaded_count );
+
+	return $loaded_count;
+}
+
+# $self->get_devices():
+#	Return list of loaded device accessory objects.
+sub get_devices($self)
+{
+	return @{ $self->{devices} };
+}
+
+# $self->_create_device($device, $mqtt, $mqtt_connected):
+#	Create accessory from device configuration.
+#	Returns accessory object or undef on error.
+sub _create_device( $self, $device, $mqtt, $mqtt_connected )
+{
+	my $dev_type    = $device->{type}    // 'unknown';
+	my $dev_subtype = $device->{subtype} // 'unknown';
+
+	log_debug( 'Processing device: type=%s, subtype=%s, name=%s',
+		$dev_type, $dev_subtype, $device->{name} // '<unnamed>' );
+
+	# Validate device type
+	unless ( $self->_is_supported_device( $dev_type, $dev_subtype ) ) {
+		log_debug( 'Skipping unsupported device type: %s/%s',
+			$dev_type, $dev_subtype );
+		return;
+	}
+
+	# Validate required fields
+	return unless $self->_validate_device($device);
+
+	# Create device with error handling
+	my $accessory;
+	eval {
+		$accessory =
+		    $self->_instantiate_device( $device, $mqtt, $dev_type,
+			$dev_subtype );
+	};
+	if ($@) {
+		log_err(
+			'Failed to create %s "%s": %s',
+			$self->_device_type_name($device),
+			$device->{name}, $@
+		);
+		return;
+	}
+
+	# Subscribe to MQTT if connected
+	if ($mqtt_connected) {
+		$self->_subscribe_mqtt( $accessory, $device );
+	}
+	else {
+		log_debug(
+			'MQTT not connected, deferring subscription for "%s"',
+			$device->{name} );
+	}
+
+	return $accessory;
+}
+
+# $self->_is_supported_device($type, $subtype):
+#	Check if device type is supported.
+sub _is_supported_device( $self, $type, $subtype )
+{
+	return 1 if $type eq 'tasmota' && $subtype eq 'thermostat';
+	return;
+}
+
+# $self->_validate_device($device):
+#	Validate required device fields. Returns true if valid.
+sub _validate_device( $self, $device )
+{
+	unless ( defined $device->{name} && $device->{name} ne '' ) {
+		log_err('Device missing required field: name');
+		return;
+	}
+
+	unless ( defined $device->{topic} && $device->{topic} ne '' ) {
+		log_err( 'Device "%s" missing required field: topic',
+			$device->{name} );
+		return;
+	}
+
+	unless ( defined $device->{id} && $device->{id} ne '' ) {
+		log_warning(
+			'Device "%s" missing id field, using topic as serial',
+			$device->{name} );
+		$device->{id} = $device->{topic};
+	}
+
+	return 1;
+}
+
+# $self->_instantiate_device($device, $mqtt, $type, $subtype):
+#	Instantiate device object based on type.
+sub _instantiate_device( $self, $device, $mqtt, $type, $subtype )
+{
+	if ( $type eq 'tasmota' && $subtype eq 'thermostat' ) {
+		return OpenHAP::Tasmota::Thermostat->new(
+			aid         => $self->{next_aid}++,
+			name        => $device->{name},
+			mqtt_topic  => $device->{topic},
+			mqtt_client => $mqtt,
+			serial      => $device->{id},
+		);
+	}
+
+	die "Unsupported device type: $type/$subtype";
+}
+
+# $self->_subscribe_mqtt($accessory, $device):
+#	Subscribe device to MQTT topics.
+sub _subscribe_mqtt( $self, $accessory, $device )
+{
+	eval { $accessory->subscribe_mqtt(); };
+	if ($@) {
+		log_err( 'Failed to subscribe MQTT for "%s": %s',
+			$device->{name}, $@ );
+	}
+	else {
+		log_info( 'Subscribed to MQTT topic: %s', $device->{topic} );
+	}
+}
+
+# $self->_device_type_name($device):
+#	Return human-readable device type name.
+sub _device_type_name( $self, $device )
+{
+	my $type    = $device->{type}    // 'unknown';
+	my $subtype = $device->{subtype} // 'unknown';
+
+	return 'thermostat' if $type eq 'tasmota' && $subtype eq 'thermostat';
+	return "$type/$subtype";
+}
+
+1;

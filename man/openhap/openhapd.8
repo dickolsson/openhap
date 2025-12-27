@@ -1,0 +1,199 @@
+.\" $OpenBSD$
+.\"
+.\" Copyright (c) 2025 Dick Olsson <dick@aglim.se>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: December 26 2025 $
+.Dt OPENHAPD 8
+.Os
+.Sh NAME
+.Nm openhapd
+.Nd HomeKit Accessory Protocol daemon
+.Sh SYNOPSIS
+.Nm openhapd
+.Op Fl fnv
+.Op Fl c Ar file
+.Sh DESCRIPTION
+The
+.Nm
+daemon implements the HomeKit Accessory Protocol (HAP),
+enabling Apple HomeKit integration with MQTT-connected Tasmota devices
+on
+.Ox .
+.Pp
+.Nm
+acts as a bridge between HomeKit controllers (such as the iOS Home app)
+and devices controlled via MQTT,
+translating HAP requests into MQTT commands and publishing device state
+changes back to HomeKit.
+.Pp
+The daemon implements the complete HAP specification including:
+.Bl -bullet -compact
+.It
+Secure pairing using SRP-6a (Secure Remote Password)
+.It
+Session encryption with ChaCha20-Poly1305 AEAD
+.It
+Curve25519 (X25519) key exchange for session establishment
+.It
+Ed25519 digital signatures for authentication
+.It
+HKDF-SHA-512 for key derivation
+.It
+mDNS service advertisement
+.El
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl c Ar file
+Specify the configuration file.
+The default is
+.Pa /etc/openhapd.conf .
+.It Fl f
+Run in the foreground.
+By default,
+.Nm
+will daemonize and log to
+.Xr syslog 3 .
+With this option,
+.Nm
+stays in the foreground and logs to
+.Em stderr .
+.It Fl n
+Check the configuration file for syntax errors and exit.
+No daemon is started.
+.It Fl v
+Increase verbosity.
+Can be specified multiple times for more detailed logging.
+Each use increases the log level:
+.Fl v
+enables debug logging,
+.Fl vv
+adds trace information.
+.El
+.Sh FILES
+.Bl -tag -width "/var/db/openhapd/pairingsXX" -compact
+.It Pa /etc/openhapd.conf
+Default configuration file.
+.It Pa /var/db/openhapd/
+State directory containing pairing database and cryptographic keys.
+.It Pa /var/db/openhapd/pairings
+Database of paired HomeKit controllers.
+.It Pa /var/db/openhapd/ltsk
+Long-term secret key (Ed25519 private key).
+.It Pa /var/db/openhapd/ltpk
+Long-term public key (Ed25519 public key).
+.It Pa /var/run/openhapd.pid
+Process ID file.
+.El
+.Sh EXAMPLES
+Check the configuration file:
+.Bd -literal -offset indent
+# openhapd -n
+.Ed
+.Pp
+Run in the foreground with verbose logging:
+.Bd -literal -offset indent
+# openhapd -f -v
+.Ed
+.Pp
+Typical daemon startup via
+.Xr rc 8 :
+.Bd -literal -offset indent
+# rcctl enable openhapd
+# rcctl start openhapd
+.Ed
+.Sh DIAGNOSTICS
+.Nm
+logs to
+.Xr syslog 3
+using the
+.Dq daemon
+facility.
+When run in the foreground with
+.Fl f ,
+messages are written to
+.Em stderr .
+.Pp
+Log messages include:
+.Bl -tag -width "Not pairedXX"
+.It Dq Starting OpenHAP server
+Daemon started successfully and listening for connections.
+.It Dq Not paired - use Home app with PIN: XXX-XX-XXX
+The accessory is not paired with any HomeKit controller.
+Use the displayed PIN to pair via the iOS Home app.
+.It Dq Connected to MQTT broker at host:port
+Successfully connected to the MQTT broker.
+.It Dq MQTT broker not available, will retry in background
+Could not connect to MQTT broker on startup.
+.Nm
+will continue attempting to connect.
+.It Dq Paired with controller: identifier
+A new HomeKit controller successfully completed pairing.
+.It Dq Secure session established
+An encrypted session was successfully negotiated with a paired controller.
+.El
+.Sh SEE ALSO
+.Xr hapctl 8 ,
+.Xr openhapd.conf 5 ,
+.Xr syslog 3 ,
+.Xr rc 8 ,
+.Xr rc.conf 8
+.Pp
+HomeKit Accessory Protocol Specification (Non-Commercial Version):
+.Lk https://developer.apple.com/homekit/
+.Sh STANDARDS
+.Nm
+implements the HomeKit Accessory Protocol Specification R2,
+including:
+.Bl -bullet -compact
+.It
+RFC 5054: Using the Secure Remote Password (SRP) Protocol for TLS Authentication
+.It
+RFC 7539: ChaCha20 and Poly1305 for IETF Protocols
+.It
+RFC 5869: HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
+.It
+RFC 8032: Edwards-Curve Digital Signature Algorithm (EdDSA)
+.It
+RFC 7748: Elliptic Curves for Security (Curve25519)
+.El
+.Sh HISTORY
+.Nm
+was written from scratch in 2025 for
+.Ox
+as a native implementation of the HomeKit Accessory Protocol.
+.Sh AUTHORS
+.An Dick Olsson Aq Mt dick@aglim.se
+.Sh CAVEATS
+.Nm
+requires a working MQTT broker (such as
+.Xr mosquitto 8 )
+and an mDNS daemon (such as
+.Xr mdnsd 8 )
+to function properly.
+.Pp
+The HAP PIN code is logged on first startup when the accessory is unpaired.
+Protect access to system logs accordingly.
+.Pp
+Pairing data stored in
+.Pa /var/db/openhapd/
+contains cryptographic keys.
+The directory should be owned by
+.Dq _openhap
+with mode 0700.
+.Sh BUGS
+.Nm
+currently only supports Tasmota devices.
+Additional device types and protocols may be added in future versions.
