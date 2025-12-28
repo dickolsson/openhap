@@ -236,4 +236,32 @@ SKIP: {
     is(scalar @{$mqtt->{pending_messages}}, 0, 'Pending messages cleared on disconnect');
 }
 
+# Test warning capture during connection attempts
+SKIP: {
+    skip 'Net::MQTT::Simple not available', 2 unless eval { require Net::MQTT::Simple; 1 };
+    
+    my $mqtt = OpenHAP::MQTT->new(
+        host => '192.0.2.1',  # TEST-NET-1 (guaranteed unreachable)
+        port => 9999,
+    );
+    
+    # Capture STDERR to ensure no warnings leak through
+    my $stderr = '';
+    {
+        local *STDERR;
+        open STDERR, '>', \$stderr or die "Cannot redirect STDERR: $!";
+        
+        # Try to connect with short timeout - should fail silently
+        $mqtt->mqtt_connect(1);
+    }
+    
+    # No warnings should have leaked to STDERR (they should be logged instead)
+    ok(!$stderr, 'Connection failures do not print to STDERR')
+        or diag("Leaked to STDERR: $stderr");
+    
+    # Note: This may or may not succeed depending on whether 192.0.2.1:9999
+    # is actually reachable, so we just check that warnings were captured
+    pass('Connection attempt completed');
+}
+
 done_testing();

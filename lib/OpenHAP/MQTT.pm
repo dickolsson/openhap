@@ -31,6 +31,13 @@ sub mqtt_connect( $self, $timeout = 10 )
 
 	# Try to load Net::MQTT::Simple if available
 	local $@;
+
+	# Capture warnings from Net::MQTT::Simple
+	my @warnings;
+	local $SIG{__WARN__} = sub {
+		push @warnings, shift;
+	};
+
 	my $success = eval {
 
 		# Ensure site_perl is in @INC
@@ -64,6 +71,15 @@ sub mqtt_connect( $self, $timeout = 10 )
 		return 1;
 	};
 	alarm(0);    # Ensure alarm is cleared on error path
+
+	# Log captured warnings through our logging system
+	for my $warning (@warnings) {
+		chomp $warning;
+
+	     # Strip program name if present (e.g., "/usr/local/bin/openhapd: ")
+		$warning =~ s{^(?:.*/)?[^/]+:\s+}{};
+		log_debug( 'MQTT connection warning: %s', $warning );
+	}
 
 	if ( $@ || !$success ) {
 		my $err = $@ || 'Unknown error';
@@ -147,7 +163,22 @@ sub tick( $self, $timeout = 0 )
 	my $processed = 0;
 
 	# Process any incoming messages with timeout
+	# Capture warnings from Net::MQTT::Simple's connection attempts
+	my @warnings;
+	local $SIG{__WARN__} = sub {
+		push @warnings, shift;
+	};
+
 	eval { $self->{client}->tick($timeout); };
+
+	# Log captured warnings through our logging system
+	for my $warning (@warnings) {
+		chomp $warning;
+
+	     # Strip program name if present (e.g., "/usr/local/bin/openhapd: ")
+		$warning =~ s{^(?:.*/)?[^/]+:\s+}{};
+		log_debug( 'MQTT: %s', $warning );
+	}
 
 	if ($@) {
 
