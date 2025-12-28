@@ -55,9 +55,16 @@ sub load_pairings($self)
 
 	log_debug('Loading pairings from storage');
 	my %pairings;
-	open my $fh, '<', $self->{pairings_file}
-	    or die "Cannot open pairings file: $!";
-	flock( $fh, LOCK_SH ) or die "Cannot lock pairings file: $!";
+	open my $fh, '<', $self->{pairings_file} or do {
+		log_err( 'Cannot open pairings file %s: %s',
+			$self->{pairings_file}, $! );
+		die "Cannot open pairings file: $!";
+	};
+	flock( $fh, LOCK_SH ) or do {
+		log_err( 'Cannot lock pairings file %s: %s',
+			$self->{pairings_file}, $! );
+		die "Cannot lock pairings file: $!";
+	};
 
 	while ( my $line = <$fh> ) {
 		chomp $line;
@@ -111,10 +118,16 @@ sub _save_pairings( $self, $pairings )
 	my $old_umask = umask(0077);
 	open my $fh, '>', $self->{pairings_file} or do {
 		umask($old_umask);
+		log_err( 'Cannot open pairings file %s for writing: %s',
+			$self->{pairings_file}, $! );
 		croak "Cannot open pairings file: $!";
 	};
 	umask($old_umask);
-	flock( $fh, LOCK_EX ) or croak "Cannot lock pairings file: $!";
+	flock( $fh, LOCK_EX ) or do {
+		log_err( 'Cannot lock pairings file %s: %s',
+			$self->{pairings_file}, $! );
+		croak "Cannot lock pairings file: $!";
+	};
 
 	print $fh "# OpenHAP Pairings Database\n";
 	print $fh "# Format: controller_id:ltpk_hex:permissions\n";

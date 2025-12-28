@@ -33,12 +33,17 @@ our $g = 5;
 sub generate_random_bytes($length)
 {
 	# Use /dev/urandom for random bytes
-	open my $fh, '<', '/dev/urandom'
-	    or die "Cannot open /dev/urandom: $!";
+	open my $fh, '<', '/dev/urandom' or do {
+		log_err( 'Cannot open /dev/urandom: %s', $! );
+		die "Cannot open /dev/urandom: $!";
+	};
 	my $n = read $fh, ( my $bytes ), $length;
 	close $fh;
-	die "Short read from /dev/urandom: got $n, expected $length"
-	    if !defined $n || $n != $length;
+	if ( !defined $n || $n != $length ) {
+		log_err( 'Short read from /dev/urandom: got %d, expected %d',
+			$n // 0, $length );
+		die "Short read from /dev/urandom: got $n, expected $length";
+	}
 
 	return $bytes;
 }

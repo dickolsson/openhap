@@ -29,17 +29,31 @@ use OpenHAP::Log qw(:all);
 sub daemonize( $class, $logfile = '/var/log/openhapd.log' )
 {
 	my $pid = fork;
-	die "Cannot fork: $!" unless defined $pid;
+	unless ( defined $pid ) {
+		log_err( 'Cannot fork: %s', $! );
+		die "Cannot fork: $!";
+	}
 	exit 0 if $pid;    # Parent exits, child continues
 
 	$DB::inhibit_exit = 0;
-	setsid() or die "Cannot start new session: $!";
+	setsid() or do {
+		log_err( 'Cannot start new session: %s', $! );
+		die "Cannot start new session: $!";
+	};
 
 	# Redirect standard file descriptors
-	open STDIN, '<', '/dev/null' or die "Cannot read /dev/null: $!";
-	open STDOUT, '>>', $logfile
-	    or die "Cannot write to $logfile: $!";
-	open STDERR, '>&', \*STDOUT or die "Cannot dup STDOUT: $!";
+	open STDIN, '<', '/dev/null' or do {
+		log_err( 'Cannot read /dev/null: %s', $! );
+		die "Cannot read /dev/null: $!";
+	};
+	open STDOUT, '>>', $logfile or do {
+		log_err( 'Cannot write to %s: %s', $logfile, $! );
+		die "Cannot write to $logfile: $!";
+	};
+	open STDERR, '>&', \*STDOUT or do {
+		log_err( 'Cannot dup STDOUT: %s', $! );
+		die "Cannot dup STDOUT: $!";
+	};
 
 	log_debug( 'Daemonized successfully, PID: %d', $$ );
 	return;

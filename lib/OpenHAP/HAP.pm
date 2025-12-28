@@ -99,7 +99,12 @@ sub run($self)
 		Type      => SOCK_STREAM,
 		Reuse     => 1,
 		Listen    => 10,
-	) or die "Cannot create server: $!";
+	    )
+	    or do {
+		log_err( 'Cannot create server socket on port %d: %s',
+			$self->{port}, $! );
+		die "Cannot create server: $!";
+	    };
 
 	log_info( 'OpenHAP server listening on port %d', $self->{port} );
 	log_debug( 'Pairing PIN: %s', $self->{pin} );

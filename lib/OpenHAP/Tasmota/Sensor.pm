@@ -97,7 +97,7 @@ sub _handle_sensor_data( $self, $payload )
 	};
 
 	if ($@) {
-		warn "Error parsing sensor data: $@\n";
+		log_err( 'Error parsing sensor data: %s', $@ );
 	}
 }
 
