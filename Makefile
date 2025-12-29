@@ -1,17 +1,27 @@
-.PHONY: all build check clean clean-man deps format format-fix install install-man integration lint man package provision test uninstall vm-up
+.PHONY: all build check clean clean-man deps format format-fix install install-man integration lint man package test uninstall upgrade vm-provision vm-up
 
-# Configuration
-BUILD			?= $(shell git rev-list --count HEAD)
-TAG				?= b$(BUILD)
+# Filesystem configuration
 PREFIX			?= /usr/local
 BINDIR			?= $(PREFIX)/bin
 LIBDIR			?= $(PREFIX)/libdata/perl5/site_perl
 SHAREDIR		?= $(PREFIX)/share
 MANDIR			?= $(PREFIX)/man
 SYSCONFDIR		?= /etc
-LOCALSTATEDIR	?= /var
+LOCALSTATEDIR		?= /var
+
+# Build configuration
+BUILD			?= $(shell git rev-list --count HEAD)
+TAG			?= b$(BUILD)
+PACKAGE			= openhap-$(TAG)
+TARBALL			= $(PACKAGE).tar.gz
+
+# GitHub configuration
+GITHUB_OWNER		?= dickolsson
+GITHUB_REPO		?= openhap
+GITHUB_RELEASE		= https://github.com/$(GITHUB_OWNER)/$(GITHUB_REPO)/releases/download/$(TAG)/$(TARBALL)
 
 # Build tools
+FTP			= $(shell command -v curl >/dev/null 2>&1 && echo "curl -fLo" || echo "ftp -o")
 PERLTIDY		= perl -MPerl::Tidy -e 'Perl::Tidy::perltidy()'
 MANDOC			?= mandoc
 
@@ -75,7 +85,7 @@ install-man:
 	install -m 644 $(MAN5) $(DESTDIR)$(MANDIR)/man5/
 	install -m 644 $(MAN8) $(DESTDIR)$(MANDIR)/man8/
 
-integration: provision
+integration: vm-provision
 	@./scripts/integration.sh
 
 lint:
@@ -90,31 +100,28 @@ man: $(CATMAN5) $(CATMAN8)
 	$(MANDOC) -Tascii $< > $@
 
 package: clean
-	mkdir -p build/openhap-$(TAG)/bin
-	mkdir -p build/openhap-$(TAG)/lib/OpenHAP/Tasmota
-	mkdir -p build/openhap-$(TAG)/etc/rc.d
-	mkdir -p build/openhap-$(TAG)/share/openhap/examples
-	mkdir -p build/openhap-$(TAG)/man/openhap
+	mkdir -p build/$(PACKAGE)/bin
+	mkdir -p build/$(PACKAGE)/lib/OpenHAP/Tasmota
+	mkdir -p build/$(PACKAGE)/etc/rc.d
+	mkdir -p build/$(PACKAGE)/share/openhap/examples
+	mkdir -p build/$(PACKAGE)/man/openhap
 	# Binaries
-	cp bin/openhapd bin/hapctl build/openhap-$(TAG)/bin/
+	cp bin/openhapd bin/hapctl build/$(PACKAGE)/bin/
 	# Perl libraries
-	cp lib/OpenHAP/*.pm lib/OpenHAP/*.pod build/openhap-$(TAG)/lib/OpenHAP/
-	cp lib/OpenHAP/Tasmota/*.pm lib/OpenHAP/Tasmota/*.pod build/openhap-$(TAG)/lib/OpenHAP/Tasmota/
+	cp lib/OpenHAP/*.pm lib/OpenHAP/*.pod build/$(PACKAGE)/lib/OpenHAP/
+	cp lib/OpenHAP/Tasmota/*.pm lib/OpenHAP/Tasmota/*.pod build/$(PACKAGE)/lib/OpenHAP/Tasmota/
 	# rc.d script
-	cp etc/rc.d/openhapd build/openhap-$(TAG)/etc/rc.d/
+	cp etc/rc.d/openhapd build/$(PACKAGE)/etc/rc.d/
 	# Example configuration
-	cp share/openhap/examples/openhapd.conf.sample build/openhap-$(TAG)/share/openhap/examples/
+	cp share/openhap/examples/openhapd.conf.sample build/$(PACKAGE)/share/openhap/examples/
 	# Man pages
-	cp $(MAN5) $(MAN8) build/openhap-$(TAG)/man/openhap/
+	cp $(MAN5) $(MAN8) build/$(PACKAGE)/man/openhap/
 	# Makefile and cpanfile for installation
-	cp Makefile cpanfile build/openhap-$(TAG)/
+	cp Makefile cpanfile build/$(PACKAGE)/
 	# Documentation
-	cp README.md INSTALL.md LICENSE build/openhap-$(TAG)/
-	cd build && tar -czvf openhap-$(TAG).tar.gz openhap-$(TAG)
-	rm -rf build/openhap-$(TAG)
-
-provision: vm-up
-	@./scripts/provision.sh
+	cp README.md INSTALL.md LICENSE build/$(PACKAGE)/
+	cd build && tar -czvf $(TARBALL) $(PACKAGE)
+	rm -rf build/$(PACKAGE)
 
 test:
 	prove -l -v t/openhvf/*.t
@@ -135,6 +142,15 @@ uninstall:
 	# Remove example configuration
 	rm -f $(DESTDIR)$(SYSCONFDIR)/examples/openhapd.conf
 	# Note: /etc/openhapd.conf and /var/db/openhapd are preserved
+
+upgrade:
+	@echo "==> Downloading $(TARBALL)"
+	$(FTP) ../$(TARBALL) $(GITHUB_RELEASE);
+	cd .. && tar -xzf $(TARBALL)
+	@echo "==> Upgrade by running:\n    make uninstall\n    cd ../$(PACKAGE)\n    make install"
+
+vm-provision: vm-up
+	@./scripts/vm-provision.sh
 
 vm-up:
 	@./scripts/vm-up.sh

@@ -15,12 +15,12 @@ OpenHAP is a Perl-based HomeKit Accessory Protocol (HAP) server for **OpenBSD**.
 
 For quick testing of changes in an actual OpenBSD environment:
 
-1. Provision the code to the VM: `make provision`
+1. Provision the code to the VM: `make vm-provision`
 2. Run commands in the VM: `bin/openhvf ssh '<command>'`
 
 Example workflow:
 ```sh
-make provision
+make vm-provision
 bin/openhvf ssh 'rcctl restart openhapd'
 bin/openhvf ssh 'tail -f /var/log/daemon'
 ```
