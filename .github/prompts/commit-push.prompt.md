@@ -29,3 +29,8 @@ feat(config): add validation for port ranges
 fix(session): handle disconnect during handshake
 docs: update README with new options
 ```
+
+## Fallback
+
+If unable to run commands in the terminal,
+provide all commands needed to commit and push the changes.
