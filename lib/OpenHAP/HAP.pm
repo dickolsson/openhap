@@ -387,4 +387,18 @@ sub get_device_id($self)
 	return join( ':', $id =~ /../g );
 }
 
+sub get_mdns_txt_records($self)
+{
+	return {
+		'c#' => $self->get_config_number(),
+		'ff' => 0,
+		'id' => $self->get_device_id(),
+		'md' => $self->{name},
+		'pv' => '1.1',
+		's#' => 1,
+		'sf' => $self->is_paired() ? 0 : 1,
+		'ci' => 2,
+	};
+}
+
 1;

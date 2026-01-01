@@ -27,6 +27,9 @@ echo "==> Running tests..."
 vm_run <<'EOF'
 cd /tmp && tar xzf tests.tar.gz
 
+# Set integration test flag
+export OPENHAP_INTEGRATION_TEST=1
+
 # Run tests
 if command -v prove >/dev/null 2>&1; then
 	prove -I/usr/local/libdata/perl5/site_perl -v t/openhap/integration/
