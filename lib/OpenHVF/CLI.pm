@@ -224,14 +224,14 @@ sub cmd_ssh( $self, @args )
 # Show console connection info
 sub cmd_console( $self, @args )
 {
-	my $vm   = $self->_load_vm or return EXIT_VM_NOT_FOUND;
-	my $port = $vm->console_port;
-	$self->{output}->info("Connect with: telnet localhost $port");
-	$self->{output}->data( {
-		type => 'telnet',
-		host => 'localhost',
-		port => $port,
-	} );
+	my $vm           = $self->_load_vm or return EXIT_VM_NOT_FOUND;
+	my $console_port = $vm->console_port;
+	my $ssh_port     = $vm->ssh_port;
+
+	$self->{output}->info("Console access methods:");
+	$self->{output}->info("  1. telnet localhost $console_port");
+	$self->{output}->info("  2. ssh -p $ssh_port root\@localhost");
+
 	return EXIT_SUCCESS;
 }
 
