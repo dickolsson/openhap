@@ -8,6 +8,7 @@ use OpenHAP::HAP;
 use OpenHAP::Config;
 use OpenHAP::Log qw(:all);
 use OpenHAP::MQTT;
+use OpenHAP::MDNS;
 use OpenHAP::Daemon;
 use OpenHAP::DeviceLoader;
 
@@ -92,15 +93,14 @@ else {
 my $loader = OpenHAP::DeviceLoader->new();
 $loader->load_devices( $config, $hap, $mqtt );
 
-# Log mDNS information
-log_info( 'mDNS service: _hap._tcp port %d', $hap_port );
-log_info(
-	'mDNS TXT: c#=%d ff=0 id=%s md=%s pv=1.1 s#=1 sf=%d ci=2',
-	$hap->get_config_number(),
-	$hap->get_device_id(),
-	$hap_name,
-	$hap->is_paired() ? 0 : 1
+# Register mDNS service
+my $mdns = OpenHAP::MDNS->new(
+	service_name => $hap_name,
+	port         => $hap_port,
+	txt_records  => $hap->get_mdns_txt_records(),
 );
+
+$mdns->register_service();
 
 if ( !$hap->is_paired() ) {
 	log_notice( 'Not paired - use Home app with PIN: %s', $hap_pin );
