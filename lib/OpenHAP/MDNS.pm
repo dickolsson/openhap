@@ -66,7 +66,8 @@ sub register_service($self)
 	my $output = '';
 	my $success = eval {
 		open my $fh, '-|', @cmd or do {
-			log_warning( 'Cannot execute mdnsctl for registration: %s',
+			log_warning(
+				'Cannot open pipe to mdnsctl for registration: %s',
 				$! );
 			return;
 		};
@@ -115,7 +116,8 @@ sub unregister_service($self)
 	my $output = '';
 	my $success = eval {
 		open my $fh, '-|', @cmd or do {
-			log_warning( 'Cannot execute mdnsctl for unregistration: %s',
+			log_warning(
+				'Cannot open pipe to mdnsctl for unregistration: %s',
 				$! );
 			return;
 		};
