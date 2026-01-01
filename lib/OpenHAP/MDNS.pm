@@ -66,7 +66,8 @@ sub register_service($self)
 	my $output = '';
 	my $success = eval {
 		open my $fh, '-|', @cmd or do {
-			log_warning( 'Cannot execute mdnsctl: %s', $! );
+			log_warning( 'Cannot execute mdnsctl for registration: %s',
+				$! );
 			return;
 		};
 		$output = do { local $/; <$fh> };
@@ -74,11 +75,14 @@ sub register_service($self)
 		return $? == 0;
 	};
 
-	if ( !$success || $@ ) {
-		log_warning(
-			'Failed to register mDNS service: %s',
-			$@ || $output || 'unknown error'
-		);
+	if ($@) {
+		log_warning( 'Exception during mDNS registration: %s', $@ );
+		return;
+	}
+
+	if ( !$success ) {
+		log_warning( 'Failed to register mDNS service: %s',
+			$output || 'command failed' );
 		return;
 	}
 
@@ -111,7 +115,8 @@ sub unregister_service($self)
 	my $output = '';
 	my $success = eval {
 		open my $fh, '-|', @cmd or do {
-			log_warning( 'Cannot execute mdnsctl: %s', $! );
+			log_warning( 'Cannot execute mdnsctl for unregistration: %s',
+				$! );
 			return;
 		};
 		$output = do { local $/; <$fh> };
@@ -119,11 +124,14 @@ sub unregister_service($self)
 		return $? == 0;
 	};
 
-	if ( !$success || $@ ) {
-		log_warning(
-			'Failed to unregister mDNS service: %s',
-			$@ || $output || 'unknown error'
-		);
+	if ($@) {
+		log_warning( 'Exception during mDNS unregistration: %s', $@ );
+		return;
+	}
+
+	if ( !$success ) {
+		log_warning( 'Failed to unregister mDNS service: %s',
+			$output || 'command failed' );
 		return;
 	}
 
