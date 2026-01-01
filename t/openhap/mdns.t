@@ -69,12 +69,12 @@ use_ok('OpenHAP::MDNS');
 {
 	my $mdns = OpenHAP::MDNS->new(
 		service_name => 'Test',
-		mdnsctl      => '/bin/true',    # Use /bin/true for testing
+		mdnsctl      => '/usr/bin/true',    # Use /usr/bin/true for testing
 	);
 
 	ok( !$mdns->is_registered(), 'Initially not registered' );
 
-	# Simulate registration (using /bin/true)
+	# Simulate registration (using /usr/bin/true)
 	$mdns->register_service();
 
 	ok( $mdns->is_registered(), 'Marked as registered after registration' );
@@ -108,6 +108,152 @@ use_ok('OpenHAP::MDNS');
 	ok( !$@, 'Registration with missing mdnsctl does not die' );
 	ok( !defined $result, 'Registration returns undef on failure' );
 	ok( !$mdns->is_registered(), 'Not marked as registered on failure' );
+}
+
+# Test command construction with mock execution
+{
+	# Create a temporary script that captures command arguments
+	use File::Temp qw(tempfile);
+	my ( $fh, $filename ) = tempfile( UNLINK => 1 );
+	print $fh "#!/bin/sh\n";
+	print $fh "echo \"\$@\" > $filename.args\n";
+	print $fh "exit 0\n";
+	close $fh;
+	chmod 0755, $filename;
+
+	my $mdns = OpenHAP::MDNS->new(
+		service_name => 'Test Service',
+		port         => 8080,
+		txt_records  => {
+			'c#' => 2,
+			'ff' => 0,
+			'id' => 'AA:BB:CC:DD:EE:FF',
+		},
+		mdnsctl => $filename,
+	);
+
+	# Register and check command
+	$mdns->register_service();
+
+	if ( -f "$filename.args" ) {
+		open my $args_fh, '<', "$filename.args"
+		    or die "Cannot read args: $!";
+		my $args = <$args_fh>;
+		close $args_fh;
+		chomp $args;
+
+		# Verify command structure
+		like( $args, qr/proxy add _hap\._tcp/,
+			'Registration command contains proxy add' );
+		like( $args, qr/Test Service/, 'Command contains service name' );
+		like( $args, qr/8080/,         'Command contains port' );
+		like( $args, qr/c#=2/,         'Command contains c# TXT record' );
+		like( $args, qr/ff=0/,         'Command contains ff TXT record' );
+		like( $args, qr/id=AA:BB:CC:DD:EE:FF/,
+			'Command contains id TXT record' );
+
+		unlink "$filename.args";
+	}
+
+	# Test unregister command
+	$mdns->unregister_service();
+
+	if ( -f "$filename.args" ) {
+		open my $args_fh, '<', "$filename.args"
+		    or die "Cannot read args: $!";
+		my $args = <$args_fh>;
+		close $args_fh;
+		chomp $args;
+
+		# Verify unregister command structure
+		like( $args, qr/proxy del _hap\._tcp/,
+			'Unregistration command contains proxy del' );
+		like( $args, qr/Test Service/, 'Command contains service name' );
+
+		unlink "$filename.args";
+	}
+}
+
+# Test that failing mdnsctl doesn't crash the module
+{
+	# Create a script that always fails
+	use File::Temp qw(tempfile);
+	my ( $fh, $filename ) = tempfile( UNLINK => 1 );
+	print $fh "#!/bin/sh\n";
+	print $fh "echo 'mdnsctl: error' >&2\n";
+	print $fh "exit 1\n";
+	close $fh;
+	chmod 0755, $filename;
+
+	my $mdns = OpenHAP::MDNS->new(
+		service_name => 'Fail Test',
+		mdnsctl      => $filename,
+	);
+
+	# Should not die, should return undef
+	my $result = eval { $mdns->register_service() };
+	ok( !$@, 'Failing mdnsctl does not die' );
+	ok( !defined $result, 'Returns undef on command failure' );
+	ok( !$mdns->is_registered(), 'Not marked as registered after failure' );
+}
+
+# Test exception handling during command execution
+{
+	my $mdns = OpenHAP::MDNS->new(
+		service_name => 'Exception Test',
+		mdnsctl      => '/dev/null',    # Cannot execute /dev/null
+	);
+
+	# Should catch exception and return undef
+	my $result = eval { $mdns->register_service() };
+	ok( !$@, 'Exception during execution is caught' );
+	ok( !defined $result, 'Returns undef on exception' );
+	ok( !$mdns->is_registered(),
+		'Not marked as registered after exception' );
+}
+
+# Test TXT record sorting (mdnsctl expects consistent order)
+{
+	use File::Temp qw(tempfile);
+	my ( $fh, $filename ) = tempfile( UNLINK => 1 );
+	print $fh "#!/bin/sh\n";
+	print $fh "echo \"\$@\" > $filename.args\n";
+	print $fh "exit 0\n";
+	close $fh;
+	chmod 0755, $filename;
+
+	my $mdns = OpenHAP::MDNS->new(
+		service_name => 'Sort Test',
+		port         => 9999,
+		txt_records  => {
+			'z' => 'last',
+			'a' => 'first',
+			'm' => 'middle',
+		},
+		mdnsctl => $filename,
+	);
+
+	$mdns->register_service();
+
+	if ( -f "$filename.args" ) {
+		open my $args_fh, '<', "$filename.args"
+		    or die "Cannot read args: $!";
+		my $args = <$args_fh>;
+		close $args_fh;
+		chomp $args;
+
+		# Verify alphabetical ordering of TXT records
+		my $a_pos = index( $args, 'a=first' );
+		my $m_pos = index( $args, 'm=middle' );
+		my $z_pos = index( $args, 'z=last' );
+
+		ok( $a_pos > 0 && $m_pos > 0 && $z_pos > 0,
+			'All TXT records present' );
+		ok( $a_pos < $m_pos && $m_pos < $z_pos,
+			'TXT records are sorted alphabetically' );
+
+		unlink "$filename.args";
+	}
 }
 
 done_testing();
