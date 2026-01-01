@@ -33,7 +33,7 @@ sub new( $class, %args )
 		port         => $args{port}         // 51827,
 		txt_records  => $args{txt_records}  // {},
 		registered   => 0,
-		mdnsctl      => $args{mdnsctl}      // '/usr/sbin/mdnsctl',
+		mdnsctl      => $args{mdnsctl} // '/usr/sbin/mdnsctl',
 	}, $class;
 
 	return $self;
@@ -46,12 +46,11 @@ sub register_service($self)
 {
 	return if $self->{registered};
 
-	# Build the mdnsctl command
-	# Format: mdnsctl proxy add _hap._tcp "Service Name" port "key=value" ...
+       # Build the mdnsctl command
+       # Format: mdnsctl proxy add _hap._tcp "Service Name" port "key=value" ...
 	my @cmd = (
-		$self->{mdnsctl},   'proxy', 'add',
-		'_hap._tcp',        $self->{service_name},
-		$self->{port},
+		$self->{mdnsctl}, 'proxy',               'add',
+		'_hap._tcp',      $self->{service_name}, $self->{port},
 	);
 
 	# Add TXT records
@@ -63,12 +62,13 @@ sub register_service($self)
 	log_debug( 'Registering mDNS service: %s', join( ' ', @cmd ) );
 
 	# Execute mdnsctl
-	my $output = '';
+	my $output  = '';
 	my $success = eval {
 		open my $fh, '-|', @cmd or do {
 			log_warning(
-				'Cannot open pipe to mdnsctl for registration: %s',
-				$! );
+'Cannot open pipe to mdnsctl for registration: %s',
+				$!
+			);
 			return;
 		};
 		$output = do { local $/; <$fh> };
@@ -88,10 +88,8 @@ sub register_service($self)
 	}
 
 	$self->{registered} = 1;
-	log_info(
-		'Registered mDNS service: %s._hap._tcp port %d',
-		$self->{service_name}, $self->{port}
-	);
+	log_info( 'Registered mDNS service: %s._hap._tcp port %d',
+		$self->{service_name}, $self->{port} );
 
 	return 1;
 }
@@ -113,12 +111,13 @@ sub unregister_service($self)
 	log_debug( 'Unregistering mDNS service: %s', join( ' ', @cmd ) );
 
 	# Execute mdnsctl
-	my $output = '';
+	my $output  = '';
 	my $success = eval {
 		open my $fh, '-|', @cmd or do {
 			log_warning(
-				'Cannot open pipe to mdnsctl for unregistration: %s',
-				$! );
+'Cannot open pipe to mdnsctl for unregistration: %s',
+				$!
+			);
 			return;
 		};
 		$output = do { local $/; <$fh> };
@@ -138,10 +137,8 @@ sub unregister_service($self)
 	}
 
 	$self->{registered} = 0;
-	log_info(
-		'Unregistered mDNS service: %s._hap._tcp',
-		$self->{service_name}
-	);
+	log_info( 'Unregistered mDNS service: %s._hap._tcp',
+		$self->{service_name} );
 
 	return 1;
 }
