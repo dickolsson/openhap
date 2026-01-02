@@ -352,13 +352,26 @@ sub stop( $self, $force = 0 )
 	}
 
 	if ($force) {
+		$output->info("Force stopping VM...");
 		$self->_qmp_quit;
-	}
-	else {
-		$self->_qmp_powerdown;
-		$self->_wait_exit(10) or $self->_qmp_quit;
+		$state->clear_vm_pid;
+		$output->success("VM stopped");
+		return EXIT_SUCCESS;
 	}
 
+	# Try graceful shutdown with timeout
+	$output->info("Shutting down VM gracefully...");
+	if ( $self->_qmp_powerdown ) {
+		if ( $self->_wait_exit(30) ) {
+			$state->clear_vm_pid;
+			$output->success("VM stopped");
+			return EXIT_SUCCESS;
+		}
+	}
+
+	# If graceful shutdown times out, force stop
+	$output->info("Graceful shutdown timed out, force stopping...");
+	$self->_qmp_quit;
 	$state->clear_vm_pid;
 	$output->success("VM stopped");
 	return EXIT_SUCCESS;
@@ -415,7 +428,7 @@ sub console_port($self)
 }
 
 # Wait operations
-sub wait_ssh( $self, $timeout = 120 )
+sub wait_ssh( $self, $timeout = 120, $sig = undef )
 {
 	my $config = $self->{config};
 
@@ -426,7 +439,7 @@ sub wait_ssh( $self, $timeout = 120 )
 		user => 'root',
 	);
 
-	return $ssh->wait_available($timeout);
+	return $ssh->wait_available( $timeout, $sig );
 }
 
 # $self->_wait_ssh_password($password, $timeout):
@@ -603,27 +616,19 @@ sub _start_qemu( $self, $boot_image = undef )
 	# No graphics display (headless)
 	push @cmd, '-display', 'none';
 
-	# Fork and run QEMU in background
-	my $pid = fork;
-	if ( !defined $pid ) {
-		return;
-	}
+	# Spawn QEMU using FuguLib::Process
+	my $log_file = "$state->{vm_state_dir}/qemu.log";
+	my $result   = FuguLib::Process->spawn(
+		cmd         => \@cmd,
+		daemonize   => 1,
+		stdout      => $log_file,
+		stderr      => $log_file,
+		check_alive => 0,    # Don't check, QEMU writes its own PID file
+	);
 
-	if ( $pid == 0 ) {
-		$DB::inhibit_exit = 0;
+	return unless $result->{success};
 
-		# Redirect stdout/stderr to log file
-		my $log_file = "$state->{vm_state_dir}/qemu.log";
-		open STDOUT, '>>', $log_file;
-		open STDERR, '>&', \*STDOUT;
-
-		# Detach from controlling terminal
-		setsid();
-
-		exec @cmd or exit 1;
-	}
-
-	# Parent: wait for QEMU to write PID file
+	# Wait for QEMU to write PID file
 	my $start = time;
 	while ( time - $start < 5 ) {
 		if ( -f $state->{vm_pid_file} ) {
@@ -634,7 +639,8 @@ sub _start_qemu( $self, $boot_image = undef )
 		usleep(100_000);    # 0.1 seconds
 	}
 
-	# Fallback: use forked PID
+	# Fallback: use forked PID from FuguLib::Process
+	my $pid = $result->{pid};
 	if ( kill( 0, $pid ) ) {
 		$state->set_vm_pid($pid);
 		return $pid;

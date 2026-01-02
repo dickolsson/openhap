@@ -21,6 +21,7 @@ package OpenHVF::SSH;
 
 use Net::SSH2;
 use Fcntl qw(O_RDONLY O_WRONLY O_CREAT O_TRUNC);
+use FuguLib::Signal;
 
 use constant {
 	EXIT_SUCCESS    => 0,
@@ -73,11 +74,17 @@ sub _connect($self)
 	return;
 }
 
-sub wait_available( $self, $timeout = 120 )
+sub wait_available( $self, $timeout = 120, $sig = undef )
 {
 	my $start = time;
 
 	while ( time - $start < $timeout ) {
+
+		# Check for interrupt if signal handler provided
+		if ( defined $sig && FuguLib::Signal::check_interrupted() ) {
+			return 0;
+		}
+
 		my $ssh2 = $self->_connect;
 		if ( defined $ssh2 ) {
 			$ssh2->disconnect;

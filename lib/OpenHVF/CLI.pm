@@ -19,7 +19,7 @@ use v5.36;
 
 package OpenHVF::CLI;
 
-use Getopt::Long qw(:config require_order bundling);
+use Getopt::Long qw(:config no_ignore_case no_auto_abbrev);
 use File::Basename;
 
 use OpenHVF::Config;
@@ -30,6 +30,7 @@ use OpenHVF::Disk;
 use OpenHVF::VM;
 use OpenHVF::SSH;
 use OpenHVF::Expect;
+use FuguLib::Signal;
 
 use constant {
 	EXIT_SUCCESS         => 0,
@@ -78,15 +79,23 @@ sub run( $class, @argv )
 {
 	my %opts;
 	my $parser = Getopt::Long::Parser->new;
-	$parser->configure( 'require_order', 'bundling' );
+	$parser->configure(
+		'pass_through',   'no_ignore_case',
+		'no_auto_abbrev', 'bundling'
+	);
 
-	$parser->getoptionsfromarray(
+	my $parse_ok = $parser->getoptionsfromarray(
 		\@argv,
 		'vm=s'      => \$opts{vm},
 		'project=s' => \$opts{project},
 		'quiet|q'   => \$opts{quiet},
 		'help|h'    => \$opts{help},
-	) or return EXIT_INVALID_ARGS;
+	);
+
+	if ( !$parse_ok ) {
+		warn "openhvf: invalid options\n";
+		return EXIT_INVALID_ARGS;
+	}
 
 	if ( $opts{help} && !@argv ) {
 		return cmd_help($class);
@@ -97,6 +106,21 @@ sub run( $class, @argv )
 	if ( !exists $commands{$command} ) {
 		warn "openhvf: unknown command: $command\n";
 		return EXIT_INVALID_ARGS;
+	}
+
+	# Reject multiple commands
+	if (       @argv > 0
+		&& $command ne 'image'
+		&& $command ne 'ssh'
+		&& $command ne 'expect' )
+	{
+		# Only these commands take additional arguments
+		my $next = $argv[0];
+		if ( exists $commands{$next} ) {
+			warn
+"openhvf: multiple commands not allowed: $command $next\n";
+			return EXIT_INVALID_ARGS;
+		}
 	}
 
 	my $self = $class->new(%opts);
@@ -172,6 +196,11 @@ sub cmd_destroy( $self, @args )
 # Show VM status
 sub cmd_status( $self, @args )
 {
+	if (@args) {
+		warn "openhvf status: unknown option: $args[0]\n";
+		return EXIT_INVALID_ARGS;
+	}
+
 	my $vm     = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 	my $status = $vm->status;
 	$self->{output}->data($status);
@@ -181,6 +210,11 @@ sub cmd_status( $self, @args )
 # Start VM in background
 sub cmd_start( $self, @args )
 {
+	if (@args) {
+		warn "openhvf start: unknown option: $args[0]\n";
+		return EXIT_INVALID_ARGS;
+	}
+
 	my $vm = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 	return $vm->start;
 }
@@ -190,7 +224,7 @@ sub cmd_stop( $self, @args )
 {
 	my $force  = 0;
 	my $parser = Getopt::Long::Parser->new;
-	$parser->configure('bundling');
+	$parser->configure( 'bundling', 'no_ignore_case', 'no_auto_abbrev' );
 	$parser->getoptionsfromarray( \@args, 'force|f' => \$force, )
 	    or return EXIT_INVALID_ARGS;
 
@@ -260,7 +294,7 @@ sub cmd_wait( $self, @args )
 {
 	my $timeout = 120;
 	my $parser  = Getopt::Long::Parser->new;
-	$parser->configure('bundling');
+	$parser->configure( 'bundling', 'no_ignore_case', 'no_auto_abbrev' );
 	$parser->getoptionsfromarray( \@args, 'timeout=s' => \$timeout, )
 	    or return EXIT_INVALID_ARGS;
 
@@ -275,9 +309,17 @@ sub cmd_wait( $self, @args )
 		return EXIT_INVALID_ARGS;
 	}
 
+	# Setup signal handling for graceful interrupt
+	my $sig = FuguLib::Signal->new;
+	$sig->setup_interrupt_flag( 'INT', 'TERM', 'HUP' );
+
 	my $vm = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 
-	if ( !$vm->wait_ssh($timeout) ) {
+	if ( !$vm->wait_ssh( $timeout, $sig ) ) {
+		if ( FuguLib::Signal::check_interrupted() ) {
+			$self->{output}->info("Wait cancelled");
+			return 130;    # Standard SIGINT exit code
+		}
 		$self->{output}->error("Timeout waiting for SSH");
 		return EXIT_TIMEOUT;
 	}
