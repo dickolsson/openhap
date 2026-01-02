@@ -6,7 +6,7 @@ package OpenHAP::TLV;
 # Type-Length-Value with 8-bit type and length fields
 # Values > 255 bytes are split into multiple chunks with same type
 
-sub encode(%items)
+sub encode (%items)
 {
 	my $out = '';
 
@@ -23,7 +23,7 @@ sub encode(%items)
 	return $out;
 }
 
-sub decode($data)
+sub decode ($data)
 {
 	my %items;
 	my $pos = 0;

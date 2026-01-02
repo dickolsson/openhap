@@ -13,7 +13,7 @@ use OpenHAP::Crypto;
 use OpenHAP::Bridge;
 use OpenHAP::PIN qw(normalize_pin);
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = bless {
 		port => $args{port}                               // 51827,
@@ -38,7 +38,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub _initialize($self)
+sub _initialize ($self)
 {
 	# Initialize storage
 	$self->{storage} =
@@ -66,14 +66,14 @@ sub _initialize($self)
 	$self->{bridge} = OpenHAP::Bridge->new( name => $self->{name}, );
 }
 
-sub add_accessory( $self, $accessory )
+sub add_accessory ( $self, $accessory )
 {
 	$self->{bridge}->add_bridged_accessory($accessory);
 }
 
 # $self->_mqtt_resubscribe_accessories():
 #	resubscribe all accessories to their MQTT topics
-sub _mqtt_resubscribe_accessories($self)
+sub _mqtt_resubscribe_accessories ($self)
 {
 	my @accessories = $self->{bridge}->get_bridged_accessories();
 	for my $acc (@accessories) {
@@ -87,12 +87,12 @@ sub _mqtt_resubscribe_accessories($self)
 
 # $self->set_mqtt_client($mqtt):
 #	set the MQTT client for event loop integration
-sub set_mqtt_client( $self, $mqtt )
+sub set_mqtt_client ( $self, $mqtt )
 {
 	$self->{mqtt_client} = $mqtt;
 }
 
-sub run($self)
+sub run ($self)
 {
 	my $server = IO::Socket::INET->new(
 		LocalPort => $self->{port},
@@ -168,14 +168,14 @@ sub run($self)
 	}
 }
 
-sub _init_session( $self, $socket )
+sub _init_session ( $self, $socket )
 {
 	log_debug( 'New client connection from %s', $socket->peerhost );
 	$self->{sessions}{$socket} =
 	    OpenHAP::Session->new( socket => $socket, );
 }
 
-sub _handle_client( $self, $sock, $select )
+sub _handle_client ( $self, $sock, $select )
 {
 	my $session = $self->{sessions}{$sock};
 	my $data    = '';
@@ -218,7 +218,7 @@ sub _handle_client( $self, $sock, $select )
 	$sock->syswrite($response);
 }
 
-sub _dispatch( $self, $request, $session )
+sub _dispatch ( $self, $request, $session )
 {
 	my $path   = $request->{path};
 	my $method = $request->{method};
@@ -262,7 +262,7 @@ sub _dispatch( $self, $request, $session )
 	);
 }
 
-sub _handle_pair_setup( $self, $request, $session )
+sub _handle_pair_setup ( $self, $request, $session )
 {
 	log_debug('Handling pair-setup request');
 	my $response_body =
@@ -275,7 +275,7 @@ sub _handle_pair_setup( $self, $request, $session )
 	);
 }
 
-sub _handle_pair_verify( $self, $request, $session )
+sub _handle_pair_verify ( $self, $request, $session )
 {
 	log_debug('Handling pair-verify request');
 	my $response_body =
@@ -288,7 +288,7 @@ sub _handle_pair_verify( $self, $request, $session )
 	);
 }
 
-sub _handle_accessories( $self, $request, $session )
+sub _handle_accessories ( $self, $request, $session )
 {
 	my $json = encode_json( $self->{bridge}->to_json() );
 
@@ -299,7 +299,7 @@ sub _handle_accessories( $self, $request, $session )
 	);
 }
 
-sub _handle_characteristics_get( $self, $request, $session )
+sub _handle_characteristics_get ( $self, $request, $session )
 {
 	# Parse query string: ?id=1.11,1.13,2.10
 	my $query = $request->{path};
@@ -341,7 +341,7 @@ sub _handle_characteristics_get( $self, $request, $session )
 	);
 }
 
-sub _handle_characteristics_put( $self, $request, $session )
+sub _handle_characteristics_put ( $self, $request, $session )
 {
 	log_debug('Writing characteristics');
 	my $data = eval { decode_json( $request->{body} ) };
@@ -369,25 +369,25 @@ sub _handle_characteristics_put( $self, $request, $session )
 	return OpenHAP::HTTP::build_response( status => 204, );
 }
 
-sub is_paired($self)
+sub is_paired ($self)
 {
 	my $pairings = $self->{storage}->load_pairings();
 	return scalar( keys %$pairings ) > 0;
 }
 
-sub get_config_number($self)
+sub get_config_number ($self)
 {
 	return $self->{storage}->get_config_number();
 }
 
-sub get_device_id($self)
+sub get_device_id ($self)
 {
 	# Generate a device ID from the public key
 	my $id = unpack( 'H*', substr( $self->{accessory_ltpk}, 0, 6 ) );
 	return join( ':', $id =~ /../g );
 }
 
-sub get_mdns_txt_records($self)
+sub get_mdns_txt_records ($self)
 {
 	return {
 		'c#' => $self->get_config_number(),

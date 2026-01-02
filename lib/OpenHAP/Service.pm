@@ -11,7 +11,7 @@ our %SERVICE_TYPES = (
 	'Outlet'               => '00000047-0000-1000-8000-0026BB765291',
 );
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 
 	my $type = $args{type}           // die "Service type required";
@@ -28,12 +28,12 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub add_characteristic( $self, $characteristic )
+sub add_characteristic ( $self, $characteristic )
 {
 	push @{ $self->{characteristics} }, $characteristic;
 }
 
-sub get_characteristic( $self, $iid )
+sub get_characteristic ( $self, $iid )
 {
 
 	for my $char ( @{ $self->{characteristics} } ) {
@@ -43,12 +43,12 @@ sub get_characteristic( $self, $iid )
 	return;
 }
 
-sub get_characteristics($self)
+sub get_characteristics ($self)
 {
 	return @{ $self->{characteristics} };
 }
 
-sub to_json($self)
+sub to_json ($self)
 {
 
 	my @chars;

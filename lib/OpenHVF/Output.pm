@@ -19,34 +19,34 @@ use v5.36;
 
 package OpenHVF::Output;
 
-sub new( $class, $quiet = 0 )
+sub new ( $class, $quiet = 0 )
 {
 	bless { quiet => $quiet }, $class;
 }
 
-sub info( $self, $message )
+sub info ( $self, $message )
 {
 	return if $self->{quiet};
 	say $message;
 }
 
-sub error( $self, $message )
+sub error ( $self, $message )
 {
 	warn "openhvf: error: $message\n";
 }
 
-sub success( $self, $message )
+sub success ( $self, $message )
 {
 	return if $self->{quiet};
 	say $message;
 }
 
-sub data( $self, $hashref )
+sub data ( $self, $hashref )
 {
 	$self->_format_data($hashref);
 }
 
-sub _format_data( $self, $data, $indent = 0 )
+sub _format_data ( $self, $data, $indent = 0 )
 {
 	my $prefix = '  ' x $indent;
 
@@ -76,7 +76,7 @@ sub _format_data( $self, $data, $indent = 0 )
 	}
 }
 
-sub pid( $self, $name, $pid )
+sub pid ( $self, $name, $pid )
 {
 	say "Started $name (PID: $pid)";
 }

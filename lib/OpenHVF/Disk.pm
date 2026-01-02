@@ -22,14 +22,14 @@ package OpenHVF::Disk;
 use File::Path qw(make_path);
 use File::Basename;
 
-sub new( $class, $state_dir )
+sub new ( $class, $state_dir )
 {
 	my $self = bless { state_dir => $state_dir, }, $class;
 
 	return $self;
 }
 
-sub create( $self, $name, $size, $backing_image = undef )
+sub create ( $self, $name, $size, $backing_image = undef )
 {
 	my $path = $self->path($name);
 	my $dir  = dirname($path);
@@ -55,17 +55,17 @@ sub create( $self, $name, $size, $backing_image = undef )
 	return $path;
 }
 
-sub disk_exists( $self, $name )
+sub disk_exists ( $self, $name )
 {
 	return -f $self->path($name);
 }
 
-sub path( $self, $name )
+sub path ( $self, $name )
 {
 	return "$self->{state_dir}/$name/disk.qcow2";
 }
 
-sub remove( $self, $name )
+sub remove ( $self, $name )
 {
 	my $path = $self->path($name);
 	if ( -f $path ) {
@@ -77,7 +77,7 @@ sub remove( $self, $name )
 	return 1;
 }
 
-sub info( $self, $name )
+sub info ( $self, $name )
 {
 	my $path = $self->path($name);
 	return if !-f $path;

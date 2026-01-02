@@ -24,7 +24,7 @@ use JSON::XS;
 
 use constant { MAX_VM_NAME_LENGTH => 255, };
 
-sub new( $class, $state_dir, $vm_name )
+sub new ( $class, $state_dir, $vm_name )
 {
 	# Validate VM name length
 	if ( length($vm_name) > MAX_VM_NAME_LENGTH ) {
@@ -60,7 +60,7 @@ sub new( $class, $state_dir, $vm_name )
 	return $self;
 }
 
-sub _ensure_dir($self)
+sub _ensure_dir ($self)
 {
 	my $dir = $self->{vm_state_dir};
 
@@ -90,7 +90,7 @@ sub _ensure_dir($self)
 	return 1;
 }
 
-sub load($self)
+sub load ($self)
 {
 	if ( -f $self->{status_file} ) {
 		open my $fh, '<', $self->{status_file} or return;
@@ -111,7 +111,7 @@ sub load($self)
 	return $self;
 }
 
-sub save($self)
+sub save ($self)
 {
 	open my $fh, '>', $self->{status_file} or do {
 		warn "Cannot write $self->{status_file}: $!";
@@ -125,7 +125,7 @@ sub save($self)
 }
 
 # VM PID management
-sub set_vm_pid( $self, $pid )
+sub set_vm_pid ( $self, $pid )
 {
 	open my $fh, '>', $self->{vm_pid_file} or do {
 		warn "Cannot write $self->{vm_pid_file}: $!";
@@ -137,7 +137,7 @@ sub set_vm_pid( $self, $pid )
 	return $self;
 }
 
-sub get_vm_pid($self)
+sub get_vm_pid ($self)
 {
 	open my $fh, '<', $self->{vm_pid_file} or return;
 	my $pid = <$fh>;
@@ -148,13 +148,13 @@ sub get_vm_pid($self)
 	return;
 }
 
-sub clear_vm_pid($self)
+sub clear_vm_pid ($self)
 {
 	unlink $self->{vm_pid_file};
 	return $self;
 }
 
-sub is_vm_running($self)
+sub is_vm_running ($self)
 {
 	my $pid = $self->get_vm_pid;
 	return 0 if !defined $pid;
@@ -164,7 +164,7 @@ sub is_vm_running($self)
 }
 
 # Proxy PID management
-sub set_proxy_pid( $self, $pid )
+sub set_proxy_pid ( $self, $pid )
 {
 	open my $fh, '>', $self->{proxy_pid_file} or do {
 		warn "Cannot write $self->{proxy_pid_file}: $!";
@@ -176,7 +176,7 @@ sub set_proxy_pid( $self, $pid )
 	return $self;
 }
 
-sub get_proxy_pid($self)
+sub get_proxy_pid ($self)
 {
 	open my $fh, '<', $self->{proxy_pid_file} or return;
 	my $pid = <$fh>;
@@ -187,13 +187,13 @@ sub get_proxy_pid($self)
 	return;
 }
 
-sub clear_proxy_pid($self)
+sub clear_proxy_pid ($self)
 {
 	unlink $self->{proxy_pid_file};
 	return $self;
 }
 
-sub is_proxy_running($self)
+sub is_proxy_running ($self)
 {
 	my $pid = $self->get_proxy_pid;
 	return 0 if !defined $pid;
@@ -203,19 +203,19 @@ sub is_proxy_running($self)
 }
 
 # Proxy port management
-sub set_proxy_port( $self, $port )
+sub set_proxy_port ( $self, $port )
 {
 	$self->{data}{proxy_port} = $port;
 	$self->save;
 	return $self;
 }
 
-sub get_proxy_port($self)
+sub get_proxy_port ($self)
 {
 	return $self->{data}{proxy_port};
 }
 
-sub clear_proxy_port($self)
+sub clear_proxy_port ($self)
 {
 	delete $self->{data}{proxy_port};
 	$self->save;
@@ -223,23 +223,23 @@ sub clear_proxy_port($self)
 }
 
 # Disk state
-sub disk_path($self)
+sub disk_path ($self)
 {
 	return $self->{disk_path};
 }
 
-sub disk_exists($self)
+sub disk_exists ($self)
 {
 	return -f $self->{disk_path};
 }
 
 # Installation state
-sub is_installed($self)
+sub is_installed ($self)
 {
 	return $self->{data}{installed} ? 1 : 0;
 }
 
-sub mark_installed($self)
+sub mark_installed ($self)
 {
 	$self->{data}{installed}    = 1;
 	$self->{data}{installed_at} = time;
@@ -248,25 +248,25 @@ sub mark_installed($self)
 }
 
 # Root password management (stored securely in state for initial setup)
-sub set_root_password( $self, $password )
+sub set_root_password ( $self, $password )
 {
 	$self->{data}{root_password} = $password;
 	$self->save;
 	return $self;
 }
 
-sub get_root_password($self)
+sub get_root_password ($self)
 {
 	return $self->{data}{root_password};
 }
 
 # SSH key installation state
-sub is_ssh_key_installed($self)
+sub is_ssh_key_installed ($self)
 {
 	return $self->{data}{ssh_key_installed} ? 1 : 0;
 }
 
-sub mark_ssh_key_installed($self)
+sub mark_ssh_key_installed ($self)
 {
 	$self->{data}{ssh_key_installed}    = 1;
 	$self->{data}{ssh_key_installed_at} = time;
@@ -274,12 +274,12 @@ sub mark_ssh_key_installed($self)
 	return $self;
 }
 
-sub vm_state_dir($self)
+sub vm_state_dir ($self)
 {
 	return $self->{vm_state_dir};
 }
 
-sub data($self)
+sub data ($self)
 {
 	return $self->{data};
 }

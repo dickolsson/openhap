@@ -8,7 +8,7 @@ use OpenHAP::Characteristic;
 use OpenHAP::Log qw(:all);
 use JSON::XS;
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 
 	my $self = $class->SUPER::new(
@@ -93,7 +93,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub subscribe_mqtt($self)
+sub subscribe_mqtt ($self)
 {
 	my $topic = $self->{mqtt_topic};
 
@@ -104,14 +104,14 @@ sub subscribe_mqtt($self)
 	# Subscribe to status updates
 	$self->{mqtt_client}->subscribe(
 		"stat/$topic/POWER",
-		sub($payload) {
+		sub ($payload) {
 			$self->{heating_state} = ( $payload eq 'ON' ) ? 1 : 0;
 			$self->notify_change(11);
 		} );
 
 	$self->{mqtt_client}->subscribe(
 		"stat/$topic/STATUS8",
-		sub($payload) {
+		sub ($payload) {
 			eval {
 				my $data = decode_json($payload);
 				if ( my $temp =
@@ -126,7 +126,7 @@ sub subscribe_mqtt($self)
 		} );
 }
 
-sub _set_target_temp( $self, $temp )
+sub _set_target_temp ( $self, $temp )
 {
 	log_debug( 'Thermostat %s target temperature set to %.1f°C',
 		$self->{name}, $temp );
@@ -134,7 +134,7 @@ sub _set_target_temp( $self, $temp )
 	$self->_check_thermostat_logic();
 }
 
-sub _set_target_state( $self, $state )
+sub _set_target_state ( $self, $state )
 {
 	log_debug( 'Thermostat %s target heating state set to %d',
 		$self->{name}, $state );
@@ -142,7 +142,7 @@ sub _set_target_state( $self, $state )
 	$self->_check_thermostat_logic();
 }
 
-sub _check_thermostat_logic($self)
+sub _check_thermostat_logic ($self)
 {
 	# Simple bang-bang controller with 0.5°C hysteresis
 	my $hysteresis = 0.5;
@@ -166,7 +166,7 @@ sub _check_thermostat_logic($self)
 	}
 }
 
-sub _set_relay( $self, $state )
+sub _set_relay ( $self, $state )
 {
 	my $topic = $self->{mqtt_topic};
 	log_debug( 'Thermostat %s relay set to %s', $self->{name}, $state );

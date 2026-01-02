@@ -29,7 +29,7 @@ use constant {
 # $class->generate_random_bytes($length):
 #	Generate $length bytes of cryptographically secure random data
 #	from /dev/urandom
-sub generate_random_bytes( $, $length )
+sub generate_random_bytes ( $, $length )
 {
 	open my $fh, '<', URANDOM_PATH
 	    or die "Cannot open " . URANDOM_PATH . ": $!";
@@ -42,7 +42,7 @@ sub generate_random_bytes( $, $length )
 # $class->generate_password($length):
 #	Generate a strong random password of specified length using
 #	base64-encoded random bytes (URL-safe variant without padding)
-sub generate_password( $class, $length = PASSWORD_LENGTH )
+sub generate_password ( $class, $length = PASSWORD_LENGTH )
 {
 	# Generate more bytes than needed since base64 expands
 	my $raw_bytes =

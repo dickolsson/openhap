@@ -7,7 +7,7 @@ use OpenHAP::Log qw(:all);
 # MQTT client wrapper for OpenHAP
 # Integrates with IO::Select for event-driven message handling
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = bless {
 		host     => $args{host} // '127.0.0.1',
@@ -24,7 +24,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub mqtt_connect( $self, $timeout = 10 )
+sub mqtt_connect ( $self, $timeout = 10 )
 {
 	log_debug( 'Connecting to MQTT broker at %s:%d (timeout: %ds)',
 		$self->{host}, $self->{port}, $timeout );
@@ -93,7 +93,7 @@ sub mqtt_connect( $self, $timeout = 10 )
 # $self->subscribe($topic, $callback):
 #	subscribe to an MQTT topic with a callback for messages
 #	$callback receives ($topic, $payload)
-sub subscribe( $self, $topic, $callback )
+sub subscribe ( $self, $topic, $callback )
 {
 	log_debug( 'Subscribing to MQTT topic: %s', $topic );
 	$self->{subscriptions}{$topic} = $callback;
@@ -105,7 +105,7 @@ sub subscribe( $self, $topic, $callback )
 	eval {
 		$self->{client}->subscribe(
 			$topic,
-			sub( $topic_received, $payload ) {
+			sub ( $topic_received, $payload ) {
 				push @{ $self->{pending_messages} },
 				    [ $topic_received, $payload ];
 			} );
@@ -118,7 +118,7 @@ sub subscribe( $self, $topic, $callback )
 
 # $self->unsubscribe($topic):
 #	unsubscribe from an MQTT topic
-sub unsubscribe( $self, $topic )
+sub unsubscribe ( $self, $topic )
 {
 	delete $self->{subscriptions}{$topic};
 
@@ -127,7 +127,7 @@ sub unsubscribe( $self, $topic )
 	eval { $self->{client}->unsubscribe($topic); };
 }
 
-sub publish( $self, $topic, $payload, $retain = 0 )
+sub publish ( $self, $topic, $payload, $retain = 0 )
 {
 	return unless $self->{connected} && $self->{client};
 
@@ -156,7 +156,7 @@ sub publish( $self, $topic, $payload, $retain = 0 )
 #	process pending MQTT messages, call from main event loop
 #	$timeout is maximum seconds to wait (default 0 = non-blocking)
 #	returns number of messages processed
-sub tick( $self, $timeout = 0 )
+sub tick ( $self, $timeout = 0 )
 {
 	return 0 unless $self->{connected} && $self->{client};
 
@@ -206,7 +206,7 @@ sub tick( $self, $timeout = 0 )
 
 # $self->_dispatch_message($topic, $payload):
 #	dispatch a message to matching subscription callbacks
-sub _dispatch_message( $self, $topic, $payload )
+sub _dispatch_message ( $self, $topic, $payload )
 {
 	my $dispatched = 0;
 
@@ -228,7 +228,7 @@ sub _dispatch_message( $self, $topic, $payload )
 # $self->_topic_matches($pattern, $topic):
 #	check if a topic matches a subscription pattern
 #	supports + (single level) and # (multi level) wildcards
-sub _topic_matches( $self, $pattern, $topic )
+sub _topic_matches ( $self, $pattern, $topic )
 {
 	# Exact match
 	return 1 if $pattern eq $topic;
@@ -261,7 +261,7 @@ sub _topic_matches( $self, $pattern, $topic )
 
 # $self->resubscribe():
 #	resubscribe to all topics after reconnection
-sub resubscribe($self)
+sub resubscribe ($self)
 {
 	return unless $self->{connected} && $self->{client};
 
@@ -270,7 +270,7 @@ sub resubscribe($self)
 		eval {
 			$self->{client}->subscribe(
 				$topic,
-				sub( $topic_received, $payload ) {
+				sub ( $topic_received, $payload ) {
 					push @{ $self->{pending_messages} },
 					    [ $topic_received, $payload ];
 				} );
@@ -285,7 +285,7 @@ sub resubscribe($self)
 # $self->reconnect():
 #	attempt to reconnect to the broker
 #	returns 1 on success, 0 on failure
-sub reconnect($self)
+sub reconnect ($self)
 {
 	log_debug('Attempting MQTT reconnection');
 	$self->disconnect();
@@ -299,7 +299,7 @@ sub reconnect($self)
 	return 0;
 }
 
-sub disconnect($self)
+sub disconnect ($self)
 {
 	if ( $self->{connected} && $self->{client} ) {
 		eval { $self->{client}->disconnect(); };
@@ -309,14 +309,14 @@ sub disconnect($self)
 	$self->{pending_messages} = [];
 }
 
-sub is_connected($self)
+sub is_connected ($self)
 {
 	return $self->{connected};
 }
 
 # $self->subscriptions():
 #	return list of subscribed topics
-sub subscriptions($self)
+sub subscriptions ($self)
 {
 	return keys %{ $self->{subscriptions} };
 }

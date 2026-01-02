@@ -8,7 +8,7 @@ use OpenHAP::Characteristic;
 use OpenHAP::Log qw(:all);
 use JSON::XS;
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = $class->SUPER::new(
 		aid          => $args{aid},
@@ -47,7 +47,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub subscribe_mqtt($self)
+sub subscribe_mqtt ($self)
 {
 	my $topic = $self->{mqtt_topic};
 
@@ -58,18 +58,18 @@ sub subscribe_mqtt($self)
 	# Subscribe to sensor updates
 	$self->{mqtt_client}->subscribe(
 		"stat/$topic/STATUS8",
-		sub($payload) {
+		sub ($payload) {
 			$self->_handle_sensor_data($payload);
 		} );
 
 	$self->{mqtt_client}->subscribe(
 		"tele/$topic/SENSOR",
-		sub($payload) {
+		sub ($payload) {
 			$self->_handle_sensor_data($payload);
 		} );
 }
 
-sub _handle_sensor_data( $self, $payload )
+sub _handle_sensor_data ( $self, $payload )
 {
 	eval {
 		my $data = decode_json($payload);

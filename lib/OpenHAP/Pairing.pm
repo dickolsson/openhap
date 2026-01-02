@@ -38,7 +38,7 @@ use constant {
 	kTLVError_Busy           => 0x07,
 };
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 
 	my $self = bless {
@@ -51,7 +51,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub handle_pair_setup( $self, $body, $session )
+sub handle_pair_setup ( $self, $body, $session )
 {
 
 	my %request = OpenHAP::TLV::decode($body);
@@ -71,7 +71,7 @@ sub handle_pair_setup( $self, $body, $session )
 	return $self->_error_response( kTLVError_Unknown, 2 );
 }
 
-sub _pair_setup_m1_m2( $self, $session )
+sub _pair_setup_m1_m2 ( $self, $session )
 {
 
 	# Initialize SRP
@@ -93,7 +93,7 @@ sub _pair_setup_m1_m2( $self, $session )
 	return $response;
 }
 
-sub _pair_setup_m3_m4( $self, $request, $session )
+sub _pair_setup_m3_m4 ( $self, $request, $session )
 {
 
 	my $srp = $session->{pairing_state}{srp};
@@ -120,7 +120,7 @@ sub _pair_setup_m3_m4( $self, $request, $session )
 	return $response;
 }
 
-sub _pair_setup_m5_m6( $self, $request, $session )
+sub _pair_setup_m5_m6 ( $self, $request, $session )
 {
 
 	my $srp = $session->{pairing_state}{srp};
@@ -209,7 +209,7 @@ sub _pair_setup_m5_m6( $self, $request, $session )
 	return $response;
 }
 
-sub handle_pair_verify( $self, $body, $session )
+sub handle_pair_verify ( $self, $body, $session )
 {
 
 	my %request = OpenHAP::TLV::decode($body);
@@ -226,7 +226,7 @@ sub handle_pair_verify( $self, $body, $session )
 	return $self->_error_response( kTLVError_Unknown, 2 );
 }
 
-sub _pair_verify_m1_m2( $self, $request, $session )
+sub _pair_verify_m1_m2 ( $self, $request, $session )
 {
 
 	my $ios_public_key = $request->{ kTLVType_PublicKey() };
@@ -281,7 +281,7 @@ sub _pair_verify_m1_m2( $self, $request, $session )
 	return $response;
 }
 
-sub _pair_verify_m3_m4( $self, $request, $session )
+sub _pair_verify_m3_m4 ( $self, $request, $session )
 {
 
 	my $encrypted_data = $request->{ kTLVType_EncryptedData() };
@@ -344,7 +344,7 @@ sub _pair_verify_m3_m4( $self, $request, $session )
 	return $response;
 }
 
-sub _error_response( $self, $error_code, $state )
+sub _error_response ( $self, $error_code, $state )
 {
 
 	return OpenHAP::TLV::encode(

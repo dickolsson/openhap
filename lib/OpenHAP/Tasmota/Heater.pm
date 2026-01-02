@@ -7,7 +7,7 @@ use OpenHAP::Service;
 use OpenHAP::Characteristic;
 use OpenHAP::Log qw(:all);
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = $class->SUPER::new(
 		aid          => $args{aid},
@@ -43,7 +43,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub subscribe_mqtt($self)
+sub subscribe_mqtt ($self)
 {
 	my $topic = $self->{mqtt_topic};
 
@@ -61,7 +61,7 @@ sub subscribe_mqtt($self)
 		} );
 }
 
-sub _set_power( $self, $state )
+sub _set_power ( $self, $state )
 {
 	my $topic   = $self->{mqtt_topic};
 	my $command = $state ? 'ON' : 'OFF';

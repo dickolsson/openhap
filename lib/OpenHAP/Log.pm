@@ -91,7 +91,7 @@ my $state = {
 #		foreground => log to stderr instead of syslog (default: 0)
 #		level      => minimum log level (default: info)
 #		verbose    => increase verbosity (default: 0)
-sub init( $class, %args )
+sub init ( $class, %args )
 {
 	$state->{ident}      = $args{ident}      // 'openhapd';
 	$state->{foreground} = $args{foreground} // 0;
@@ -126,7 +126,7 @@ sub init( $class, %args )
 
 # $class->finalize():
 #	close the logging subsystem
-sub finalize($class)
+sub finalize ($class)
 {
 	if ( $state->{initialized} && !$state->{foreground} ) {
 		closelog();
@@ -139,7 +139,7 @@ sub finalize($class)
 #	$level is a string: debug, info, notice, warning, err, crit, alert, emerg
 #	$message is a format string (printf-style)
 #	@args are format arguments
-sub write_log( $class, $level, $message, @args )
+sub write_log ( $class, $level, $message, @args )
 {
 	return unless $state->{initialized};
 
@@ -164,7 +164,7 @@ sub write_log( $class, $level, $message, @args )
 }
 
 # Internal: log to stderr
-sub _log_stderr( $level, $message )
+sub _log_stderr ( $level, $message )
 {
 	my $timestamp = _timestamp();
 	my $prefix    = uc($level);
@@ -180,7 +180,7 @@ sub _log_stderr( $level, $message )
 }
 
 # Internal: log to syslog
-sub _log_syslog( $level, $message )
+sub _log_syslog ( $level, $message )
 {
 	my $priority = $syslog_priority{$level} // LOG_INFO;
 	syslog( $priority, '%s', $message );
@@ -195,7 +195,7 @@ sub _timestamp()
 }
 
 # Internal: check if filehandle is connected to a terminal
-sub _is_interactive($fh)
+sub _is_interactive ($fh)
 {
 	# Check if the filehandle is connected to a terminal device
 	# Uses -t operator which is the standard POSIX way
@@ -203,7 +203,7 @@ sub _is_interactive($fh)
 }
 
 # Internal: colorize message for terminal output
-sub _colorize( $level, $message )
+sub _colorize ( $level, $message )
 {
 	my %colors = (
 		debug   => "\e[36m",         # cyan
@@ -223,7 +223,7 @@ sub _colorize( $level, $message )
 }
 
 # Internal: parse facility name to constant
-sub _parse_facility($facility)
+sub _parse_facility ($facility)
 {
 	return $facility if $facility =~ /^\d+$/;
 
@@ -256,59 +256,59 @@ sub _parse_facility($facility)
 # Convenience functions for each log level
 # These can be exported and called without the class
 
-sub log_debug( $message, @args )
+sub log_debug ( $message, @args )
 {
 	__PACKAGE__->write_log( 'debug', $message, @args );
 }
 
-sub log_info( $message, @args )
+sub log_info ( $message, @args )
 {
 	__PACKAGE__->write_log( 'info', $message, @args );
 }
 
-sub log_notice( $message, @args )
+sub log_notice ( $message, @args )
 {
 	__PACKAGE__->write_log( 'notice', $message, @args );
 }
 
-sub log_warning( $message, @args )
+sub log_warning ( $message, @args )
 {
 	__PACKAGE__->write_log( 'warning', $message, @args );
 }
 
-sub log_err( $message, @args )
+sub log_err ( $message, @args )
 {
 	__PACKAGE__->write_log( 'err', $message, @args );
 }
 
-sub log_crit( $message, @args )
+sub log_crit ( $message, @args )
 {
 	__PACKAGE__->write_log( 'crit', $message, @args );
 }
 
-sub log_alert( $message, @args )
+sub log_alert ( $message, @args )
 {
 	__PACKAGE__->write_log( 'alert', $message, @args );
 }
 
-sub log_emerg( $message, @args )
+sub log_emerg ( $message, @args )
 {
 	__PACKAGE__->write_log( 'emerg', $message, @args );
 }
 
 # Accessors for testing/inspection
 
-sub is_initialized($class)
+sub is_initialized ($class)
 {
 	return $state->{initialized};
 }
 
-sub get_level($class)
+sub get_level ($class)
 {
 	return $state->{level};
 }
 
-sub is_foreground($class)
+sub is_foreground ($class)
 {
 	return $state->{foreground};
 }

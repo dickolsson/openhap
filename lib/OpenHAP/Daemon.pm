@@ -26,7 +26,7 @@ use OpenHAP::Log qw(:all);
 #	Fork into background, detach from terminal, and redirect
 #	standard file descriptors. Returns in child process only.
 #	Parent process exits successfully.
-sub daemonize( $class, $logfile = '/var/log/openhapd.log' )
+sub daemonize ( $class, $logfile = '/var/log/openhapd.log' )
 {
 	my $pid = fork;
 	unless ( defined $pid ) {
@@ -61,7 +61,7 @@ sub daemonize( $class, $logfile = '/var/log/openhapd.log' )
 
 # $class->write_pidfile($path):
 #	Write current PID to file. Returns true on success.
-sub write_pidfile( $class, $path )
+sub write_pidfile ( $class, $path )
 {
 	open my $fh, '>', $path or do {
 		log_err( 'Cannot write PID file %s: %s', $path, $! );
@@ -78,7 +78,7 @@ sub write_pidfile( $class, $path )
 # $class->read_pidfile($path):
 #	Read PID from file. Returns PID or undef if file doesn't exist
 #	or cannot be read.
-sub read_pidfile( $class, $path )
+sub read_pidfile ( $class, $path )
 {
 	return unless -f $path;
 
@@ -100,7 +100,7 @@ sub read_pidfile( $class, $path )
 # $class->check_running($pidfile):
 #	Check if daemon is running based on PID file.
 #	Returns PID if running, undef otherwise.
-sub check_running( $class, $pidfile )
+sub check_running ( $class, $pidfile )
 {
 	my $pid = $class->read_pidfile($pidfile);
 	return unless defined $pid;

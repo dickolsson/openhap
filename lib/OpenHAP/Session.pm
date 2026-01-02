@@ -4,7 +4,7 @@ package OpenHAP::Session;
 use OpenHAP::Crypto;
 use OpenHAP::Log qw(:all);
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 
 	my $self = bless {
@@ -28,7 +28,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub set_encryption( $self, $encrypt_key, $decrypt_key )
+sub set_encryption ( $self, $encrypt_key, $decrypt_key )
 {
 
 	$self->{encrypt_key}   = $encrypt_key;
@@ -39,7 +39,7 @@ sub set_encryption( $self, $encrypt_key, $decrypt_key )
 	log_debug('Session encryption enabled');
 }
 
-sub encrypt( $self, $data )
+sub encrypt ( $self, $data )
 {
 
 	return $data unless $self->{encrypted};
@@ -69,7 +69,7 @@ sub encrypt( $self, $data )
 	return $encrypted;
 }
 
-sub decrypt( $self, $data )
+sub decrypt ( $self, $data )
 {
 
 	return $data unless $self->{encrypted};
@@ -107,17 +107,17 @@ sub decrypt( $self, $data )
 	return $decrypted;
 }
 
-sub is_encrypted($self)
+sub is_encrypted ($self)
 {
 	return $self->{encrypted};
 }
 
-sub is_verified($self)
+sub is_verified ($self)
 {
 	return $self->{verified};
 }
 
-sub set_verified( $self, $controller_id )
+sub set_verified ( $self, $controller_id )
 {
 	$self->{verified}      = 1;
 	$self->{controller_id} = $controller_id;
@@ -126,7 +126,7 @@ sub set_verified( $self, $controller_id )
 	return;
 }
 
-sub controller_id($self)
+sub controller_id ($self)
 {
 	return $self->{controller_id};
 }

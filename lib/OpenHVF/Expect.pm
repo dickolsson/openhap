@@ -22,7 +22,7 @@ package OpenHVF::Expect;
 use File::Basename;
 use FindBin qw($RealBin);
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = bless {
 		host    => $args{host} // 'localhost',
@@ -33,7 +33,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub run_script( $self, $script, @args )
+sub run_script ( $self, $script, @args )
 {
 	if ( !-f $script ) {
 
@@ -59,7 +59,7 @@ sub run_script( $self, $script, @args )
 	return $result == 0;
 }
 
-sub run_install( $self, $config )
+sub run_install ( $self, $config )
 {
 	# Find install script
 	my @search_paths = (

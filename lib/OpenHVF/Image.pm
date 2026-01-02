@@ -27,7 +27,7 @@ use constant {
 	ARCH     => 'arm64',
 };
 
-sub new( $class, $cache_dir )
+sub new ( $class, $cache_dir )
 {
 	# Expand ~ in path
 	$cache_dir =~ s/^~/$ENV{HOME}/;
@@ -38,14 +38,14 @@ sub new( $class, $cache_dir )
 	return $self;
 }
 
-sub _ensure_cache_dir($self)
+sub _ensure_cache_dir ($self)
 {
 	if ( !-d $self->{cache_dir} ) {
 		make_path( $self->{cache_dir} );
 	}
 }
 
-sub download( $self, $version )
+sub download ( $self, $version )
 {
 	my $cache_file = $self->_cache_filename($version);
 	my $path       = "$self->{cache_dir}/$cache_file";
@@ -81,7 +81,7 @@ sub download( $self, $version )
 	return $path;
 }
 
-sub verify( $self, $version )
+sub verify ( $self, $version )
 {
 	my $cache_file = $self->_cache_filename($version);
 	my $path       = "$self->{cache_dir}/$cache_file";
@@ -95,14 +95,14 @@ sub verify( $self, $version )
 	return $expected eq $actual;
 }
 
-sub path( $self, $version )
+sub path ( $self, $version )
 {
 	my $cache_file = $self->_cache_filename($version);
 	my $path       = "$self->{cache_dir}/$cache_file";
 	return -f $path ? $path : undef;
 }
 
-sub list($self)
+sub list ($self)
 {
 	my @images;
 
@@ -129,7 +129,7 @@ sub list($self)
 	return \@images;
 }
 
-sub remove( $self, $version )
+sub remove ( $self, $version )
 {
 	my $cache_file = $self->_cache_filename($version);
 	my $path       = "$self->{cache_dir}/$cache_file";
@@ -148,7 +148,7 @@ sub remove( $self, $version )
 	return 1;
 }
 
-sub _image_filename( $self, $version )
+sub _image_filename ( $self, $version )
 {
 	# Convert version: 7.8 -> 78
 	# Note: OpenBSD uses same miniroot filename for all archs
@@ -157,19 +157,19 @@ sub _image_filename( $self, $version )
 }
 
 # Simpler cache filename (no arch suffix needed)
-sub _cache_filename( $self, $version )
+sub _cache_filename ( $self, $version )
 {
 	( my $ver = $version ) =~ s/\.//g;
 	return "miniroot$ver.img";
 }
 
-sub _image_url( $self, $version )
+sub _image_url ( $self, $version )
 {
 	my $filename = $self->_image_filename($version);
 	return BASE_URL . "/$version/" . ARCH . "/$filename";
 }
 
-sub _fetch_checksum( $self, $version )
+sub _fetch_checksum ( $self, $version )
 {
 	my $sha_file = "$self->{cache_dir}/SHA256-$version";
 
@@ -206,7 +206,7 @@ sub _fetch_checksum( $self, $version )
 	return;
 }
 
-sub _calculate_sha256( $self, $path )
+sub _calculate_sha256 ( $self, $path )
 {
 	open my $fh, '<:raw', $path or return;
 	my $sha = Digest::SHA->new(256);
@@ -215,7 +215,7 @@ sub _calculate_sha256( $self, $path )
 	return $sha->hexdigest;
 }
 
-sub _fetch_url( $self, $url )
+sub _fetch_url ( $self, $url )
 {
 	# Use list form of open to prevent shell injection
 	open my $fh, '-|', 'curl', '-fsSL', '--', $url
@@ -226,7 +226,7 @@ sub _fetch_url( $self, $url )
 	return $? == 0 ? $content : undef;
 }
 
-sub _download_file( $self, $url, $path )
+sub _download_file ( $self, $url, $path )
 {
 	# Use curl with progress
 	my $result = system( 'curl', '-fL', '-o', $path, $url );

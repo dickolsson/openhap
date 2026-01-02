@@ -27,7 +27,7 @@ use OpenHAP::Log qw(:all);
 # This module wraps OpenBSD's mdnsctl(8) command to register HAP services
 # with mdnsd(8) for Bonjour/mDNS service discovery.
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = bless {
 		service_name => $args{service_name} // 'OpenHAP Bridge',
@@ -63,7 +63,7 @@ sub _find_mdnsctl()
 #	Register the HAP service with mdnsd via mdnsctl
 #	Forks a background process to keep the service registered
 #	Returns 1 on success, undef on failure (logs warning)
-sub register_service($self)
+sub register_service ($self)
 {
 	return if $self->{registered};
 
@@ -74,9 +74,9 @@ sub register_service($self)
 		return;
 	}
 
-# Build the mdnsctl command
-# Format: mdnsctl publish "Service Name" hap tcp port "key1=value1,key2=value2"
-# Note: mdnsctl adds the _ prefix internally to form _hap._tcp.local
+ # Build the mdnsctl command
+ # Format: mdnsctl publish "Service Name" hap tcp port "key1=value1,key2=value2"
+ # Note: mdnsctl adds the _ prefix internally to form _hap._tcp.local
 
 	# Combine TXT records into single comma-separated string
 	my $txt_string = join( ',',
@@ -85,8 +85,7 @@ sub register_service($self)
 
 	my @cmd = (
 		$self->{mdnsctl}, 'publish',
-		$self->{service_name}, 'hap', 'tcp', $self->{port},
-		$txt_string,
+		$self->{service_name}, 'hap', 'tcp', $self->{port}, $txt_string,
 	);
 
 	log_debug( 'Registering mDNS service: %s', join( ' ', @cmd ) );
@@ -129,7 +128,7 @@ sub register_service($self)
 # $self->unregister_service():
 #	Unregister the HAP service by terminating the mdnsctl process
 #	Returns 1 on success
-sub unregister_service($self)
+sub unregister_service ($self)
 {
 	return if !$self->{registered};
 
@@ -155,14 +154,14 @@ sub unregister_service($self)
 
 # $self->is_registered():
 #	Check if service is currently registered
-sub is_registered($self)
+sub is_registered ($self)
 {
 	return $self->{registered};
 }
 
 # DESTROY():
 #	Clean up mdnsctl process when object is destroyed
-sub DESTROY($self)
+sub DESTROY ($self)
 {
 	$self->unregister_service() if $self->{registered};
 	return;

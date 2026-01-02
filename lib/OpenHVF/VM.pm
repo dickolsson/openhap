@@ -48,7 +48,7 @@ use constant {
 	CPU_COUNT      => 2,
 };
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = bless {
 		config => $args{config},
@@ -60,7 +60,7 @@ sub new( $class, %args )
 }
 
 # Idempotent: ensure VM is running
-sub up($self)
+sub up ($self)
 {
 	my $config = $self->{config};
 	my $state  = $self->{state};
@@ -220,7 +220,7 @@ sub up($self)
 	return EXIT_SUCCESS;
 }
 
-sub down($self)
+sub down ($self)
 {
 	my $state  = $self->{state};
 	my $output = $self->{output};
@@ -273,7 +273,7 @@ sub down($self)
 	return EXIT_SUCCESS;
 }
 
-sub destroy($self)
+sub destroy ($self)
 {
 	my $state  = $self->{state};
 	my $output = $self->{output};
@@ -314,7 +314,7 @@ sub destroy($self)
 	return EXIT_SUCCESS;
 }
 
-sub start($self)
+sub start ($self)
 {
 	my $state  = $self->{state};
 	my $output = $self->{output};
@@ -340,7 +340,7 @@ sub start($self)
 	return EXIT_SUCCESS;
 }
 
-sub stop( $self, $force = 0 )
+sub stop ( $self, $force = 0 )
 {
 	my $state  = $self->{state};
 	my $output = $self->{output};
@@ -364,7 +364,7 @@ sub stop( $self, $force = 0 )
 	return EXIT_SUCCESS;
 }
 
-sub status($self)
+sub status ($self)
 {
 	my $state  = $self->{state};
 	my $config = $self->{config};
@@ -394,28 +394,28 @@ sub status($self)
 	};
 }
 
-sub is_running($self)
+sub is_running ($self)
 {
 	return $self->_is_running;
 }
 
-sub pid($self)
+sub pid ($self)
 {
 	return $self->{state}->get_vm_pid;
 }
 
-sub ssh_port($self)
+sub ssh_port ($self)
 {
 	return $self->{config}{ssh_port};
 }
 
-sub console_port($self)
+sub console_port ($self)
 {
 	return $self->{config}{console_port};
 }
 
 # Wait operations
-sub wait_ssh( $self, $timeout = 120 )
+sub wait_ssh ( $self, $timeout = 120 )
 {
 	my $config = $self->{config};
 
@@ -432,7 +432,7 @@ sub wait_ssh( $self, $timeout = 120 )
 # $self->_wait_ssh_password($password, $timeout):
 #	Wait for SSH to become available using password authentication
 #	Used during initial installation before SSH key is installed
-sub _wait_ssh_password( $self, $password, $timeout = 120 )
+sub _wait_ssh_password ( $self, $password, $timeout = 120 )
 {
 	my $config = $self->{config};
 
@@ -449,7 +449,7 @@ sub _wait_ssh_password( $self, $password, $timeout = 120 )
 # $self->_install_ssh_key($password):
 #	Install the SSH public key from config into authorized_keys
 #	Uses password authentication since key is not yet installed
-sub _install_ssh_key( $self, $password )
+sub _install_ssh_key ( $self, $password )
 {
 	my $config = $self->{config};
 	my $state  = $self->{state};
@@ -494,18 +494,18 @@ sub _install_ssh_key( $self, $password )
 }
 
 # QMP methods
-sub _qmp_socket_path($self)
+sub _qmp_socket_path ($self)
 {
 	return $self->{state}{vm_state_dir} . '/qmp.sock';
 }
 
-sub _qmp_connect($self)
+sub _qmp_connect ($self)
 {
 	my $qmp = OpenHVF::QMP->new( $self->_qmp_socket_path );
 	return $qmp->open_connection ? $qmp : undef;
 }
 
-sub _qmp_powerdown($self)
+sub _qmp_powerdown ($self)
 {
 	my $qmp    = $self->_qmp_connect or return 0;
 	my $result = $qmp->powerdown;
@@ -513,13 +513,13 @@ sub _qmp_powerdown($self)
 	return $result;
 }
 
-sub _qmp_quit($self)
+sub _qmp_quit ($self)
 {
 	my $qmp = $self->_qmp_connect or return 0;
 	return $qmp->quit;
 }
 
-sub _is_running($self)
+sub _is_running ($self)
 {
 	my $pid = $self->{state}->get_vm_pid;
 	return 0 if !defined $pid;
@@ -539,7 +539,7 @@ sub _is_running($self)
 	return 1;
 }
 
-sub _wait_exit( $self, $timeout )
+sub _wait_exit ( $self, $timeout )
 {
 	my $start = time;
 	while ( time - $start < $timeout ) {
@@ -551,7 +551,7 @@ sub _wait_exit( $self, $timeout )
 }
 
 # QEMU startup
-sub _start_qemu( $self, $boot_image = undef )
+sub _start_qemu ( $self, $boot_image = undef )
 {
 	my $config = $self->{config};
 	my $state  = $self->{state};
@@ -643,7 +643,7 @@ sub _start_qemu( $self, $boot_image = undef )
 	return;
 }
 
-sub _find_efi_firmware($self)
+sub _find_efi_firmware ($self)
 {
 	my @paths = (
 		'/opt/homebrew/share/qemu/edk2-aarch64-code.fd',
@@ -662,7 +662,7 @@ sub _find_efi_firmware($self)
 	return;
 }
 
-sub _cache_dir($self)
+sub _cache_dir ($self)
 {
 	my $home = $ENV{HOME} // '/root';
 	return "$home/.cache/openhvf";

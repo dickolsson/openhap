@@ -7,7 +7,7 @@ use OpenHAP::Log qw(:all);
 use File::Path qw(make_path);
 use Fcntl      qw(:flock);
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $db_path = $args{db_path} // '/var/db/openhapd';
 
@@ -25,7 +25,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub load_accessory_keys($self)
+sub load_accessory_keys ($self)
 {
 	if (       -f $self->{accessory_ltsk_file}
 		&& -f $self->{accessory_ltpk_file} )
@@ -40,7 +40,7 @@ sub load_accessory_keys($self)
 	return ();
 }
 
-sub save_accessory_keys( $self, $ltsk, $ltpk )
+sub save_accessory_keys ( $self, $ltsk, $ltpk )
 {
 	log_debug('Generating and saving new accessory keys');
 	$self->_write_file( $self->{accessory_ltsk_file}, $ltsk, 0600 );
@@ -49,7 +49,7 @@ sub save_accessory_keys( $self, $ltsk, $ltpk )
 	return;
 }
 
-sub load_pairings($self)
+sub load_pairings ($self)
 {
 	return {} unless -f $self->{pairings_file};
 
@@ -86,7 +86,7 @@ sub load_pairings($self)
 	return \%pairings;
 }
 
-sub save_pairing( $self, $controller_id, $ltpk, $permissions = 1 )
+sub save_pairing ( $self, $controller_id, $ltpk, $permissions = 1 )
 {
 	log_debug( 'Saving pairing for controller: %s', $controller_id );
 	my $pairings = $self->load_pairings;
@@ -101,7 +101,7 @@ sub save_pairing( $self, $controller_id, $ltpk, $permissions = 1 )
 	return;
 }
 
-sub remove_pairing( $self, $controller_id )
+sub remove_pairing ( $self, $controller_id )
 {
 	log_debug( 'Removing pairing for controller: %s', $controller_id );
 	my $pairings = $self->load_pairings;
@@ -113,7 +113,7 @@ sub remove_pairing( $self, $controller_id )
 	return;
 }
 
-sub _save_pairings( $self, $pairings )
+sub _save_pairings ( $self, $pairings )
 {
 	my $old_umask = umask(0077);
 	open my $fh, '>', $self->{pairings_file} or do {
@@ -147,7 +147,7 @@ sub _save_pairings( $self, $pairings )
 	return;
 }
 
-sub get_config_number($self)
+sub get_config_number ($self)
 {
 	my $config_file = "$self->{db_path}/config_number";
 	if ( -f $config_file ) {
@@ -159,7 +159,7 @@ sub get_config_number($self)
 	return 1;
 }
 
-sub increment_config_number($self)
+sub increment_config_number ($self)
 {
 	my $num         = $self->get_config_number + 1;
 	my $config_file = "$self->{db_path}/config_number";
@@ -168,7 +168,7 @@ sub increment_config_number($self)
 	return $num;
 }
 
-sub _read_file( $self, $path )
+sub _read_file ( $self, $path )
 {
 	open my $fh, '<', $path or croak "Cannot open $path: $!";
 	local $/ = undef;
@@ -178,7 +178,7 @@ sub _read_file( $self, $path )
 	return $content;
 }
 
-sub _write_file( $self, $path, $content, $mode = undef )
+sub _write_file ( $self, $path, $content, $mode = undef )
 {
 	open my $fh, '>', $path or croak "Cannot open $path: $!";
 	print $fh $content;

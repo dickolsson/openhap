@@ -29,7 +29,7 @@ use constant {
 	BUFFER_SIZE     => 32768,
 };
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = bless {
 		host     => $args{host} // 'localhost',
@@ -45,7 +45,7 @@ sub new( $class, %args )
 # $self->_connect:
 #	Establish SSH connection and authenticate using SSH agent
 #	or password fallback. Returns Net::SSH2 object on success.
-sub _connect($self)
+sub _connect ($self)
 {
 	my $ssh2 = Net::SSH2->new;
 	$ssh2->timeout( $self->{timeout} * 1000 );    # milliseconds
@@ -73,7 +73,7 @@ sub _connect($self)
 	return;
 }
 
-sub wait_available( $self, $timeout = 120 )
+sub wait_available ( $self, $timeout = 120 )
 {
 	my $start = time;
 
@@ -89,7 +89,7 @@ sub wait_available( $self, $timeout = 120 )
 	return 0;
 }
 
-sub run_command( $self, $command )
+sub run_command ( $self, $command )
 {
 	my $ssh2 = $self->_connect;
 	if ( !defined $ssh2 ) {
@@ -145,7 +145,7 @@ sub run_command( $self, $command )
 	};
 }
 
-sub interactive($self)
+sub interactive ($self)
 {
 	# For interactive sessions, fall back to system ssh command
 	# Net::SSH2 doesn't provide proper TTY handling for interactive use
@@ -167,7 +167,7 @@ sub interactive($self)
 
 # $self->write_file($remote_path, $content, $mode):
 #	Write content directly to a remote file via SFTP
-sub write_file( $self, $remote_path, $content, $mode = 0644 )
+sub write_file ( $self, $remote_path, $content, $mode = 0644 )
 {
 	my $ssh2 = $self->_connect;
 	if ( !defined $ssh2 ) {
@@ -197,7 +197,7 @@ sub write_file( $self, $remote_path, $content, $mode = 0644 )
 
 # $self->make_remote_dir($remote_path, $mode):
 #	Create a remote directory
-sub make_remote_dir( $self, $remote_path, $mode = 0755 )
+sub make_remote_dir ( $self, $remote_path, $mode = 0755 )
 {
 	my $ssh2 = $self->_connect;
 	if ( !defined $ssh2 ) {
@@ -216,7 +216,7 @@ sub make_remote_dir( $self, $remote_path, $mode = 0755 )
 	return $result ? EXIT_SUCCESS : EXIT_ERROR;
 }
 
-sub is_available($self)
+sub is_available ($self)
 {
 	my $ssh2 = $self->_connect;
 	if ( !defined $ssh2 ) {

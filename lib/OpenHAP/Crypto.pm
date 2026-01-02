@@ -30,7 +30,7 @@ our $N_3072 = pack( 'H*',
 	    . '43DB5BFCE0FD108E4B82D120A93AD2CAFFFFFFFFFFFFFFFF' );
 our $g = 5;
 
-sub generate_random_bytes($length)
+sub generate_random_bytes ($length)
 {
 	# Use /dev/urandom for random bytes
 	open my $fh, '<', '/dev/urandom' or do {
@@ -55,12 +55,12 @@ sub generate_keypair_ed25519()
 	return ( $secret_key, $public_key );
 }
 
-sub sign_ed25519( $message, $secret_key, $public_key )
+sub sign_ed25519 ( $message, $secret_key, $public_key )
 {
 	return Crypt::Ed25519::sign( $message, $public_key, $secret_key );
 }
 
-sub verify_ed25519( $signature, $message, $public_key )
+sub verify_ed25519 ( $signature, $message, $public_key )
 {
 	return Crypt::Ed25519::verify( $message, $public_key, $signature );
 }
@@ -73,18 +73,18 @@ sub generate_keypair_x25519()
 	return ( $secret, $public );
 }
 
-sub derive_shared_secret( $our_secret, $their_public )
+sub derive_shared_secret ( $our_secret, $their_public )
 {
 	return Crypt::Curve25519::curve25519_shared_secret( $our_secret,
 		$their_public );
 }
 
-sub hkdf_sha512( $ikm, $salt, $info, $length )
+sub hkdf_sha512 ( $ikm, $salt, $info, $length )
 {
 	return hkdf( $ikm, $salt, 'SHA512', $length, $info );
 }
 
-sub chacha20_poly1305_encrypt( $key, $nonce, $plaintext, $aad = '' )
+sub chacha20_poly1305_encrypt ( $key, $nonce, $plaintext, $aad = '' )
 {
 	my ( $ciphertext, $tag ) =
 	    chacha20poly1305_encrypt_authenticate( $key, $nonce, $aad,
@@ -93,7 +93,7 @@ sub chacha20_poly1305_encrypt( $key, $nonce, $plaintext, $aad = '' )
 	return ( $ciphertext, $tag );
 }
 
-sub chacha20_poly1305_decrypt( $key, $nonce, $ciphertext, $tag, $aad = '' )
+sub chacha20_poly1305_decrypt ( $key, $nonce, $ciphertext, $tag, $aad = '' )
 {
 	my $plaintext =
 	    chacha20poly1305_decrypt_verify( $key, $nonce, $aad, $ciphertext,

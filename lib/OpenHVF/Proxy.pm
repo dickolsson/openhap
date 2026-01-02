@@ -32,7 +32,7 @@ use constant {
 	HOST_GATEWAY     => '10.0.2.2',    # QEMU user-mode networking gateway
 };
 
-sub new( $class, $state, $cache_dir )
+sub new ( $class, $state, $cache_dir )
 {
 	my $self = bless {
 		state     => $state,
@@ -46,7 +46,7 @@ sub new( $class, $state, $cache_dir )
 # $self->start:
 #	Start the proxy server
 #	Returns port number on success, undef on failure
-sub start($self)
+sub start ($self)
 {
 	# Check if already running
 	if ( $self->is_running ) {
@@ -99,7 +99,7 @@ sub start($self)
 
 # $self->stop:
 #	Stop the proxy server gracefully
-sub stop($self)
+sub stop ($self)
 {
 	my $pid = $self->{state}->get_proxy_pid;
 	return 1 if !defined $pid;
@@ -130,21 +130,21 @@ sub stop($self)
 
 # $self->is_running:
 #	Check if proxy is running
-sub is_running($self)
+sub is_running ($self)
 {
 	return $self->{state}->is_proxy_running;
 }
 
 # $self->port:
 #	Get current proxy port
-sub port($self)
+sub port ($self)
 {
 	return $self->{state}->get_proxy_port;
 }
 
 # $self->url:
 #	Get proxy URL for use from VM
-sub url($self)
+sub url ($self)
 {
 	my $port = $self->port;
 	return if !defined $port;
@@ -154,7 +154,7 @@ sub url($self)
 
 # $self->wait_ready($timeout):
 #	Wait for proxy to accept connections
-sub wait_ready( $self, $timeout = CONNECT_TIMEOUT )
+sub wait_ready ( $self, $timeout = CONNECT_TIMEOUT )
 {
 	my $port = $self->{state}->get_proxy_port;
 	return 0 if !defined $port;
@@ -179,12 +179,12 @@ sub wait_ready( $self, $timeout = CONNECT_TIMEOUT )
 
 # $self->cache:
 #	Get the cache object
-sub cache($self)
+sub cache ($self)
 {
 	return $self->{cache};
 }
 
-sub _find_available_port($self)
+sub _find_available_port ($self)
 {
 	for my $port ( PORT_RANGE_START .. PORT_RANGE_END ) {
 		my $sock = IO::Socket::INET->new(
@@ -204,7 +204,7 @@ sub _find_available_port($self)
 
 # $self->_run_proxy($port):
 #	Run the proxy server (called in child process)
-sub _run_proxy( $self, $port )
+sub _run_proxy ( $self, $port )
 {
 	require HTTP::Daemon;
 	require LWP::UserAgent;
@@ -264,7 +264,7 @@ sub _run_proxy( $self, $port )
 	$daemon->close;
 }
 
-sub _handle_client( $self, $client )
+sub _handle_client ( $self, $client )
 {
 	while ( my $request = $client->get_request ) {
 		my $response = $self->_process_request($request);
@@ -272,7 +272,7 @@ sub _handle_client( $self, $client )
 	}
 }
 
-sub _process_request( $self, $request )
+sub _process_request ( $self, $request )
 {
 	require HTTP::Response;
 	require LWP::UserAgent;
@@ -304,7 +304,7 @@ sub _process_request( $self, $request )
 	return $response;
 }
 
-sub _forward_request( $self, $request )
+sub _forward_request ( $self, $request )
 {
 	require LWP::UserAgent;
 
@@ -328,7 +328,7 @@ sub _forward_request( $self, $request )
 	return $response;
 }
 
-sub _serve_cached( $self, $path, $request )
+sub _serve_cached ( $self, $path, $request )
 {
 	require HTTP::Response;
 
