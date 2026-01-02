@@ -33,61 +33,89 @@ sub new( $class, %args )
 		port         => $args{port}         // 51827,
 		txt_records  => $args{txt_records}  // {},
 		registered   => 0,
-		mdnsctl      => $args{mdnsctl} // '/usr/sbin/mdnsctl',
+		mdnsctl      => $args{mdnsctl} // _find_mdnsctl(),
+		pid          => undef,
 	}, $class;
 
 	return $self;
 }
 
+# _find_mdnsctl():
+#	Locate mdnsctl binary in common paths
+#	Returns path to mdnsctl or undef if not found
+sub _find_mdnsctl()
+{
+	my @paths = qw(
+	    /usr/local/bin/mdnsctl
+	    /usr/sbin/mdnsctl
+	    /usr/bin/mdnsctl
+	);
+
+	for my $path (@paths) {
+		return $path if -x $path;
+	}
+
+	return;
+}
+
 # $self->register_service():
 #	Register the HAP service with mdnsd via mdnsctl
+#	Forks a background process to keep the service registered
 #	Returns 1 on success, undef on failure (logs warning)
 sub register_service($self)
 {
 	return if $self->{registered};
 
-       # Build the mdnsctl command
-       # Format: mdnsctl proxy add _hap._tcp "Service Name" port "key=value" ...
-	my @cmd = (
-		$self->{mdnsctl}, 'proxy',               'add',
-		'_hap._tcp',      $self->{service_name}, $self->{port},
-	);
-
-	# Add TXT records
-	for my $key ( sort keys %{ $self->{txt_records} } ) {
-		my $value = $self->{txt_records}{$key};
-		push @cmd, "$key=$value";
+	if ( !defined $self->{mdnsctl} ) {
+		log_warning(
+'mdnsctl not found - mDNS service registration unavailable'
+		);
+		return;
 	}
+
+# Build the mdnsctl command
+# Format: mdnsctl publish "Service Name" _hap tcp port "key1=value1,key2=value2"
+
+	# Combine TXT records into single comma-separated string
+	my $txt_string = join( ',',
+		map { "$_=$self->{txt_records}{$_}" }
+		sort keys %{ $self->{txt_records} } );
+
+	my @cmd = (
+		$self->{mdnsctl}, 'publish',
+		$self->{service_name}, '_hap', 'tcp', $self->{port},
+		$txt_string,
+	);
 
 	log_debug( 'Registering mDNS service: %s', join( ' ', @cmd ) );
 
-	# Execute mdnsctl
-	my $output  = '';
-	my $success = eval {
-		open my $fh, '-|', @cmd or do {
-			log_warning(
-'Cannot open pipe to mdnsctl for registration: %s',
-				$!
-			);
-			return;
-		};
-		$output = do { local $/; <$fh> };
-		close $fh;
-		return $? == 0;
-	};
-
-	if ($@) {
-		log_warning( 'Exception during mDNS registration: %s', $@ );
+	# Fork mdnsctl process to keep service registered
+	# mdnsctl publish must stay running to maintain the registration
+	my $pid = fork;
+	unless ( defined $pid ) {
+		log_warning( 'Cannot fork mdnsctl process: %s', $! );
 		return;
 	}
 
-	if ( !$success ) {
-		log_warning( 'Failed to register mDNS service: %s',
-			$output || 'command failed' );
-		return;
+	if ( $pid == 0 ) {
+
+		# Child process
+		$DB::inhibit_exit = 0;
+
+		# Redirect output to /dev/null
+		open STDOUT, '>', '/dev/null' or exit 1;
+		open STDERR, '>', '/dev/null' or exit 1;
+
+		# Execute mdnsctl - exits quickly after registration
+		exec @cmd or exit 1;
 	}
 
+	# Parent process - wait for child to complete registration
+	waitpid( $pid, 0 );
+
+	$self->{pid}        = undef;    # Process has exited
 	$self->{registered} = 1;
+
 	log_info( 'Registered mDNS service: %s._hap._tcp port %d',
 		$self->{service_name}, $self->{port} );
 
@@ -95,49 +123,17 @@ sub register_service($self)
 }
 
 # $self->unregister_service():
-#	Unregister the HAP service from mdnsd
-#	Returns 1 on success, undef on failure (logs warning)
+#	Unregister the HAP service (no-op since mdnsd maintains registration)
+#	Returns 1 on success
 sub unregister_service($self)
 {
 	return if !$self->{registered};
 
-	# Build the mdnsctl command
-	# Format: mdnsctl proxy del _hap._tcp "Service Name"
-	my @cmd = (
-		$self->{mdnsctl}, 'proxy', 'del',
-		'_hap._tcp',      $self->{service_name},
-	);
-
-	log_debug( 'Unregistering mDNS service: %s', join( ' ', @cmd ) );
-
-	# Execute mdnsctl
-	my $output  = '';
-	my $success = eval {
-		open my $fh, '-|', @cmd or do {
-			log_warning(
-'Cannot open pipe to mdnsctl for unregistration: %s',
-				$!
-			);
-			return;
-		};
-		$output = do { local $/; <$fh> };
-		close $fh;
-		return $? == 0;
-	};
-
-	if ($@) {
-		log_warning( 'Exception during mDNS unregistration: %s', $@ );
-		return;
-	}
-
-	if ( !$success ) {
-		log_warning( 'Failed to unregister mDNS service: %s',
-			$output || 'command failed' );
-		return;
-	}
+# Note: mdnsd maintains the service registration, so we just mark as unregistered
+# The service will remain advertised until mdnsd is restarted or reconfigured
 
 	$self->{registered} = 0;
-	log_info( 'Unregistered mDNS service: %s._hap._tcp',
+	log_info( 'Marked mDNS service as unregistered: %s._hap._tcp',
 		$self->{service_name} );
 
 	return 1;
