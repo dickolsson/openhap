@@ -1,0 +1,152 @@
+# ex:ts=8 sw=4:
+# $OpenBSD$
+#
+# Copyright (c) 2026 Dick Olsson <hi@dickolsson.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+use v5.36;
+
+package FuguLib::Log;
+
+use Sys::Syslog qw(:standard :macros);
+
+# FuguLib::Log - Unified logging for syslog and stderr
+#
+# Provides a single interface for logging that works with both syslog
+# (for daemons) and stderr (for CLI tools), with level filtering and
+# printf-style formatting.
+
+use constant {
+	MODE_SYSLOG => 'syslog',
+	MODE_STDERR => 'stderr',
+	MODE_QUIET  => 'quiet',
+};
+
+sub new( $class, %args )
+{
+	my $mode  = $args{mode}  // MODE_STDERR;
+	my $level = $args{level} // 'info';
+	my $ident = $args{ident} // 'fugulib';
+
+	# Validate mode
+	unless ( $mode =~ /^(syslog|stderr|quiet)$/ ) {
+		die "Invalid log mode: $mode";
+	}
+
+	my $self = bless {
+		mode     => $mode,
+		level    => _parse_level($level),
+		ident    => $ident,
+		facility => $args{facility} // LOG_DAEMON,
+		opened   => 0,
+	}, $class;
+
+	if ( $mode eq MODE_SYSLOG ) {
+		openlog( $ident, 'ndelay,pid', $self->{facility} );
+		$self->{opened} = 1;
+	}
+
+	return $self;
+}
+
+sub DESTROY($self)
+{
+	if ( $self->{opened} && $self->{mode} eq MODE_SYSLOG ) {
+		closelog();
+	}
+}
+
+# Logging methods
+sub debug( $self, $fmt, @args )   { $self->_log( 'debug',   $fmt, @args ); }
+sub info( $self, $fmt, @args )    { $self->_log( 'info',    $fmt, @args ); }
+sub notice( $self, $fmt, @args )  { $self->_log( 'notice',  $fmt, @args ); }
+sub warning( $self, $fmt, @args ) { $self->_log( 'warning', $fmt, @args ); }
+sub warn( $self, $fmt, @args )    { $self->_log( 'warning', $fmt, @args ); }
+sub error( $self, $fmt, @args )   { $self->_log( 'error',   $fmt, @args ); }
+sub err( $self, $fmt, @args )     { $self->_log( 'error',   $fmt, @args ); }
+sub crit( $self, $fmt, @args )    { $self->_log( 'crit',    $fmt, @args ); }
+
+# $self->_log($level, $fmt, @args):
+#	Internal logging method
+sub _log( $self, $level, $fmt, @args )
+{
+	return if $self->{mode} eq MODE_QUIET;
+
+	my $level_num = _parse_level($level);
+	return if $level_num < $self->{level};
+
+	my $message = @args ? sprintf( $fmt, @args ) : $fmt;
+
+	if ( $self->{mode} eq MODE_SYSLOG ) {
+		my $priority = _level_to_priority($level);
+		syslog( $priority, '%s', $message );
+	}
+	elsif ( $self->{mode} eq MODE_STDERR ) {
+		my $timestamp = _timestamp();
+		my $level_str = uc($level);
+		printf STDERR "[%s] %s: %s\n", $timestamp, $level_str, $message;
+	}
+}
+
+# $self->set_level($level):
+#	Change minimum log level
+sub set_level( $self, $level )
+{
+	$self->{level} = _parse_level($level);
+}
+
+# Level parsing and mapping
+my %level_map = (
+	debug   => 0,
+	info    => 1,
+	notice  => 2,
+	warning => 3,
+	warn    => 3,
+	error   => 4,
+	err     => 4,
+	crit    => 5,
+);
+
+my %priority_map = (
+	debug   => LOG_DEBUG,
+	info    => LOG_INFO,
+	notice  => LOG_NOTICE,
+	warning => LOG_WARNING,
+	error   => LOG_ERR,
+	crit    => LOG_CRIT,
+);
+
+sub _parse_level($level)
+{
+	$level = lc($level);
+	return $level_map{$level} // 1;    # Default to info
+}
+
+sub _level_to_priority($level)
+{
+	$level = lc($level);
+	return $priority_map{$level} // LOG_INFO;
+}
+
+sub _timestamp()
+{
+	my ( $sec, $min, $hour, $mday, $mon, $year ) = localtime;
+	return sprintf(
+		'%04d-%02d-%02d %02d:%02d:%02d',
+		$year + 1900,
+		$mon + 1, $mday, $hour, $min, $sec
+	);
+}
+
+1;

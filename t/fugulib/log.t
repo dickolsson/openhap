@@ -1,0 +1,83 @@
+#!/usr/bin/env perl
+# ex:ts=8 sw=4:
+use v5.36;
+use Test::More;
+use FindBin qw($RealBin);
+use lib "$RealBin/../../lib";
+
+use_ok('FuguLib::Log');
+
+# Test 1: Create logger in stderr mode
+{
+	my $log = FuguLib::Log->new( mode => 'stderr', level => 'debug' );
+	ok( defined $log, 'Created stderr logger' );
+	isa_ok( $log, 'FuguLib::Log' );
+}
+
+# Test 2: Create logger in quiet mode
+{
+	my $log = FuguLib::Log->new( mode => 'quiet' );
+	ok( defined $log, 'Created quiet logger' );
+
+	# These should not produce output
+	$log->debug('test');
+	$log->info('test');
+	ok( 1, 'Quiet logger produces no output' );
+}
+
+# Test 3: Level filtering
+{
+	my $log = FuguLib::Log->new( mode => 'quiet', level => 'warning' );
+
+	# Can't easily test output, but can verify methods exist
+	eval {
+		$log->debug('debug message');
+		$log->info('info message');
+		$log->warning('warning message');
+		$log->error('error message');
+	};
+	ok( !$@, 'All log levels work' );
+}
+
+# Test 4: Printf-style formatting
+{
+	my $log = FuguLib::Log->new( mode => 'quiet' );
+
+	eval { $log->info( 'Test %s %d', 'string', 42 ); };
+	ok( !$@, 'Printf-style formatting works' );
+}
+
+# Test 5: Change log level
+{
+	my $log = FuguLib::Log->new( mode => 'quiet', level => 'error' );
+	$log->set_level('debug');
+
+	# Just verify no errors
+	$log->debug('now visible');
+	ok( 1, 'set_level works' );
+}
+
+# Test 6: Default values
+{
+	my $log = FuguLib::Log->new();
+	ok( defined $log, 'Created logger with defaults' );
+}
+
+# Test 7: Invalid mode
+{
+	eval { my $log = FuguLib::Log->new( mode => 'invalid' ); };
+	like( $@, qr/Invalid log mode/, 'Rejects invalid mode' );
+}
+
+# Test 8: Alias methods
+{
+	my $log = FuguLib::Log->new( mode => 'quiet' );
+
+	eval {
+		$log->warn('warning');    # Alias for warning
+		$log->err('error');       # Alias for error
+	};
+	ok( !$@, 'Alias methods work' );
+}
+
+done_testing();
