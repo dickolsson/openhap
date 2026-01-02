@@ -1,11 +1,11 @@
-name: 'Setup Perl with dependencies'
-description: 'Install system dependencies and set up Perl for OpenHAP'
+name: "Setup Perl with dependencies"
+description: "Install system dependencies and set up Perl for OpenHAP"
 
 inputs:
   perl-version:
-    description: 'Perl version to install'
+    description: "Perl version to install"
     required: true
-    default: '5.38'
+    default: "5.38"
 
 runs:
   using: "composite"
@@ -13,7 +13,7 @@ runs:
     - name: Install system dependencies
       shell: bash
       run: sudo apt-get update && sudo apt-get install -y libssh2-1-dev
-    
+
     - name: Set up Perl
       uses: shogo82148/actions-setup-perl@v1
       with:
