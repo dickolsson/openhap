@@ -33,7 +33,7 @@ sub new( $class, %args )
 		port         => $args{port}         // 51827,
 		txt_records  => $args{txt_records}  // {},
 		registered   => 0,
-		mdnsctl      => $args{mdnsctl} // _find_mdnsctl(),
+		mdnsctl      => $args{mdnsctl} // scalar _find_mdnsctl(),
 		pid          => undef,
 	}, $class;
 
