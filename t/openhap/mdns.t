@@ -155,7 +155,7 @@ use_ok('OpenHAP::MDNS');
 		# Verify command structure (new format: publish)
 		like( $args, qr/publish/,      'Command uses publish' );
 		like( $args, qr/Test Service/, 'Command contains service name' );
-		like( $args, qr/_hap/,         'Command contains _hap' );
+		like( $args, qr/\bhap\b/,      'Command contains hap (without underscore)' );
 		like( $args, qr/tcp/,          'Command contains tcp' );
 		like( $args, qr/8080/,         'Command contains port' );
 
@@ -167,8 +167,161 @@ use_ok('OpenHAP::MDNS');
 
 		unlink "$filename.args";
 	}
+}
 
-	# Unregister is now a no-op (mdnsd maintains the registration)
+# Test that process cleanup works via unregister_service
+{
+	# Create a long-running script to simulate mdnsctl
+	use File::Temp qw(tempfile);
+	my ( $fh, $filename ) = tempfile( UNLINK => 1 );
+	print $fh "#!/bin/sh\n";
+	print $fh "while true; do sleep 1; done\n";    # Infinite loop like mdnsctl
+	close $fh;
+	chmod 0755, $filename;
+
+	my $mdns = OpenHAP::MDNS->new(
+		service_name => 'Cleanup Test',
+		mdnsctl      => $filename,
+	);
+
+	# Register (starts background process)
+	$mdns->register_service();
+	ok( $mdns->is_registered(), 'Registered' );
+
+	my $pid = $mdns->{pid};
+	ok( defined $pid, 'PID is stored' );
+
+	# Verify process is running
+	my $running = kill 0, $pid;
+	ok( $running, 'Background process is running' );
+
+	# Unregister (should kill the process)
+	$mdns->unregister_service();
+	ok( !$mdns->is_registered(), 'Unregistered' );
+	ok( !defined $mdns->{pid},   'PID is cleared' );
+
+	# Wait a bit for process to be reaped
+	sleep 1;
+
+	# Verify process is no longer running
+	my $still_running = kill 0, $pid;
+	ok( !$still_running, 'Background process was terminated' );
+}
+
+# Test DESTROY method cleanup
+{
+	# Create a long-running script to simulate mdnsctl
+	use File::Temp qw(tempfile);
+	my ( $fh, $filename ) = tempfile( UNLINK => 1 );
+	print $fh "#!/bin/sh\n";
+	print $fh "while true; do sleep 1; done\n";    # Infinite loop like mdnsctl
+	close $fh;
+	chmod 0755, $filename;
+
+	my $pid;
+	{
+		my $mdns = OpenHAP::MDNS->new(
+			service_name => 'DESTROY Test',
+			mdnsctl      => $filename,
+		);
+
+		# Register (starts background process)
+		$mdns->register_service();
+		$pid = $mdns->{pid};
+		ok( defined $pid, 'PID is stored' );
+
+		# Verify process is running
+		my $running = kill 0, $pid;
+		ok( $running, 'Background process is running' );
+
+		# Let $mdns go out of scope - DESTROY should be called
+	}
+
+	# Wait a bit for DESTROY to run and process to be reaped
+	sleep 1;
+
+	# Verify process is no longer running
+	my $still_running = kill 0, $pid;
+	ok( !$still_running,
+		'Background process was terminated by DESTROY' );
+}
+
+# Test unregister is no-op when already unregistered
+{
+	my $mdns = OpenHAP::MDNS->new(
+		service_name => 'Test',
+		mdnsctl      => '/usr/bin/true',
+	);
+
+	ok( !$mdns->is_registered(), 'Not registered initially' );
+
+	# Unregister should be a no-op
+	my $result = $mdns->unregister_service();
+	ok( !defined $result, 'unregister_service returns undef when not registered' );
+}
+
+# Test that register_service stores PID
+{
+	# Create a script that exits immediately
+	use File::Temp qw(tempfile);
+	my ( $fh, $filename ) = tempfile( UNLINK => 1 );
+	print $fh "#!/bin/sh\n";
+	print $fh "sleep 2\n";    # Sleep briefly
+	close $fh;
+	chmod 0755, $filename;
+
+	my $mdns = OpenHAP::MDNS->new(
+		service_name => 'PID Test',
+		mdnsctl      => $filename,
+	);
+
+	$mdns->register_service();
+
+	# PID should be stored
+	ok( defined $mdns->{pid},   'PID is defined after registration' );
+	ok( $mdns->{pid} > 0,       'PID is positive' );
+	ok( $mdns->is_registered(), 'Marked as registered' );
+
+	# Clean up
+	$mdns->unregister_service() if $mdns->is_registered();
+}
+
+# Test that unregister does nothing if PID is not defined
+{
+	my $mdns = OpenHAP::MDNS->new(
+		service_name => 'No PID Test',
+		mdnsctl      => '/usr/bin/true',
+	);
+
+	# Manually mark as registered but with no PID
+	$mdns->{registered} = 1;
+	$mdns->{pid}        = undef;
+
+	# This should not crash
+	my $result = eval { $mdns->unregister_service() };
+	ok( !$@,                    'unregister_service does not die with no PID' );
+	ok( !$mdns->is_registered(), 'Marked as unregistered' );
+}
+
+# Test old tests remain compatible
+{
+	# Test with mock execution (was in line 176-174 originally)
+	my $mdns = OpenHAP::MDNS->new(
+		service_name => 'Test Service',
+		port         => 8080,
+		txt_records  => {
+			'c#' => 2,
+			'ff' => 0,
+			'id' => 'AA:BB:CC:DD:EE:FF',
+		},
+		mdnsctl => '/usr/bin/true',
+	);
+
+	# Register with /usr/bin/true
+	$mdns->register_service();
+	ok( $mdns->is_registered(), 'Marked as registered' );
+
+	# Unregister - should mark as unregistered
 	$mdns->unregister_service();
 	ok( !$mdns->is_registered(), 'Marked as unregistered' );
 }
@@ -189,12 +342,13 @@ use_ok('OpenHAP::MDNS');
 		mdnsctl      => $filename,
 	);
 
-	# With new implementation, register_service always returns 1
-	# (it forks and waits, doesn't check exit status)
+	# Register service - should succeed (fork/exec succeeds, child fails)
 	my $result = eval { $mdns->register_service() };
-	ok( !$@, 'Failing mdnsctl does not die' );
-	ok( $mdns->is_registered(),
-		'Marked as registered (fork/wait succeeds)' );
+	ok( !$@,                    'Failing mdnsctl does not die' );
+	ok( $mdns->is_registered(), 'Marked as registered (fork succeeds)' );
+
+	# Clean up the forked process if still running
+	$mdns->unregister_service() if defined $mdns->{pid};
 }
 
 # Test exception handling during command execution
@@ -204,12 +358,14 @@ use_ok('OpenHAP::MDNS');
 		mdnsctl      => '/dev/null',    # Cannot execute /dev/null
 	);
 
-	# With new implementation, fork succeeds but exec fails in child
-	# Parent still marks as registered after waitpid
+	# Fork succeeds but exec fails in child - parent still marks as registered
 	my $result = eval { $mdns->register_service() };
 	ok( !$@, 'Exception during execution is caught' );
 	ok( $mdns->is_registered(),
 		'Marked as registered (fork succeeds, exec fails in child)' );
+
+	# Clean up the forked process if still running
+	$mdns->unregister_service() if defined $mdns->{pid};
 }
 
 # Test TXT record sorting (mdnsctl expects consistent order)

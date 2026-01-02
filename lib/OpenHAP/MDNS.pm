@@ -19,6 +19,7 @@ use v5.36;
 
 package OpenHAP::MDNS;
 
+use POSIX;
 use OpenHAP::Log qw(:all);
 
 # OpenHAP::MDNS - mDNS service registration wrapper for mdnsctl(8)
@@ -74,7 +75,8 @@ sub register_service($self)
 	}
 
 # Build the mdnsctl command
-# Format: mdnsctl publish "Service Name" _hap tcp port "key1=value1,key2=value2"
+# Format: mdnsctl publish "Service Name" hap tcp port "key1=value1,key2=value2"
+# Note: mdnsctl adds the _ prefix internally to form _hap._tcp.local
 
 	# Combine TXT records into single comma-separated string
 	my $txt_string = join( ',',
@@ -83,14 +85,14 @@ sub register_service($self)
 
 	my @cmd = (
 		$self->{mdnsctl}, 'publish',
-		$self->{service_name}, '_hap', 'tcp', $self->{port},
+		$self->{service_name}, 'hap', 'tcp', $self->{port},
 		$txt_string,
 	);
 
 	log_debug( 'Registering mDNS service: %s', join( ' ', @cmd ) );
 
 	# Fork mdnsctl process to keep service registered
-	# mdnsctl publish must stay running to maintain the registration
+	# mdnsctl publish runs in an infinite loop and must stay running
 	my $pid = fork;
 	unless ( defined $pid ) {
 		log_warning( 'Cannot fork mdnsctl process: %s', $! );
@@ -102,39 +104,51 @@ sub register_service($self)
 		# Child process
 		$DB::inhibit_exit = 0;
 
+		# Detach from parent process to run as daemon
+		POSIX::setsid() or exit 1;
+
 		# Redirect output to /dev/null
 		open STDOUT, '>', '/dev/null' or exit 1;
 		open STDERR, '>', '/dev/null' or exit 1;
 
-		# Execute mdnsctl - exits quickly after registration
+		# Execute mdnsctl - runs indefinitely to maintain registration
 		exec @cmd or exit 1;
 	}
 
-	# Parent process - wait for child to complete registration
-	waitpid( $pid, 0 );
-
-	$self->{pid}        = undef;    # Process has exited
+	# Parent process - store PID and mark as registered
+	# Do NOT waitpid - child must continue running
+	$self->{pid}        = $pid;
 	$self->{registered} = 1;
 
-	log_info( 'Registered mDNS service: %s._hap._tcp port %d',
-		$self->{service_name}, $self->{port} );
+	log_info( 'Registered mDNS service: %s._hap._tcp port %d (PID %d)',
+		$self->{service_name}, $self->{port}, $pid );
 
 	return 1;
 }
 
 # $self->unregister_service():
-#	Unregister the HAP service (no-op since mdnsd maintains registration)
+#	Unregister the HAP service by terminating the mdnsctl process
 #	Returns 1 on success
 sub unregister_service($self)
 {
 	return if !$self->{registered};
 
-# Note: mdnsd maintains the service registration, so we just mark as unregistered
-# The service will remain advertised until mdnsd is restarted or reconfigured
+	if ( defined $self->{pid} ) {
+
+		# Kill the mdnsctl process
+		kill 'TERM', $self->{pid};
+
+		# Reap the child process
+		waitpid( $self->{pid}, 0 );
+
+		log_info(
+'Unregistered mDNS service: %s._hap._tcp (terminated PID %d)',
+			$self->{service_name}, $self->{pid} );
+
+		$self->{pid} = undef;
+	}
 
 	$self->{registered} = 0;
-	log_info( 'Marked mDNS service as unregistered: %s._hap._tcp',
-		$self->{service_name} );
 
 	return 1;
 }
@@ -144,6 +158,14 @@ sub unregister_service($self)
 sub is_registered($self)
 {
 	return $self->{registered};
+}
+
+# DESTROY():
+#	Clean up mdnsctl process when object is destroyed
+sub DESTROY($self)
+{
+	$self->unregister_service() if $self->{registered};
+	return;
 }
 
 1;
