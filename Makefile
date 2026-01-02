@@ -1,4 +1,4 @@
-.PHONY: all build check clean clean-man deps format format-fix install install-man integration lint man package test uninstall upgrade vm-provision vm-up
+.PHONY: all build check clean clean-man deps install install-man integration lint man package prettier prettier-fix test tidy tidy-fix uninstall upgrade vm-provision vm-up
 
 # Filesystem configuration
 PREFIX			?= /usr/local
@@ -7,23 +7,23 @@ LIBDIR			?= $(PREFIX)/libdata/perl5/site_perl
 SHAREDIR		?= $(PREFIX)/share
 MANDIR			?= $(PREFIX)/man
 SYSCONFDIR		?= /etc
-LOCALSTATEDIR		?= /var
+LOCALSTATEDIR	?= /var
 
 # Build configuration
-BUILD			?= $(shell git rev-list --count HEAD)
-TAG			?= b$(BUILD)
+BUILD			= $(shell git rev-list --count HEAD)
+TAG				?= b$(BUILD)
 PACKAGE			= openhap-$(TAG)
 TARBALL			= $(PACKAGE).tar.gz
 
 # GitHub configuration
-GITHUB_OWNER		?= dickolsson
+GITHUB_OWNER	?= dickolsson
 GITHUB_REPO		?= openhap
-GITHUB_RELEASE		= https://github.com/$(GITHUB_OWNER)/$(GITHUB_REPO)/releases/download/$(TAG)/$(TARBALL)
+GITHUB_RELEASE	= https://github.com/$(GITHUB_OWNER)/$(GITHUB_REPO)/releases/download/$(TAG)/$(TARBALL)
 
 # Build tools
-FTP			= $(shell command -v curl >/dev/null 2>&1 && echo "curl -fLo" || echo "ftp -o")
-PERLTIDY		= perl -MPerl::Tidy -e 'Perl::Tidy::perltidy()'
+FTP				?= ftp
 MANDOC			?= mandoc
+PERLTIDY		= perl -MPerl::Tidy -e 'Perl::Tidy::perltidy()'
 
 # Man pages
 MAN5			= man/openhap/openhapd.conf.5
@@ -35,7 +35,7 @@ all: deps check
 
 build: package
 
-check: format lint test
+check: lint test tidy
 
 clean: clean-man
 	rm -rf build
@@ -46,16 +46,6 @@ clean-man:
 
 deps:
 	cpanm --notest --installdeps .
-
-format:
-	@find lib bin -name '*.pm' -o -name 'openhapd' -o -name 'hapctl' | while read f; do \
-		$(PERLTIDY) -- --standard-output "$$f" | diff -q "$$f" - >/dev/null 2>&1 || echo "$$f"; \
-	done | grep . && echo "Run 'make format-fix' to fix formatting" && exit 1 || echo "All files formatted correctly"
-
-format-fix:
-	@find lib bin -name '*.pm' -o -name 'openhapd' -o -name 'hapctl' | while read f; do \
-		$(PERLTIDY) -- -b -bext='/' "$$f"; \
-	done
 
 install: install-man
 	# Install binaries
@@ -93,6 +83,12 @@ lint:
 
 man: $(CATMAN5) $(CATMAN8)
 
+prettier:
+	@npx prettier --check '**/*.md' '**/*.json' '**/*.yml' || { echo "Run 'make prettier-fix' to fix formatting"; exit 1; }
+
+prettier-fix:
+	npx prettier --write '**/*.md' '**/*.json' '**/*.yml'
+
 %.cat5: %.5
 	$(MANDOC) -Tascii $< > $@
 
@@ -127,6 +123,16 @@ test:
 	prove -l -v t/openhvf/*.t
 	prove -l -v t/openhap/*.t
 
+tidy:
+	@find lib bin -name '*.pm' -o -name 'openhapd' -o -name 'hapctl' | while read f; do \
+		$(PERLTIDY) -- --standard-output "$$f" | diff -q "$$f" - >/dev/null 2>&1 || echo "$$f"; \
+	done | grep . && echo "Run 'make tidy-fix' to fix formatting" && exit 1 || echo "All files formatted correctly"
+
+tidy-fix:
+	@find lib bin -name '*.pm' -o -name 'openhapd' -o -name 'hapctl' | while read f; do \
+		$(PERLTIDY) -- -b -bext='/' "$$f"; \
+	done
+
 uninstall:
 	# Remove binaries
 	rm -f $(DESTDIR)$(BINDIR)/openhapd
@@ -145,7 +151,7 @@ uninstall:
 
 upgrade:
 	@echo "==> Downloading $(TARBALL)"
-	$(FTP) ../$(TARBALL) $(GITHUB_RELEASE);
+	$(FTP) -o ../$(TARBALL) $(GITHUB_RELEASE);
 	cd .. && tar -xzf $(TARBALL)
 	@echo "==> Upgrade by running:\n    make uninstall\n    cd ../$(PACKAGE)\n    make install"
 
