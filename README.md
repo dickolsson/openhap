@@ -2,7 +2,8 @@
 
 **HomeKit Accessory Protocol for OpenBSD**
 
-OpenHAP bridges MQTT-connected Tasmota devices to Apple HomeKit, enabling control via the iOS Home app.
+OpenHAP bridges MQTT-connected Tasmota devices to Apple HomeKit, enabling
+control via the iOS Home app.
 
 ## Features
 
@@ -41,7 +42,8 @@ make lint      # Check code style
 make man       # Build man pages
 ```
 
-See [.github/copilot-instructions.md](.github/copilot-instructions.md) for coding style.
+See [.github/copilot-instructions.md](.github/copilot-instructions.md) for
+coding style.
 
 ## Architecture
 

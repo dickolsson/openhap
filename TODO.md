@@ -1,6 +1,7 @@
 # OpenHAP TODO List
 
-This document tracks areas that need further implementation, improvements, or refinements.
+This document tracks areas that need further implementation, improvements, or
+refinements.
 
 ## High Priority
 
@@ -52,11 +53,13 @@ This document tracks areas that need further implementation, improvements, or re
   - Files: `lib/OpenHAP/MQTT.pm`, `lib/OpenHAP/HAP.pm`
 
 - [x] **Proper daemon mode**
-  - Implemented: Fork to background, setsid, redirect I/O to /var/log/openhapd.log
+  - Implemented: Fork to background, setsid, redirect I/O to
+    /var/log/openhapd.log
   - Features: Daemonizes unless -f flag is used, proper process separation
   - Includes: Connection timeout for MQTT to prevent blocking on startup
   - Includes: Automatic MQTT reconnection every 30 seconds if connection lost
-  - File: `bin/openhapd`, `lib/OpenHAP/Daemon.pm`, `lib/OpenHAP/MQTT.pm`, `lib/OpenHAP/HAP.pm`
+  - File: `bin/openhapd`, `lib/OpenHAP/Daemon.pm`, `lib/OpenHAP/MQTT.pm`,
+    `lib/OpenHAP/HAP.pm`
 
 - [ ] **Signal handling**
   - Current: No signal handlers
@@ -95,7 +98,8 @@ This document tracks areas that need further implementation, improvements, or re
 
 - [ ] **Content-Type validation**
   - Current: Accepts any content type
-  - Need: Validate Content-Type headers (application/hap+json, application/pairing+tlv8)
+  - Need: Validate Content-Type headers (application/hap+json,
+    application/pairing+tlv8)
   - File: `lib/OpenHAP/HTTP.pm`, `lib/OpenHAP/HAP.pm`
 
 - [ ] **Multi-status responses for characteristics**
@@ -180,7 +184,8 @@ This document tracks areas that need further implementation, improvements, or re
     - [x] `03-config-loading.t` - Configuration tests
     - [x] `04-workflow.t` - End-to-end workflow
     - [x] `05-logging.t` - Logging tests
-  - Scripts exist: `scripts/integration/{provision.sh,run-tests.sh,integration-test.sh}`
+  - Scripts exist:
+    `scripts/integration/{provision.sh,run-tests.sh,integration-test.sh}`
   - Need: Complete QEMU VM setup as documented in detailed section below
   - Note: Can run tests manually but not yet automated in CI/CD
 
@@ -193,20 +198,18 @@ This document tracks areas that need further implementation, improvements, or re
     - [x] Documentation in `scripts/integration/README.md`
 
   - **What's needed to make integration tests work:**
-
     1. **Pre-built OpenBSD VM Image** (HIGH PRIORITY)
        - Current issue: OpenBSD installation requires interactive setup
-       - Solution options:
-         a. Create pre-installed OpenBSD QCOW2 image with OpenHAP
-            - Boot official OpenBSD image
-            - Complete unattended installation (using autoinstall(8))
-            - Install OpenHAP and dependencies
-            - Package as reusable QCOW2 image
-            - Host on GitHub releases or CDN
-         b. Use OpenBSD autoinstall feature
-            - Create install.conf for unattended installation
-            - Boot with -kernel/-initrd for automated setup
-            - Provision OpenHAP post-install
+       - Solution options: a. Create pre-installed OpenBSD QCOW2 image with
+         OpenHAP
+         - Boot official OpenBSD image
+         - Complete unattended installation (using autoinstall(8))
+         - Install OpenHAP and dependencies
+         - Package as reusable QCOW2 image
+         - Host on GitHub releases or CDN b. Use OpenBSD autoinstall feature
+         - Create install.conf for unattended installation
+         - Boot with -kernel/-initrd for automated setup
+         - Provision OpenHAP post-install
        - Estimated time: 4-8 hours to create and test
        - Files needed:
          - `scripts/integration/build-openbsd-image.sh` - Build automation
@@ -215,13 +218,12 @@ This document tracks areas that need further implementation, improvements, or re
 
     2. **Passwordless SSH Access** (HIGH PRIORITY)
        - Current issue: provision-vm.sh and run-integration-tests.sh need SSH
-       - Solution options:
-         a. Embed SSH public key in pre-built image
-            - Add key to /root/.ssh/authorized_keys during image build
-            - Generate ephemeral key pair in CI
-         b. Use QEMU serial console instead of SSH
-            - Send commands via QEMU monitor
-            - More complex but avoids SSH dependency
+       - Solution options: a. Embed SSH public key in pre-built image
+         - Add key to /root/.ssh/authorized_keys during image build
+         - Generate ephemeral key pair in CI b. Use QEMU serial console instead
+           of SSH
+         - Send commands via QEMU monitor
+         - More complex but avoids SSH dependency
        - Estimated time: 2-4 hours
        - Files to modify:
          - `scripts/integration/provision-vm.sh`
@@ -230,11 +232,10 @@ This document tracks areas that need further implementation, improvements, or re
 
     3. **GitHub Actions Runner Optimization** (MEDIUM PRIORITY)
        - Current issue: QEMU without KVM is slow
-       - Solutions:
-         a. Use ubuntu-latest (has KVM support via nested virtualization)
-         b. Reduce VM memory/CPU requirements for CI
-         c. Implement timeout protection (currently 30 min default)
-         d. Cache pre-warmed VM disk snapshots
+       - Solutions: a. Use ubuntu-latest (has KVM support via nested
+         virtualization) b. Reduce VM memory/CPU requirements for CI c.
+         Implement timeout protection (currently 30 min default) d. Cache
+         pre-warmed VM disk snapshots
        - GitHub Actions specific settings:
          - Enable hardware acceleration if available
          - Use matrix strategy to parallelize tests
@@ -246,33 +247,30 @@ This document tracks areas that need further implementation, improvements, or re
 
     4. **Automated Test Execution** (MEDIUM PRIORITY)
        - Current issue: Tests require running VM and services
-       - Needed:
-         a. Health check before running tests
-            - Wait for SSH to be available
-            - Wait for openhapd to start
-            - Wait for port 51827 to listen
-            - Implement retry logic with backoff
-         b. Service startup validation
-            - Verify mosquitto is running
-            - Verify openhapd process exists
-            - Check logs for startup errors
-         c. Test result collection
-            - Capture test output
-            - Collect logs on failure
-            - Generate test reports
+       - Needed: a. Health check before running tests
+         - Wait for SSH to be available
+         - Wait for openhapd to start
+         - Wait for port 51827 to listen
+         - Implement retry logic with backoff b. Service startup validation
+         - Verify mosquitto is running
+         - Verify openhapd process exists
+         - Check logs for startup errors c. Test result collection
+         - Capture test output
+         - Collect logs on failure
+         - Generate test reports
        - Estimated time: 3-4 hours
        - Files to modify:
          - `scripts/integration/provision-vm.sh` - Add health checks
-         - `scripts/integration/run-integration-tests.sh` - Better error handling
+         - `scripts/integration/run-integration-tests.sh` - Better error
+           handling
          - Add `scripts/integration/wait-for-service.sh` - Health check helper
 
     5. **Network Configuration** (LOW PRIORITY)
        - Current implementation: QEMU user networking (SLIRP)
        - Status: Currently working, but could be improved
-       - Possible improvements:
-         a. Use TAP networking for better performance
-         b. Configure specific port ranges to avoid conflicts
-         c. Add network isolation for security
+       - Possible improvements: a. Use TAP networking for better performance b.
+         Configure specific port ranges to avoid conflicts c. Add network
+         isolation for security
        - Estimated time: 2-3 hours if needed
        - Files to modify:
          - `scripts/integration/setup-vm.sh` - Add TAP networking option
@@ -291,6 +289,7 @@ This document tracks areas that need further implementation, improvements, or re
   - **Implementation Steps for GitHub Actions:**
 
     **Phase 1: Create Pre-built Image (Required for CI)**
+
     ```bash
     # 1. Create automated OpenBSD installation script
     scripts/integration/build-openbsd-image.sh
@@ -308,6 +307,7 @@ This document tracks areas that need further implementation, improvements, or re
     ```
 
     **Phase 2: Enable SSH Access**
+
     ```bash
     # 1. Generate SSH key pair in CI
     - name: Generate SSH key
@@ -320,6 +320,7 @@ This document tracks areas that need further implementation, improvements, or re
     ```
 
     **Phase 3: Update GitHub Actions Workflow**
+
     ```yaml
     # Note: .github/workflows/integration.yml does not yet exist
     # Will need to create when pre-built image is ready
@@ -346,6 +347,7 @@ This document tracks areas that need further implementation, improvements, or re
     ```
 
     **Phase 4: Testing and Validation**
+
     ```bash
     # 1. Test locally first
     make integration
@@ -361,7 +363,6 @@ This document tracks areas that need further implementation, improvements, or re
   - **Alternative: Minimal Integration Tests Without Full VM**
 
     If building a full VM proves too complex, consider:
-
     1. **Mock Integration Tests** (Quick win)
        - Run OpenHAP in foreground on GitHub Actions runner
        - Use local mosquitto
@@ -595,7 +596,8 @@ This document tracks areas that need further implementation, improvements, or re
 
 ## hapctl Administrative Tool
 
-The `hapctl` utility provides administrative control for OpenHAP. Current implementation is minimal with basic commands. Future enhancements planned:
+The `hapctl` utility provides administrative control for OpenHAP. Current
+implementation is minimal with basic commands. Future enhancements planned:
 
 ### Implemented Commands
 

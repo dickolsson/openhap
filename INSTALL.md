@@ -1,8 +1,8 @@
 # Installation
 
-This document provides installation instructions for OpenHAP on OpenBSD.
-For detailed configuration options, see `openhapd.conf(5)`.
-For command-line options, see `openhapd(8)` and `hapctl(8)`.
+This document provides installation instructions for OpenHAP on OpenBSD. For
+detailed configuration options, see `openhapd.conf(5)`. For command-line
+options, see `openhapd(8)` and `hapctl(8)`.
 
 ## Requirements
 
@@ -33,6 +33,7 @@ doas make install
 ```
 
 This installs:
+
 - `/usr/local/bin/openhapd` - HAP daemon
 - `/usr/local/bin/hapctl` - Control utility
 - `/usr/local/libdata/perl5/site_perl/OpenHAP/` - Perl modules
@@ -107,12 +108,14 @@ doas userdel _openhap
 ## Troubleshooting
 
 **Won't start:**
+
 ```sh
 openhapd -n -c /etc/openhapd.conf  # Check config
 tail /var/log/daemon | grep openhap
 ```
 
 **Not found in Home app:**
+
 ```sh
 rcctl check mdnsd
 mdnsctl browse
@@ -120,6 +123,7 @@ nc -zv <ip> 51827
 ```
 
 **MQTT issues:**
+
 ```sh
 rcctl check mosquitto
 mosquitto_sub -h localhost -t '#' -v

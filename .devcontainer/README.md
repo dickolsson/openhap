@@ -5,7 +5,8 @@ This devcontainer provides a complete Perl development environment for OpenHAP.
 ## Features
 
 - **Perl 5.38**: Latest stable Perl version
-- **All Dependencies**: Automatically installs all required Perl modules from `cpanfile`
+- **All Dependencies**: Automatically installs all required Perl modules from
+  `cpanfile`
 - **Development Tools**: Perl::Critic (severity 4) and Perl::Tidy pre-configured
 - **VS Code Extensions**: Perl language support with linting and formatting
 - **Git & GitHub CLI**: Built-in version control tools
@@ -14,7 +15,8 @@ This devcontainer provides a complete Perl development environment for OpenHAP.
 
 ### Prerequisites
 
-- [Docker](https://www.docker.com/products/docker-desktop) or [Podman](https://podman.io/)
+- [Docker](https://www.docker.com/products/docker-desktop) or
+  [Podman](https://podman.io/)
 - [Visual Studio Code](https://code.visualstudio.com/)
 - [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 
@@ -27,7 +29,8 @@ This devcontainer provides a complete Perl development environment for OpenHAP.
    - Type "Dev Containers: Reopen in Container"
    - Press Enter
 
-The container will build and install all dependencies automatically (this may take a few minutes on first run).
+The container will build and install all dependencies automatically (this may
+take a few minutes on first run).
 
 ## Development Workflow
 
@@ -73,7 +76,8 @@ The devcontainer includes these pre-configured settings:
 
 ## OpenBSD-Specific Notes
 
-OpenHAP is designed for OpenBSD. While this devcontainer runs on Linux, keep in mind:
+OpenHAP is designed for OpenBSD. While this devcontainer runs on Linux, keep in
+mind:
 
 - The production environment is OpenBSD
 - Some features like `pledge(2)` and `unveil(2)` are OpenBSD-specific
@@ -82,7 +86,8 @@ OpenHAP is designed for OpenBSD. While this devcontainer runs on Linux, keep in 
 
 ## Persistent Command History
 
-Your bash command history is persisted across container rebuilds in `.devcontainer/bash_history`.
+Your bash command history is persisted across container rebuilds in
+`.devcontainer/bash_history`.
 
 ## Troubleshooting
 
@@ -95,6 +100,7 @@ Your bash command history is persisted across container rebuilds in `.devcontain
 ### Perl modules not found
 
 Run the installation manually:
+
 ```bash
 cpanm --installdeps .
 ```
@@ -102,6 +108,7 @@ cpanm --installdeps .
 ### Extensions not working
 
 Reload the window:
+
 - `F1` → "Developer: Reload Window"
 
 ## Additional Resources
