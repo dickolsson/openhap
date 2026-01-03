@@ -287,6 +287,51 @@ use_ok('OpenHAP::ModuleName');
 done_testing();
 ```
 
+## Integration Testing
+
+**Integration tests verify end-to-end functionality without workarounds.** Test
+the real system as users and external systems interact with it.
+
+**Key Principles:**
+
+1. **Test Real Interfaces** — Make actual HTTP requests to HAP endpoints,
+   connect to sockets, execute commands (`hapctl`, `rcctl`), query databases.
+   Don't parse logs or inspect internals.
+
+2. **Verify Complete Data Flow** — Test request/response cycles:
+   `MQTT publish → device state change → HAP query verification`
+
+3. **Use Production Tools** — Test with `hapctl`, `rcctl`, actual HTTP clients.
+   Validate responses match protocol specs (HAP, MQTT, HTTP).
+
+4. **Be Resilient** — Handle timing variations, skip when dependencies
+   unavailable, check multiple conditions: `$rcctl_ok || $socket_ok`
+
+**Example:**
+
+```perl
+# Good: Test actual functionality
+my $running = system('rcctl check openhapd >/dev/null 2>&1') == 0;
+ok($running, 'daemon is running');
+
+my $socket = IO::Socket::INET->new(PeerAddr => '127.0.0.1', PeerPort => 51827);
+ok(defined $socket, 'server accepts connections');
+
+my $status = `hapctl status 2>&1`;
+ok($status =~ /openhapd/, 'hapctl reports state');
+
+# Bad: Parse logs instead of testing real functionality
+my $log = `grep "Started" /var/log/daemon`;
+ok($log, 'daemon started');  # Wrong!
+```
+
+**Avoid:** Log parsing, bespoke workarounds, testing implementation details,
+generic feature tests, assuming success from absence of errors.
+
+**Test Organization:** Unit tests (`t/openhap/*.t`) for modules, integration
+tests (`t/openhap/integration/*.t`) for complete system in VM, ad-hoc testing
+(`make vm-provision`) for quick manual checks.
+
 ## Common Patterns
 
 Reading `/dev/urandom`:
