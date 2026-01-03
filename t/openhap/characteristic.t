@@ -148,6 +148,40 @@ use_ok('OpenHAP::Characteristic');
     ok(exists $json->{iid}, 'Boolean characteristic JSON has iid');
 }
 
+# Test UUID short form in JSON output
+{
+    # On characteristic: 00000025-0000-1000-8000-0026BB765291 -> "25"
+    my $on_char = OpenHAP::Characteristic->new(
+        type => 'On', iid => 1, format => 'bool', perms => ['pr', 'pw'], value => 1
+    );
+    my $on_json = $on_char->to_json();
+    is($on_json->{type}, '25', 'On characteristic type is 25 in short form');
+
+    # CurrentTemperature: 00000011-0000-1000-8000-0026BB765291 -> "11"
+    my $temp_char = OpenHAP::Characteristic->new(
+        type => 'CurrentTemperature', iid => 2, format => 'float', perms => ['pr'], value => 21.5
+    );
+    my $temp_json = $temp_char->to_json();
+    is($temp_json->{type}, '11', 'CurrentTemperature type is 11 in short form');
+
+    # Name: 00000023-0000-1000-8000-0026BB765291 -> "23"
+    my $name_char = OpenHAP::Characteristic->new(
+        type => 'Name', iid => 3, format => 'string', perms => ['pr'], value => 'Test'
+    );
+    my $name_json = $name_char->to_json();
+    is($name_json->{type}, '23', 'Name type is 23 in short form');
+}
+
+# Test custom UUID is preserved (not shortened)
+{
+    my $custom_uuid = '12345678-1234-1234-1234-123456789012';
+    my $char = OpenHAP::Characteristic->new(
+        type => $custom_uuid, iid => 99, format => 'string', perms => ['pr'], value => 'custom'
+    );
+    my $json = $char->to_json();
+    is($json->{type}, $custom_uuid, 'Custom characteristic UUID preserved in JSON');
+}
+
 # Test known characteristic types
 {
     my @known_types = qw(

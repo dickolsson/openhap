@@ -101,4 +101,24 @@ my $temp_dir = tempdir(CLEANUP => 1);
     is($pairings->{'binary-controller'}{ltpk}, $binary_ltpk, 'Binary LTPK stored correctly');
 }
 
+# Test remove_all_pairings (Finding 8)
+{
+    my $temp_dir3 = tempdir(CLEANUP => 1);
+    my $storage = OpenHAP::Storage->new(db_path => $temp_dir3);
+    
+    # Add multiple pairings
+    $storage->save_pairing('controller-a', 'ltpk-a', 1);
+    $storage->save_pairing('controller-b', 'ltpk-b', 0);
+    $storage->save_pairing('controller-c', 'ltpk-c', 0);
+    
+    my $pairings = $storage->load_pairings();
+    is(scalar keys %$pairings, 3, 'Three pairings stored');
+    
+    # Remove all pairings
+    $storage->remove_all_pairings();
+    
+    $pairings = $storage->load_pairings();
+    is(scalar keys %$pairings, 0, 'All pairings removed');
+}
+
 done_testing();

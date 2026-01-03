@@ -41,4 +41,30 @@ like($response, qr/Content-Type: application\/hap\+json/, 'Response has headers'
 like($response, qr/Content-Length: 15/, 'Response has content-length');
 like($response, qr/\{"status":"ok"\}$/, 'Response has body');
 
+# Test Connection: keep-alive header is added
+like($response, qr/Connection: keep-alive/, 'Response has Connection: keep-alive header');
+
+# Test 204 No Content response
+my $no_content = OpenHAP::HTTP::build_response(status => 204);
+like($no_content, qr/HTTP\/1\.1 204 No Content/, '204 response has correct status');
+like($no_content, qr/Content-Length: 0/, '204 response has zero content-length');
+like($no_content, qr/Connection: keep-alive/, '204 response has keep-alive');
+
+# Test 207 Multi-Status response
+my $multi_status = OpenHAP::HTTP::build_response(
+    status => 207,
+    headers => { 'Content-Type' => 'application/hap+json' },
+    body => '{"characteristics":[]}',
+);
+like($multi_status, qr/HTTP\/1\.1 207 Multi-Status/, '207 response has correct status');
+
+# Test custom Connection header is not overwritten
+my $custom_conn = OpenHAP::HTTP::build_response(
+    status => 200,
+    headers => { 'Connection' => 'close' },
+    body => 'test',
+);
+like($custom_conn, qr/Connection: close/, 'Custom Connection header preserved');
+unlike($custom_conn, qr/Connection: keep-alive/, 'Default keep-alive not added when custom set');
+
 done_testing();

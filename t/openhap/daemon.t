@@ -8,8 +8,6 @@ use File::Temp qw(tempdir);
 
 # Test daemon mode functionality
 
-plan tests => 22;
-
 # Test 1: MQTT connection with timeout
 {
 	use OpenHAP::MQTT;
@@ -97,11 +95,61 @@ plan tests => 22;
 	is($txt->{'md'}, 'Test MDNS Bridge', 'Model name matches HAP name');
 	ok($txt->{'sf'} == 0 || $txt->{'sf'} == 1,
 		'Status flags is 0 (paired) or 1 (unpaired)');
-	ok($txt->{'id'} =~ /^[0-9A-F]{2}(:[0-9A-F]{2}){5}$/i,
-		'Device ID is in XX:XX:XX:XX:XX:XX format');
+	# Check device ID format (XX:XX:XX:XX:XX:XX) - MUST be uppercase per HAP spec
+	ok($txt->{'id'} =~ /^[0-9A-F]{2}(:[0-9A-F]{2}){5}$/,
+		'Device ID is in uppercase XX:XX:XX:XX:XX:XX format');
+	# Verify device ID is specifically uppercase (not lowercase)
+	ok($txt->{'id'} !~ /[a-f]/,
+		'Device ID contains no lowercase hex characters');
 }
 
-# Test 5: Status flag changes with pairing state
+# Test 5: Setup hash in mDNS TXT records
+{
+	use OpenHAP::HAP;
+
+	my $tmpdir = tempdir(CLEANUP => 1);
+
+	# Create HAP with setup_id
+	my $hap = OpenHAP::HAP->new(
+		port         => 51831,
+		pin          => '123-45-678',
+		name         => 'Setup Hash Test',
+		storage_path => $tmpdir,
+		setup_id     => 'XYZQ',  # 4-character setup ID
+	);
+
+	my $txt = $hap->get_mdns_txt_records();
+
+	# Verify setup hash exists when setup_id is provided
+	ok(exists $txt->{'sh'}, "Contains 'sh' (setup hash) when setup_id provided");
+	# Setup hash should be 4 bytes base64 encoded = ~6 characters
+	ok(length($txt->{'sh'}) >= 4 && length($txt->{'sh'}) <= 8,
+		'Setup hash has reasonable length for base64-encoded 4 bytes');
+}
+
+# Test 6: No setup hash without setup_id
+{
+	use OpenHAP::HAP;
+
+	my $tmpdir = tempdir(CLEANUP => 1);
+
+	# Create HAP without setup_id
+	my $hap = OpenHAP::HAP->new(
+		port         => 51832,
+		pin          => '123-45-678',
+		name         => 'No Setup ID Test',
+		storage_path => $tmpdir,
+		# no setup_id
+	);
+
+	my $txt = $hap->get_mdns_txt_records();
+
+	# Verify setup hash is NOT present without setup_id
+	ok(!exists $txt->{'sh'} || !defined $txt->{'sh'},
+		"No 'sh' (setup hash) when setup_id not provided");
+}
+
+# Test 7: Status flag changes with pairing state
 {
 	use OpenHAP::HAP;
 	use OpenHAP::Storage;

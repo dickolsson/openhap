@@ -3,7 +3,7 @@
 # Integration test: HAP protocol endpoints and HTTP functionality
 
 use v5.36;
-use Test::More tests => 15;
+use Test::More tests => 27;
 use FindBin qw($RealBin);
 use lib "$RealBin/../../../lib";
 
@@ -118,5 +118,89 @@ $socket->close;
 # Test 15: Both requests succeeded
 ok($resp1 =~ /HTTP/ && $resp2 =~ /HTTP/,
    'connection persistence works');
+
+# Test 16: /identify endpoint responds to POST
+$response = $env->http_request('POST', '/identify', '',
+	{'Content-Type' => 'application/hap+json'});
+($status) = OpenHAP::Test::Integration::parse_http_response($response);
+ok(defined $status && ($status == 204 || $status == 470 || $status == 400),
+   '/identify endpoint responds');
+
+# Test 17: /pairings endpoint responds to POST (requires authentication)
+$response = $env->http_request('POST', '/pairings', "\x00\x01\x01",
+	{'Content-Type' => 'application/pairing+tlv8'});
+($status) = OpenHAP::Test::Integration::parse_http_response($response);
+ok(defined $status && ($status == 470 || $status == 200 || $status == 400),
+   '/pairings endpoint responds');
+
+# Test 18: /prepare endpoint responds to PUT (timed write support)
+$response = $env->http_request('PUT', '/prepare',
+	'{"ttl":5000,"pid":1}',
+	{'Content-Type' => 'application/hap+json'});
+($status) = OpenHAP::Test::Integration::parse_http_response($response);
+ok(defined $status && ($status == 200 || $status == 470 || $status == 400),
+   '/prepare endpoint responds');
+
+# Test 19: Connection: keep-alive header in responses
+$response = $env->http_request('GET', '/accessories');
+my $has_keepalive = $response =~ /Connection:\s*keep-alive/i;
+ok($has_keepalive, 'response includes Connection: keep-alive header');
+
+# Test 20: Server handles GET /characteristics with meta/perms/type/ev params
+$response = $env->http_request('GET', '/characteristics?id=1.10&meta=1&perms=1&type=1&ev=1');
+($status) = OpenHAP::Test::Integration::parse_http_response($response);
+ok(defined $status && ($status == 200 || $status == 470 || $status == 404 || $status == 207),
+   '/characteristics GET with meta/perms/type/ev responds');
+
+# Test 21: Server returns proper error for invalid characteristic id format
+$response = $env->http_request('GET', '/characteristics?id=invalid');
+($status) = OpenHAP::Test::Integration::parse_http_response($response);
+ok(defined $status && ($status == 400 || $status == 422 || $status == 470),
+   '/characteristics GET with invalid id returns error');
+
+# Test 22: PUT /characteristics with invalid data returns error
+$response = $env->http_request('PUT', '/characteristics',
+	'{"characteristics":[{"aid":999,"iid":999,"value":true}]}',
+	{'Content-Type' => 'application/hap+json'});
+($status) = OpenHAP::Test::Integration::parse_http_response($response);
+ok(defined $status && ($status == 207 || $status == 470 || $status == 204 || $status == 400),
+   '/characteristics PUT with invalid data returns appropriate status');
+
+# Test 23: HTTP responses use HTTP/1.1
+$response = $env->http_request('GET', '/accessories');
+ok($response =~ /HTTP\/1\.1/, 'server uses HTTP/1.1 specifically');
+
+# Test 24: /pair-setup returns TLV response
+$response = $env->http_request('POST', '/pair-setup', "\x00\x01\x00",
+	{'Content-Type' => 'application/pairing+tlv8'});
+# TLV responses are binary, check for Content-Length
+my ($content_length) = $response =~ /Content-Length:\s*(\d+)/i;
+ok(defined $content_length && $content_length > 0,
+   '/pair-setup returns non-empty TLV response');
+
+# Test 25: /pair-verify step 1 returns proper response
+# Send a minimal step 1: kTLVType_State=1, kTLVType_PublicKey=<32 bytes>
+my $fake_public_key = 'A' x 32;
+my $step1_request = "\x00\x01\x01" . "\x03\x20" . $fake_public_key;
+$response = $env->http_request('POST', '/pair-verify', $step1_request,
+	{'Content-Type' => 'application/pairing+tlv8'});
+ok(defined $response && $response =~ /HTTP\/1\.1\s+200/,
+   '/pair-verify step 1 returns HTTP 200');
+
+# Test 26: Error responses use application/hap+json
+$response = $env->http_request('PUT', '/characteristics',
+	'invalid json',
+	{'Content-Type' => 'application/hap+json'});
+# Check if response has content-type header
+my $error_content_type = $response =~ /Content-Type:\s*application\/(hap\+)?json/i;
+# Either proper error content-type or 470 unpaired
+ok($error_content_type || $response =~ /470/,
+   'error responses use appropriate content type');
+
+# Test 27: Server responds to HEAD requests
+$response = $env->http_request('HEAD', '/accessories');
+($status) = OpenHAP::Test::Integration::parse_http_response($response);
+ok(defined $status && ($status == 200 || $status == 405 || $status == 470),
+   'server handles HEAD requests');
 
 $env->teardown;

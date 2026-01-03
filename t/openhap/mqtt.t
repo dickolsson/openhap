@@ -190,14 +190,17 @@ SKIP: {
 {
     my $mqtt = OpenHAP::MQTT->new();
     
+    my $received_topic;
     my $received_payload;
-    $mqtt->subscribe('stat/device/POWER', sub($payload) {
+    $mqtt->subscribe('stat/device/POWER', sub($topic, $payload) {
+        $received_topic = $topic;
         $received_payload = $payload;
     });
     
     my $count = $mqtt->_dispatch_message('stat/device/POWER', 'ON');
     
     is($count, 1, 'One callback dispatched');
+    is($received_topic, 'stat/device/POWER', 'Topic passed to callback');
     is($received_payload, 'ON', 'Payload passed to callback');
 }
 
@@ -206,16 +209,18 @@ SKIP: {
     my $mqtt = OpenHAP::MQTT->new();
     
     my @received;
-    $mqtt->subscribe('stat/+/POWER', sub($payload) {
-        push @received, $payload;
+    $mqtt->subscribe('stat/+/POWER', sub($topic, $payload) {
+        push @received, { topic => $topic, payload => $payload };
     });
     
     $mqtt->_dispatch_message('stat/device1/POWER', 'ON');
     $mqtt->_dispatch_message('stat/device2/POWER', 'OFF');
     
     is(scalar @received, 2, 'Two messages dispatched');
-    is($received[0], 'ON', 'First payload correct');
-    is($received[1], 'OFF', 'Second payload correct');
+    is($received[0]{topic}, 'stat/device1/POWER', 'First topic correct');
+    is($received[0]{payload}, 'ON', 'First payload correct');
+    is($received[1]{topic}, 'stat/device2/POWER', 'Second topic correct');
+    is($received[1]{payload}, 'OFF', 'Second payload correct');
 }
 
 # Test tick when not connected

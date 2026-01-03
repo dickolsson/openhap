@@ -148,4 +148,164 @@ SKIP: {
     ok(defined $response, 'Invalid state returns error response');
 }
 
+# Test new TLV type constants (Finding 6)
+{
+    ok(defined &OpenHAP::Pairing::kTLVType_SessionID, 'kTLVType_SessionID defined');
+    ok(defined &OpenHAP::Pairing::kTLVType_Flags, 'kTLVType_Flags defined');
+    is(OpenHAP::Pairing::kTLVType_SessionID(), 0x0E, 'kTLVType_SessionID is 0x0E');
+    is(OpenHAP::Pairing::kTLVType_Flags(), 0x13, 'kTLVType_Flags is 0x13');
+}
+
+# Test kTLVError_MaxTries constant (Finding 4)
+{
+    ok(defined &OpenHAP::Pairing::kTLVError_MaxTries, 'kTLVError_MaxTries defined');
+    is(OpenHAP::Pairing::kTLVError_MaxTries(), 0x05, 'kTLVError_MaxTries is 0x05');
+}
+
+# Test invalid pairing method rejection (Finding 7)
+SKIP: {
+    eval {
+        require Crypt::Ed25519;
+    };
+    skip 'Crypt::Ed25519 not available', 2 if $@;
+    
+    my $temp_dir = tempdir(CLEANUP => 1);
+    my $storage = OpenHAP::Storage->new(db_path => $temp_dir);
+    my ($ltsk, $ltpk) = OpenHAP::Crypto::generate_keypair_ed25519();
+    
+    # Reset global state for clean test
+    OpenHAP::Pairing->clear_pairing_state();
+    OpenHAP::Pairing->reset_auth_attempts();
+    
+    my $pairing = OpenHAP::Pairing->new(
+        pin => '123-45-678',
+        storage => $storage,
+        accessory_ltsk => $ltsk,
+        accessory_ltpk => $ltpk,
+    );
+    
+    my $session = OpenHAP::Session->new(socket => 'dummy1');
+    
+    # Create TLV with invalid method (99)
+    require OpenHAP::TLV;
+    my $body = OpenHAP::TLV::encode(
+        OpenHAP::Pairing::kTLVType_State(), pack('C', 1),
+        OpenHAP::Pairing::kTLVType_Method(), pack('C', 99),
+    );
+    
+    my $response = $pairing->handle_pair_setup($body, $session);
+    ok(defined $response, 'Invalid method returns response');
+    
+    # Decode response to check for error
+    my %resp_tlv = OpenHAP::TLV::decode($response);
+    my $error = unpack('C', $resp_tlv{ OpenHAP::Pairing::kTLVType_Error() } // '');
+    is($error, OpenHAP::Pairing::kTLVError_Unknown(), 'Invalid method returns kTLVError_Unknown');
+    
+    OpenHAP::Pairing->clear_pairing_state();
+}
+
+# Test already-paired rejection (Finding 2)
+SKIP: {
+    eval {
+        require Crypt::Ed25519;
+    };
+    skip 'Crypt::Ed25519 not available', 2 if $@;
+    
+    my $temp_dir = tempdir(CLEANUP => 1);
+    my $storage = OpenHAP::Storage->new(db_path => $temp_dir);
+    my ($ltsk, $ltpk) = OpenHAP::Crypto::generate_keypair_ed25519();
+    
+    # Reset global state
+    OpenHAP::Pairing->clear_pairing_state();
+    OpenHAP::Pairing->reset_auth_attempts();
+    
+    # Add an existing pairing
+    $storage->save_pairing('test-controller', 'X' x 32, 1);
+    
+    my $pairing = OpenHAP::Pairing->new(
+        pin => '123-45-678',
+        storage => $storage,
+        accessory_ltsk => $ltsk,
+        accessory_ltpk => $ltpk,
+    );
+    
+    my $session = OpenHAP::Session->new(socket => 'dummy2');
+    
+    require OpenHAP::TLV;
+    my $body = OpenHAP::TLV::encode(
+        OpenHAP::Pairing::kTLVType_State(), pack('C', 1),
+        OpenHAP::Pairing::kTLVType_Method(), pack('C', 0),  # PairSetup
+    );
+    
+    my $response = $pairing->handle_pair_setup($body, $session);
+    my %resp_tlv = OpenHAP::TLV::decode($response);
+    my $error = unpack('C', $resp_tlv{ OpenHAP::Pairing::kTLVType_Error() } // '');
+    is($error, OpenHAP::Pairing::kTLVError_Unavailable(), 'Already paired returns kTLVError_Unavailable');
+    
+    # But PairSetupWithAuth (method=1) should be allowed even when paired
+    OpenHAP::Pairing->clear_pairing_state();
+    my $session2 = OpenHAP::Session->new(socket => 'dummy3');
+    my $body_auth = OpenHAP::TLV::encode(
+        OpenHAP::Pairing::kTLVType_State(), pack('C', 1),
+        OpenHAP::Pairing::kTLVType_Method(), pack('C', 1),  # PairSetupWithAuth
+    );
+    
+    my $response_auth = $pairing->handle_pair_setup($body_auth, $session2);
+    my %resp_auth = OpenHAP::TLV::decode($response_auth);
+    my $state = unpack('C', $resp_auth{ OpenHAP::Pairing::kTLVType_State() } // '');
+    is($state, 2, 'PairSetupWithAuth allowed when already paired (returns M2)');
+    
+    OpenHAP::Pairing->clear_pairing_state();
+}
+
+# Test concurrent pairing protection (Finding 3)
+SKIP: {
+    eval {
+        require Crypt::Ed25519;
+    };
+    skip 'Crypt::Ed25519 not available', 1 if $@;
+    
+    my $temp_dir = tempdir(CLEANUP => 1);
+    my $storage = OpenHAP::Storage->new(db_path => $temp_dir);
+    my ($ltsk, $ltpk) = OpenHAP::Crypto::generate_keypair_ed25519();
+    
+    # Reset global state
+    OpenHAP::Pairing->clear_pairing_state();
+    OpenHAP::Pairing->reset_auth_attempts();
+    
+    my $pairing = OpenHAP::Pairing->new(
+        pin => '123-45-678',
+        storage => $storage,
+        accessory_ltsk => $ltsk,
+        accessory_ltpk => $ltpk,
+    );
+    
+    require OpenHAP::TLV;
+    my $body = OpenHAP::TLV::encode(
+        OpenHAP::Pairing::kTLVType_State(), pack('C', 1),
+        OpenHAP::Pairing::kTLVType_Method(), pack('C', 0),
+    );
+    
+    # First session starts pairing
+    my $session1 = OpenHAP::Session->new(socket => 'dummy4');
+    my $response1 = $pairing->handle_pair_setup($body, $session1);
+    my %resp1 = OpenHAP::TLV::decode($response1);
+    my $state1 = unpack('C', $resp1{ OpenHAP::Pairing::kTLVType_State() } // '');
+    
+    # Second session tries to start pairing - should get Busy
+    my $session2 = OpenHAP::Session->new(socket => 'dummy5');
+    my $response2 = $pairing->handle_pair_setup($body, $session2);
+    my %resp2 = OpenHAP::TLV::decode($response2);
+    my $error2 = unpack('C', $resp2{ OpenHAP::Pairing::kTLVType_Error() } // '');
+    is($error2, OpenHAP::Pairing::kTLVError_Busy(), 'Concurrent pairing returns kTLVError_Busy');
+    
+    OpenHAP::Pairing->clear_pairing_state();
+}
+
+# Test failed attempt counting (Finding 4)
+{
+    OpenHAP::Pairing->reset_auth_attempts();
+    is(OpenHAP::Pairing->get_failed_attempts(), 0, 'Failed attempts starts at 0');
+}
+
 done_testing();
