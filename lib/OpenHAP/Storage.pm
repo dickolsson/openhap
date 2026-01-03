@@ -113,6 +113,17 @@ sub remove_pairing( $self, $controller_id )
 	return;
 }
 
+# remove_all_pairings() - Remove all pairings (factory reset)
+# Called when last admin pairing is removed (HAP-Pairing.md §7.2)
+sub remove_all_pairings($self)
+{
+	log_debug('Removing all pairings');
+	$self->_save_pairings( {} );
+	$self->increment_config_number();
+
+	return;
+}
+
 sub _save_pairings( $self, $pairings )
 {
 	my $old_umask = umask(0077);

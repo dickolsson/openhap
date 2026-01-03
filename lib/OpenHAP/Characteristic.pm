@@ -5,6 +5,9 @@ package OpenHAP::Characteristic;
 use JSON::XS;
 use OpenHAP::Log qw(:all);
 
+# HAP Base UUID suffix for Apple-defined characteristics
+use constant HAP_BASE_UUID => '-0000-1000-8000-0026BB765291';
+
 # HAP Characteristic Type UUIDs
 our %CHAR_TYPES = (
 
@@ -27,6 +30,17 @@ our %CHAR_TYPES = (
 	'On'          => '00000025-0000-1000-8000-0026BB765291',
 	'OutletInUse' => '00000026-0000-1000-8000-0026BB765291',
 );
+
+# _uuid_to_short($uuid) - Convert full UUID to short form for JSON
+# Returns short hex string for Apple UUIDs, full UUID for custom ones
+sub _uuid_to_short($uuid)
+{
+	my $base = HAP_BASE_UUID;
+	if ( $uuid =~ /^0*([0-9A-Fa-f]+)\Q$base\E$/i ) {
+		return uc($1);
+	}
+	return $uuid;
+}
 
 # HAP Characteristic Formats
 our %FORMATS = (
@@ -138,7 +152,7 @@ sub to_json( $self, $include_value = 1 )
 {
 
 	my $json = {
-		type   => $self->{type},
+		type   => _uuid_to_short( $self->{type} ),
 		iid    => $self->{iid},
 		format => $self->{format},
 		perms  => $self->{perms},

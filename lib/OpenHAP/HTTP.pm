@@ -58,6 +58,11 @@ sub build_response(%args)
 		$headers->{'Content-Length'} = length($body);
 	}
 
+	# Add Connection: keep-alive for HAP persistent connections
+	unless ( exists $headers->{'Connection'} ) {
+		$headers->{'Connection'} = 'keep-alive';
+	}
+
 	# Add headers
 	for my $name ( keys %$headers ) {
 		$response .= "$name: $headers->{$name}\r\n";

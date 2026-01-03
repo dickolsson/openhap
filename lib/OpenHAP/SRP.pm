@@ -67,11 +67,16 @@ sub generate_server_public($self)
 	my $b_bytes = OpenHAP::Crypto::generate_random_bytes(32);
 	$self->{b} = Math::BigInt->from_hex( unpack( 'H*', $b_bytes ) );
 
-	# k = H(N | g)
-	my $k_bytes = sha512(
-		      pack( 'H*', $self->{N}->as_hex() )
-		    . pack( 'H*', $self->{g}->as_hex() ) );
-	my $k = Math::BigInt->from_hex( unpack( 'H*', $k_bytes ) );
+	# k = H(N | PAD(g))
+	# PAD(g) must be padded to the same length as N (384 bytes for 3072-bit)
+	my $N_bytes = pack( 'H*', $self->{N}->as_hex() );
+	my $g_bytes = pack( 'H*', $self->{g}->as_hex() );
+
+	# Left-pad g with zeros to match N's length
+	my $g_padded =
+	    ( "\x00" x ( length($N_bytes) - length($g_bytes) ) ) . $g_bytes;
+	my $k_bytes = sha512( $N_bytes . $g_padded );
+	my $k       = Math::BigInt->from_hex( unpack( 'H*', $k_bytes ) );
 
 	# B = (k*v + g^b) mod N
 	my $B =
@@ -82,16 +87,22 @@ sub generate_server_public($self)
 	return $B;
 }
 
-sub compute_session_key( $self, $A )
+sub compute_session_key( $self, $A_bytes )
 {
+	my $A = Math::BigInt->from_hex( unpack( 'H*', $A_bytes ) );
 
-	$self->{A} = Math::BigInt->from_hex( unpack( 'H*', $A ) );
+    # Security: Verify A mod N != 0 (SRP-6a requirement per HAP-Pairing.md §2.6)
+    # A malicious controller could send A = 0, N, or 2N to make the shared
+    # secret predictable, bypassing authentication.
+	return if ( $A % $self->{N} )->is_zero();
+
+	$self->{A} = $A;
 
 	# u = H(A | B)
-	my $A_bytes = pack( 'H*', $self->{A}->as_hex() );
-	my $B_bytes = pack( 'H*', $self->{B}->as_hex() );
-	my $u_bytes = sha512( $A_bytes . $B_bytes );
-	my $u       = Math::BigInt->from_hex( unpack( 'H*', $u_bytes ) );
+	my $A_packed = pack( 'H*', $self->{A}->as_hex() );
+	my $B_bytes  = pack( 'H*', $self->{B}->as_hex() );
+	my $u_bytes  = sha512( $A_packed . $B_bytes );
+	my $u        = Math::BigInt->from_hex( unpack( 'H*', $u_bytes ) );
 
 	# S = (A * v^u)^b mod N
 	my $S =

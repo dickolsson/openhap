@@ -24,6 +24,8 @@ use constant {
 	kTLVType_Permissions   => 0x0B,
 	kTLVType_FragmentData  => 0x0C,
 	kTLVType_FragmentLast  => 0x0D,
+	kTLVType_SessionID     => 0x0E,
+	kTLVType_Flags         => 0x13,
 	kTLVType_Separator     => 0xFF,
 };
 
@@ -38,12 +40,21 @@ use constant {
 	kTLVError_Busy           => 0x07,
 };
 
+# Maximum failed authentication attempts before lockout (per HAP-Pairing.md §8)
+use constant MAX_AUTH_ATTEMPTS => 100;
+
+# Global state for concurrent pairing protection and attempt tracking
+our $pairing_in_progress  = 0;
+our $pairing_session_id   = undef;
+our $failed_auth_attempts = 0;
+
 sub new( $class, %args )
 {
+	my $pin = normalize_pin( $args{pin} ) // die "PIN required";
 
 	my $self = bless {
-		pin     => normalize_pin( $args{pin} ) // die "PIN required",
-		storage => $args{storage},
+		pin            => $pin,
+		storage        => $args{storage},
 		accessory_ltsk => $args{accessory_ltsk},
 		accessory_ltpk => $args{accessory_ltpk},
 	}, $class;
@@ -51,15 +62,55 @@ sub new( $class, %args )
 	return $self;
 }
 
+# clear_pairing_state() - Reset global pairing state
+# Called after successful pairing or on connection close
+sub clear_pairing_state( $class_or_self, $session = undef )
+{
+	# Only clear if this session owns the lock or no session specified
+	if (       !defined $session
+		|| !defined $pairing_session_id
+		|| $pairing_session_id == $session )
+	{
+		$pairing_in_progress = 0;
+		$pairing_session_id  = undef;
+	}
+}
+
+# reset_auth_attempts() - Reset failed authentication counter
+# Called after successful pairing or administratively
+sub reset_auth_attempts($class_or_self)
+{
+	$failed_auth_attempts = 0;
+}
+
+# get_failed_attempts() - Get current failed attempt count (for testing)
+sub get_failed_attempts($class_or_self)
+{
+	return $failed_auth_attempts;
+}
+
+# _get_accessory_pairing_id() - Generate MAC-like pairing ID from public key
+sub _get_accessory_pairing_id($self)
+{
+	my $id = uc( unpack( 'H*', substr( $self->{accessory_ltpk}, 0, 6 ) ) );
+	return join( ':', $id =~ /../g );
+}
+
 sub handle_pair_setup( $self, $body, $session )
 {
 
 	my %request = OpenHAP::TLV::decode($body);
 	my $state   = unpack( 'C', $request{ kTLVType_State() } );
-	log_debug( 'Pair-setup M%d received', $state );
+	my $method  = unpack( 'C', $request{ kTLVType_Method() } // "\x00" );
+	log_debug( 'Pair-setup M%d received (method=%d)', $state, $method );
+
+	# Validate method (0x00 = PairSetup, 0x01 = PairSetupWithAuth)
+	if ( $method != 0 && $method != 1 ) {
+		return $self->_error_response( kTLVError_Unknown, 2 );
+	}
 
 	if ( $state == 1 ) {
-		return $self->_pair_setup_m1_m2($session);
+		return $self->_pair_setup_m1_m2( $session, $method );
 	}
 	elsif ( $state == 3 ) {
 		return $self->_pair_setup_m3_m4( \%request, $session );
@@ -71,8 +122,34 @@ sub handle_pair_setup( $self, $body, $session )
 	return $self->_error_response( kTLVError_Unknown, 2 );
 }
 
-sub _pair_setup_m1_m2( $self, $session )
+sub _pair_setup_m1_m2( $self, $session, $method = 0 )
 {
+	# Check if max authentication attempts exceeded (HAP-Pairing.md §8)
+	if ( $failed_auth_attempts >= MAX_AUTH_ATTEMPTS ) {
+		log_warning('Pair-setup rejected: max attempts exceeded');
+		return $self->_error_response( kTLVError_MaxTries, 2 );
+	}
+
+	# Check if already paired (HAP-Pairing.md §2.4)
+	# PairSetupWithAuth (method=1) allows pairing even when already paired
+	if ( $method == 0 ) {
+		my $pairings = $self->{storage}->load_pairings();
+		if ( keys %$pairings > 0 ) {
+			log_debug('Pair-setup rejected: already paired');
+			return $self->_error_response( kTLVError_Unavailable,
+				2 );
+		}
+	}
+
+	# Check for concurrent pairing attempt (HAP-Pairing.md §2.4)
+	if ( $pairing_in_progress && $pairing_session_id != $session ) {
+		log_debug('Pair-setup rejected: another pairing in progress');
+		return $self->_error_response( kTLVError_Busy, 2 );
+	}
+
+	# Mark pairing as in progress
+	$pairing_in_progress = 1;
+	$pairing_session_id  = $session;
 
 	# Initialize SRP
 	my $srp  = OpenHAP::SRP->new( password => $self->{pin} );
@@ -102,10 +179,26 @@ sub _pair_setup_m3_m4( $self, $request, $session )
 	my $A  = $request->{ kTLVType_PublicKey() };
 	my $M1 = $request->{ kTLVType_Proof() };
 
-	# Compute session key and verify proof
-	$srp->compute_session_key($A);
+	# Compute session key (returns undef if A mod N == 0)
+	my $K = $srp->compute_session_key($A);
+	unless ( defined $K ) {
+		$failed_auth_attempts++;
+		log_warning('Pair-setup M3 rejected: invalid public key A');
+		if ( $failed_auth_attempts >= MAX_AUTH_ATTEMPTS ) {
+			return $self->_error_response( kTLVError_MaxTries, 4 );
+		}
+		return $self->_error_response( kTLVError_Authentication, 4 );
+	}
 
 	unless ( $srp->verify_client_proof($M1) ) {
+		$failed_auth_attempts++;
+		log_warning(
+'Pair-setup M3 proof verification failed (attempt %d/%d)',
+			$failed_auth_attempts, MAX_AUTH_ATTEMPTS
+		);
+		if ( $failed_auth_attempts >= MAX_AUTH_ATTEMPTS ) {
+			return $self->_error_response( kTLVError_MaxTries, 4 );
+		}
 		return $self->_error_response( kTLVError_Authentication, 4 );
 	}
 
@@ -173,13 +266,18 @@ sub _pair_setup_m5_m6( $self, $request, $session )
 	log_debug( 'Pair-setup M5 verified, pairing saved for %s',
 		$ios_device_pairing_id );
 
+	# Pairing successful - reset attempt counter and clear pairing lock
+	$failed_auth_attempts = 0;
+	$pairing_in_progress  = 0;
+	$pairing_session_id   = undef;
+
 	# Generate accessory signature
 	my $accessory_x = OpenHAP::Crypto::hkdf_sha512(
 		$session_key,
 		'Pair-Setup-Accessory-Sign-Salt',
 		'Pair-Setup-Accessory-Sign-Info', 32
 	);
-	my $accessory_pairing_id = 'OpenHAP';
+	my $accessory_pairing_id = $self->_get_accessory_pairing_id();
 	my $accessory_info =
 	    $accessory_x . $accessory_pairing_id . $self->{accessory_ltpk};
 	my $accessory_signature = OpenHAP::Crypto::sign_ed25519(
@@ -248,7 +346,7 @@ sub _pair_verify_m1_m2( $self, $request, $session )
 	$session->{pairing_state}{shared_secret}    = $shared_secret;
 
 	# Generate accessory info and signature
-	my $accessory_pairing_id = 'OpenHAP';
+	my $accessory_pairing_id = $self->_get_accessory_pairing_id();
 	my $accessory_info =
 	    $accessory_public . $accessory_pairing_id . $ios_public_key;
 	my $accessory_signature = OpenHAP::Crypto::sign_ed25519(
@@ -326,12 +424,15 @@ sub _pair_verify_m3_m4( $self, $request, $session )
 	}
 
 	# Derive session encryption keys
+	# From controller's perspective:
+	# - Control-Read-Encryption-Key: controller reads (accessory encrypts)
+	# - Control-Write-Encryption-Key: controller writes (accessory decrypts)
 	my $encrypt_key =
 	    OpenHAP::Crypto::hkdf_sha512( $shared_secret, 'Control-Salt',
-		'Control-Write-Encryption-Key', 32 );
+		'Control-Read-Encryption-Key', 32 );
 	my $decrypt_key =
 	    OpenHAP::Crypto::hkdf_sha512( $shared_secret, 'Control-Salt',
-		'Control-Read-Encryption-Key', 32 );
+		'Control-Write-Encryption-Key', 32 );
 
 	# Set up encrypted session
 	$session->set_encryption( $encrypt_key, $decrypt_key );

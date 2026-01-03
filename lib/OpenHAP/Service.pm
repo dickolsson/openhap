@@ -2,6 +2,9 @@ use v5.36;
 
 package OpenHAP::Service;
 
+# HAP Base UUID suffix for Apple-defined services
+use constant HAP_BASE_UUID => '-0000-1000-8000-0026BB765291';
+
 # HAP Service Type UUIDs
 our %SERVICE_TYPES = (
 	'AccessoryInformation' => '0000003E-0000-1000-8000-0026BB765291',
@@ -10,6 +13,17 @@ our %SERVICE_TYPES = (
 	'TemperatureSensor'    => '0000008A-0000-1000-8000-0026BB765291',
 	'Outlet'               => '00000047-0000-1000-8000-0026BB765291',
 );
+
+# _uuid_to_short($uuid) - Convert full UUID to short form for JSON
+# Returns short hex string for Apple UUIDs, full UUID for custom ones
+sub _uuid_to_short($uuid)
+{
+	my $base = HAP_BASE_UUID;
+	if ( $uuid =~ /^0*([0-9A-Fa-f]+)\Q$base\E$/i ) {
+		return uc($1);
+	}
+	return $uuid;
+}
 
 sub new( $class, %args )
 {
@@ -43,6 +57,18 @@ sub get_characteristic( $self, $iid )
 	return;
 }
 
+sub get_characteristic_by_type( $self, $type )
+{
+	require OpenHAP::Characteristic;
+	my $target_uuid = $OpenHAP::Characteristic::CHAR_TYPES{$type} // $type;
+
+	for my $char ( @{ $self->{characteristics} } ) {
+		return $char if $char->{type} eq $target_uuid;
+	}
+
+	return;
+}
+
 sub get_characteristics($self)
 {
 	return @{ $self->{characteristics} };
@@ -57,7 +83,7 @@ sub to_json($self)
 	}
 
 	my $json = {
-		type            => $self->{type},
+		type            => _uuid_to_short( $self->{type} ),
 		iid             => $self->{iid},
 		characteristics => \@chars,
 	};

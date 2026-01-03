@@ -99,6 +99,19 @@ sub get_services($self)
 	return @{ $self->{services} };
 }
 
+sub get_service( $self, $type )
+{
+	# Look up the full UUID if a short name is given
+	require OpenHAP::Service;
+	my $target_uuid = $OpenHAP::Service::SERVICE_TYPES{$type} // $type;
+
+	for my $service ( @{ $self->{services} } ) {
+		return $service if $service->{type} eq $target_uuid;
+	}
+
+	return;
+}
+
 sub get_characteristic( $self, $iid )
 {
 	for my $service ( @{ $self->{services} } ) {

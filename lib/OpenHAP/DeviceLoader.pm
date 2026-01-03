@@ -21,6 +21,9 @@ package OpenHAP::DeviceLoader;
 
 use OpenHAP::Log qw(:all);
 use OpenHAP::Tasmota::Thermostat;
+use OpenHAP::Tasmota::Heater;
+use OpenHAP::Tasmota::Sensor;
+use OpenHAP::Tasmota::Lightbulb;
 
 # $class->new():
 #	Create new device loader instance.
@@ -126,6 +129,13 @@ sub _create_device( $self, $device, $mqtt, $mqtt_connected )
 sub _is_supported_device( $self, $type, $subtype )
 {
 	return 1 if $type eq 'tasmota' && $subtype eq 'thermostat';
+	return 1 if $type eq 'tasmota' && $subtype eq 'heater';
+	return 1 if $type eq 'tasmota' && $subtype eq 'switch';
+	return 1 if $type eq 'tasmota' && $subtype eq 'sensor';
+	return 1 if $type eq 'tasmota' && $subtype eq 'lightbulb';
+	return 1 if $type eq 'tasmota' && $subtype eq 'dimmer';
+	return 1 if $type eq 'tasmota' && $subtype eq 'rgblight';
+	return 1 if $type eq 'tasmota' && $subtype eq 'ctlight';
 	return;
 }
 
@@ -158,14 +168,56 @@ sub _validate_device( $self, $device )
 #	Instantiate device object based on type.
 sub _instantiate_device( $self, $device, $mqtt, $type, $subtype )
 {
-	if ( $type eq 'tasmota' && $subtype eq 'thermostat' ) {
-		return OpenHAP::Tasmota::Thermostat->new(
-			aid         => $self->{next_aid}++,
-			name        => $device->{name},
-			mqtt_topic  => $device->{topic},
-			mqtt_client => $mqtt,
-			serial      => $device->{id},
-		);
+	my %common_args = (
+		aid         => $self->{next_aid}++,
+		name        => $device->{name},
+		mqtt_topic  => $device->{topic},
+		mqtt_client => $mqtt,
+		serial      => $device->{id},
+		relay_index => $device->{relay_index} // 0,
+	);
+
+	if ( $type eq 'tasmota' ) {
+		if ( $subtype eq 'thermostat' ) {
+			return OpenHAP::Tasmota::Thermostat->new(
+				%common_args,
+				sensor_type  => $device->{sensor_type},
+				sensor_index => $device->{sensor_index},
+			);
+		}
+
+		if ( $subtype eq 'heater' || $subtype eq 'switch' ) {
+			return OpenHAP::Tasmota::Heater->new(%common_args);
+		}
+
+		if ( $subtype eq 'sensor' ) {
+			return OpenHAP::Tasmota::Sensor->new(
+				%common_args,
+				sensor_type  => $device->{sensor_type},
+				sensor_index => $device->{sensor_index},
+				has_humidity => $device->{has_humidity} // 0,
+			);
+		}
+
+		if ( $subtype eq 'lightbulb' || $subtype eq 'dimmer' ) {
+			return OpenHAP::Tasmota::Lightbulb->new( %common_args,
+				capabilities =>
+				    OpenHAP::Tasmota::Lightbulb::CAP_DIMMER, );
+		}
+
+		if ( $subtype eq 'rgblight' ) {
+			return OpenHAP::Tasmota::Lightbulb->new( %common_args,
+				capabilities =>
+				    OpenHAP::Tasmota::Lightbulb::CAP_DIMMER |
+				    OpenHAP::Tasmota::Lightbulb::CAP_COLOR, );
+		}
+
+		if ( $subtype eq 'ctlight' ) {
+			return OpenHAP::Tasmota::Lightbulb->new( %common_args,
+				capabilities =>
+				    OpenHAP::Tasmota::Lightbulb::CAP_DIMMER |
+				    OpenHAP::Tasmota::Lightbulb::CAP_CT, );
+		}
 	}
 
 	die "Unsupported device type: $type/$subtype";
@@ -193,6 +245,13 @@ sub _device_type_name( $self, $device )
 	my $subtype = $device->{subtype} // 'unknown';
 
 	return 'thermostat' if $type eq 'tasmota' && $subtype eq 'thermostat';
+	return 'switch'     if $type eq 'tasmota' && $subtype eq 'heater';
+	return 'switch'     if $type eq 'tasmota' && $subtype eq 'switch';
+	return 'sensor'     if $type eq 'tasmota' && $subtype eq 'sensor';
+	return 'lightbulb'  if $type eq 'tasmota' && $subtype eq 'lightbulb';
+	return 'dimmer'     if $type eq 'tasmota' && $subtype eq 'dimmer';
+	return 'rgb light'  if $type eq 'tasmota' && $subtype eq 'rgblight';
+	return 'ct light'   if $type eq 'tasmota' && $subtype eq 'ctlight';
 	return "$type/$subtype";
 }
 
