@@ -1,12 +1,16 @@
 use v5.36;
 
 package OpenHAP::Tasmota::Thermostat;
-require OpenHAP::Accessory;
-our @ISA = qw(OpenHAP::Accessory);
+require OpenHAP::Tasmota::Base;
+our @ISA = qw(OpenHAP::Tasmota::Base);
 use OpenHAP::Service;
 use OpenHAP::Characteristic;
 use OpenHAP::Log qw(:all);
 use JSON::XS;
+
+# Supported sensor types for thermostat
+use constant SENSOR_TYPES =>
+    qw(DS18B20 DHT11 DHT22 AM2301 BME280 BMP280 SHT3X SI7021);
 
 sub new( $class, %args )
 {
@@ -17,15 +21,21 @@ sub new( $class, %args )
 		model        => 'Tasmota Thermostat',
 		manufacturer => 'OpenHAP',
 		serial       => $args{serial} // 'TSTAT-001',
+		mqtt_topic   => $args{mqtt_topic},
+		mqtt_client  => $args{mqtt_client},
+		relay_index  => $args{relay_index} // 0,
+		fulltopic    => $args{fulltopic},               # H2
+		setoption26  => $args{setoption26},             # M1
 	);
 
-	$self->{mqtt_topic}  = $args{mqtt_topic};
-	$self->{mqtt_client} = $args{mqtt_client};
+	# Sensor configuration (H5)
+	$self->{sensor_type}  = $args{sensor_type};     # undef = auto-detect
+	$self->{sensor_index} = $args{sensor_index};    # For indexed sensors
 
 	# Current state
 	$self->{current_temp}         = 20.0;
 	$self->{target_temp}          = 20.0;
-	$self->{heating_state}        = 0;      # 0=Off, 1=Heat, 2=Cool
+	$self->{heating_state}        = 0;              # 0=Off, 1=Heat, 2=Cool
 	$self->{target_heating_state} = 0;
 
 	# Add Thermostat service
@@ -95,35 +105,163 @@ sub new( $class, %args )
 
 sub subscribe_mqtt($self)
 {
-	my $topic = $self->{mqtt_topic};
+	# Call base class to set up standard subscriptions (C1, C2, C3)
+	$self->SUPER::subscribe_mqtt();
 
 	return unless $self->{mqtt_client}->is_connected();
 
-	log_debug( 'Thermostat %s subscribing to MQTT topics', $self->{name} );
+	log_debug( 'Thermostat %s subscribing to additional MQTT topics',
+		$self->{name} );
 
-	# Subscribe to status updates
+	# M2: Subscribe to plain-text POWER response (SetOption4 support)
 	$self->{mqtt_client}->subscribe(
-		"stat/$topic/POWER",
-		sub($payload) {
-			$self->{heating_state} = ( $payload eq 'ON' ) ? 1 : 0;
-			$self->notify_change(11);
+		$self->_build_topic( 'stat', $self->_get_power_key() ),
+		sub( $recv_topic, $payload ) {
+			my $new_state = ( $payload eq 'ON' ) ? 1 : 0;
+			if ( $self->{heating_state} != $new_state ) {
+				$self->{heating_state} = $new_state;
+				log_debug( 'Thermostat %s heating state: %s',
+					$self->{name}, $payload );
+				$self->notify_change(11);
+			}
 		} );
 
+	# Subscribe to STATUS8 for sensor data
 	$self->{mqtt_client}->subscribe(
-		"stat/$topic/STATUS8",
-		sub($payload) {
-			eval {
-				my $data = decode_json($payload);
-				if ( my $temp =
-					$data->{StatusSNS}{DS18B20}{Temperature}
-				    )
-				{
-					$self->{current_temp} = $temp;
-					$self->notify_change(13);
-					$self->_check_thermostat_logic();
-				}
-			};
+		$self->_build_topic( 'stat', 'STATUS8' ),
+		sub( $recv_topic, $payload ) {
+			$self->_handle_status8($payload);
 		} );
+
+	# Subscribe to STATUS10 for sensor data (recommended per spec)
+	$self->{mqtt_client}->subscribe(
+		$self->_build_topic( 'stat', 'STATUS10' ),
+		sub( $recv_topic, $payload ) {
+			$self->_handle_status10($payload);
+		} );
+
+	# Query sensor status immediately
+	$self->query_status(10);
+}
+
+# Override to process sensor data from SENSOR messages
+sub _process_sensor_data( $self, $data )
+{
+	$self->_extract_temperature($data);
+}
+
+# Override to handle power state updates
+sub _on_power_update( $self, $state )
+{
+	if ( $self->{heating_state} != $state ) {
+		$self->{heating_state} = $state;
+		log_debug( 'Thermostat %s heating updated: %s',
+			$self->{name}, $state ? 'ON' : 'OFF' );
+		$self->notify_change(11);
+	}
+}
+
+# Handle STATUS8 response
+sub _handle_status8( $self, $payload )
+{
+	eval {
+		my $data = decode_json($payload);
+
+		if ( exists $data->{StatusSNS} ) {
+
+			# Extract temperature unit if present (H4)
+			if ( exists $data->{StatusSNS}{TempUnit} ) {
+				$self->{temp_unit} =
+				    $data->{StatusSNS}{TempUnit};
+			}
+
+			$self->_extract_temperature( $data->{StatusSNS} );
+		}
+	};
+
+	if ($@) {
+		log_err( 'Error parsing STATUS8 for %s: %s',
+			$self->{name}, $@ );
+	}
+}
+
+# Handle STATUS10 response (recommended sensor query)
+sub _handle_status10( $self, $payload )
+{
+	eval {
+		my $data = decode_json($payload);
+
+		if ( exists $data->{StatusSNS} ) {
+			if ( exists $data->{StatusSNS}{TempUnit} ) {
+				$self->{temp_unit} =
+				    $data->{StatusSNS}{TempUnit};
+			}
+			$self->_extract_temperature( $data->{StatusSNS} );
+		}
+	};
+
+	if ($@) {
+		log_err( 'Error parsing STATUS10 for %s: %s',
+			$self->{name}, $@ );
+	}
+}
+
+# $self->_extract_temperature($data):
+#	Extract temperature from sensor data (H4, H5).
+sub _extract_temperature( $self, $data )
+{
+	my $temp = $self->_find_temperature($data);
+
+	if ( defined $temp ) {
+
+		# Convert to Celsius if needed (H4)
+		$temp = $self->convert_temperature($temp);
+
+		log_debug( 'Thermostat %s temperature updated: %.1f°C',
+			$self->{name}, $temp );
+		$self->{current_temp} = $temp;
+		$self->notify_change(13);
+		$self->_check_thermostat_logic();
+	}
+}
+
+# $self->_find_temperature($data):
+#	Find temperature value in sensor data (H5).
+sub _find_temperature( $self, $data )
+{
+	# If sensor type is specified, look for that specific sensor
+	if ( defined $self->{sensor_type} ) {
+		my $key = $self->{sensor_type};
+
+		# Handle indexed sensors (e.g., DS18B20-1)
+		if ( defined $self->{sensor_index} ) {
+			$key .= '-' . $self->{sensor_index};
+		}
+
+		if ( exists $data->{$key} ) {
+			return $data->{$key}{Temperature};
+		}
+	}
+
+	# Auto-detect: try each known sensor type (H5)
+	for my $type (SENSOR_TYPES) {
+		if ( exists $data->{$type} ) {
+			$self->{sensor_type} = $type;
+			return $data->{$type}{Temperature};
+		}
+
+		# Check for indexed sensors (e.g., DS18B20-1)
+		for my $i ( 1 .. 8 ) {
+			my $indexed = "$type-$i";
+			if ( exists $data->{$indexed} ) {
+				$self->{sensor_type}  = $type;
+				$self->{sensor_index} = $i;
+				return $data->{$indexed}{Temperature};
+			}
+		}
+	}
+
+	return;
 }
 
 sub _set_target_temp( $self, $temp )
@@ -152,25 +290,18 @@ sub _check_thermostat_logic($self)
 	if ( $self->{target_heating_state} == 0 ) {
 
 		# Target is OFF
-		$self->_set_relay('OFF') if $self->{heating_state};
+		$self->set_power(0) if $self->{heating_state};
 	}
 	elsif ( $self->{target_heating_state} == 1 ) {
 
 		# Target is HEAT
 		if ( $current < $target - $hysteresis ) {
-			$self->_set_relay('ON');
+			$self->set_power(1);
 		}
 		elsif ( $current > $target + $hysteresis ) {
-			$self->_set_relay('OFF');
+			$self->set_power(0);
 		}
 	}
-}
-
-sub _set_relay( $self, $state )
-{
-	my $topic = $self->{mqtt_topic};
-	log_debug( 'Thermostat %s relay set to %s', $self->{name}, $state );
-	$self->{mqtt_client}->publish( "cmnd/$topic/POWER", $state );
 }
 
 1;
