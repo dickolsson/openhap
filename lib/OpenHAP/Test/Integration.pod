@@ -1,0 +1,140 @@
+=head1 NAME
+
+OpenHAP::Test::Integration - Base module for OpenHAP integration tests
+
+=head1 SYNOPSIS
+
+    use v5.36;
+    use Test::More;
+    use OpenHAP::Test::Integration;
+    
+    my $env = OpenHAP::Test::Integration->new;
+    $env->setup;
+    
+    # Run tests...
+    my $response = $env->http_request('GET', '/accessories');
+    ok(defined $response, 'received response');
+    
+    $env->teardown;
+    done_testing();
+
+=head1 DESCRIPTION
+
+Provides common setup, teardown, and utility functions for integration tests.
+Ensures environment is properly configured and dependencies are available.
+
+Integration tests must run in a properly configured OpenBSD environment with
+all dependencies installed. Tests fail (not skip) if requirements are not met.
+
+=head1 ENVIRONMENT
+
+Integration tests require:
+
+=over 4
+
+=item * OPENHAP_INTEGRATION_TEST environment variable set
+
+=item * OpenBSD system with rcctl(8)
+
+=item * openhapd and hapctl installed in /usr/local/bin
+
+=item * Configuration file at /etc/openhapd.conf
+
+=item * System user _openhap
+
+=item * Data directory /var/db/openhapd
+
+=back
+
+=head1 METHODS
+
+=head2 new
+
+    my $env = OpenHAP::Test::Integration->new(%options);
+
+Create a new integration test environment. Options:
+
+=over 4
+
+=item config_file - Path to openhapd.conf (default: /etc/openhapd.conf)
+
+=item hap_port - HAP server port (default: from config or 51827)
+
+=item mqtt_host - MQTT broker host (default: 127.0.0.1)
+
+=item mqtt_port - MQTT broker port (default: 1883)
+
+=back
+
+=head2 setup
+
+    $env->setup;
+
+Validate environment and prepare for testing. Dies if environment is not ready.
+
+=head2 teardown
+
+    $env->teardown;
+
+Clean up resources after testing.
+
+=head2 http_request
+
+    my $response = $env->http_request($method, $path, $body, $headers);
+
+Make an HTTP request to the HAP server.
+
+=head2 parse_http_response
+
+    my ($status, $headers, $body) = 
+        OpenHAP::Test::Integration::parse_http_response($response);
+
+Parse an HTTP response.
+
+=head2 get_config_value
+
+    my $value = $env->get_config_value($key);
+
+Get a configuration value.
+
+=head2 get_device_topics
+
+    my @topics = $env->get_device_topics;
+
+Get all device MQTT topics.
+
+=head2 ensure_daemon_running
+
+    $env->ensure_daemon_running or die "Cannot start daemon";
+
+Ensure openhapd is running.
+
+=head2 ensure_daemon_stopped
+
+    $env->ensure_daemon_stopped;
+
+Ensure openhapd is stopped.
+
+=head2 ensure_mqtt_running
+
+    $env->ensure_mqtt_running or die "MQTT required";
+
+Ensure MQTT broker is running.
+
+=head2 get_log_lines
+
+    my @lines = $env->get_log_lines($pattern);
+
+Get log lines matching pattern since baseline.
+
+=head2 get_mqtt
+
+    my $mqtt = $env->get_mqtt;
+
+Get MQTT client connection.
+
+=head1 AUTHOR
+
+Dick Olsson <hi@ekkis.net>
+
+=cut
