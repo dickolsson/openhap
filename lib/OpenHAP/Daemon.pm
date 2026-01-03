@@ -63,7 +63,7 @@ sub read_pidfile( $class, $path )
 #	Returns PID if running, undef otherwise.
 sub check_running( $class, $pidfile )
 {
-	my $state = FuguLib::State->new( pidfile => $pidfile );
+	my $state = FuguLib::State->new($pidfile);
 	return $state->is_running() ? $state->read_pid() : undef;
 }
 

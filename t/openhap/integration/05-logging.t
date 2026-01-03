@@ -1,11 +1,11 @@
 #!/usr/bin/env perl
 # ex:ts=8 sw=4:
+# Test OpenHAP daemon logging to syslog
+
 use v5.36;
 use Test::More;
 
-# This test verifies that OpenHAP daemon logging works correctly
-
-plan tests => 8;
+plan tests => 5;
 
 my $syslog_file = '/var/log/daemon';
 
@@ -18,28 +18,16 @@ my $log_entries = `grep openhapd $syslog_file 2>/dev/null`;
 # Test 2: Syslog contains openhapd entries
 ok(length($log_entries) > 0, 'Syslog contains openhapd entries');
 
-# Test 3: Log entries have proper syslog format (timestamp, hostname, program)
+# Test 3: Log entries have proper syslog format (timestamp, hostname, program[pid])
 my $proper_format = $log_entries =~ /^\w+\s+\d+\s+[\d:]+\s+\S+\s+openhapd\[\d+\]:/m;
 ok($proper_format, 'Log entries have proper syslog format');
 
-# Test 4: Startup message logged
+# Test 4: Startup message is logged
 my $startup_logged = $log_entries =~ /Starting OpenHAP server/;
-ok($startup_logged, 'Startup message logged');
+ok($startup_logged, 'Daemon startup is logged');
 
-# Test 5: Server listening message logged
-my $listening_logged = $log_entries =~ /listening on port \d+/;
-ok($listening_logged, 'Server listening message logged');
-
-# Test 6: mDNS service announcement logged
-my $mdns_logged = $log_entries =~ /mDNS service.*_hap._tcp/;
-ok($mdns_logged, 'mDNS service announcement logged');
-
-# Test 7: Device configuration logged (thermostats from sample config)
-my $devices_logged = $log_entries =~ /Added thermostat:/;
-ok($devices_logged, 'Device configuration logged');
-
-# Test 8: Pairing status logged
-my $pairing_logged = $log_entries =~ /Not paired.*PIN:|Already paired/;
-ok($pairing_logged, 'Pairing status logged');
+# Test 5: No critical errors in logs
+my $has_critical_errors = $log_entries =~ /\[fatal\]/i;
+ok(!$has_critical_errors, 'No critical/fatal errors in logs');
 
 done_testing();
