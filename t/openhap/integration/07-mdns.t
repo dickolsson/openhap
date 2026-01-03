@@ -89,8 +89,9 @@ SKIP: {
 	skip 'mdnsd not running', 1 unless $mdnsd_running;
 	
 	# Use timeout to prevent browse from hanging indefinitely
-	my $mdns_output = `timeout 2 mdnsctl browse _hap tcp 2>&1 || true`;
-	my $hap_service_found = $mdns_output =~ /_hap.*tcp/;
+	# Note: browse for "hap tcp" not "_hap tcp" - mdnsctl adds underscore automatically
+	my $mdns_output = `timeout 2 mdnsctl browse hap tcp 2>&1 || true`;
+	my $hap_service_found = $mdns_output =~ /hap.*tcp/;
 	ok( $hap_service_found, 'HAP service registered with mdnsd' );
 }
 

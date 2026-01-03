@@ -70,14 +70,22 @@ use_ok('OpenHAP::MDNS');
 
 # Test registration state tracking
 {
+	# Create a mock mdnsctl that sleeps
+	use File::Temp qw(tempfile);
+	my ( $fh, $mock_mdnsctl ) = tempfile( UNLINK => 1 );
+	print $fh "#!/bin/sh\n";
+	print $fh "sleep 300\n";
+	close $fh;
+	chmod 0755, $mock_mdnsctl;
+
 	my $mdns = OpenHAP::MDNS->new(
 		service_name => 'Test',
-		mdnsctl      => '/usr/bin/true',    # Use /usr/bin/true for testing
+		mdnsctl      => $mock_mdnsctl,
 	);
 
 	ok( !$mdns->is_registered(), 'Initially not registered' );
 
-	# Simulate registration (using /usr/bin/true)
+	# Simulate registration
 	$mdns->register_service();
 
 	ok( $mdns->is_registered(), 'Marked as registered after registration' );
@@ -155,7 +163,7 @@ use_ok('OpenHAP::MDNS');
 		# Verify command structure (new format: publish)
 		like( $args, qr/publish/,      'Command uses publish' );
 		like( $args, qr/Test Service/, 'Command contains service name' );
-		like( $args, qr/_hap/,         'Command contains _hap' );
+		like( $args, qr/\bhap\b/,      'Command contains hap service type' );
 		like( $args, qr/tcp/,          'Command contains tcp' );
 		like( $args, qr/8080/,         'Command contains port' );
 
@@ -189,12 +197,11 @@ use_ok('OpenHAP::MDNS');
 		mdnsctl      => $filename,
 	);
 
-	# With new implementation, register_service always returns 1
-	# (it forks and waits, doesn't check exit status)
+	# With FuguLib::Process, we properly detect process failure
 	my $result = eval { $mdns->register_service() };
 	ok( !$@, 'Failing mdnsctl does not die' );
-	ok( $mdns->is_registered(),
-		'Marked as registered (fork/wait succeeds)' );
+	ok( !$mdns->is_registered(),
+		'Not marked as registered when process fails' );
 }
 
 # Test exception handling during command execution
@@ -204,12 +211,11 @@ use_ok('OpenHAP::MDNS');
 		mdnsctl      => '/dev/null',    # Cannot execute /dev/null
 	);
 
-	# With new implementation, fork succeeds but exec fails in child
-	# Parent still marks as registered after waitpid
+	# With FuguLib::Process, exec failure is detected via check_alive
 	my $result = eval { $mdns->register_service() };
 	ok( !$@, 'Exception during execution is caught' );
-	ok( $mdns->is_registered(),
-		'Marked as registered (fork succeeds, exec fails in child)' );
+	ok( !$mdns->is_registered(),
+		'Not marked as registered when exec fails' );
 }
 
 # Test TXT record sorting (mdnsctl expects consistent order)
