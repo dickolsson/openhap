@@ -16,27 +16,40 @@ SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLeve
 vm_run() { "${OPENHVF}" ssh "$@"; }
 vm_scp() { scp ${SSH_OPTS} -P "${SSH_PORT}" "$@"; }
 
-echo "==> Copying test files..."
+echo "==> Copying test files and support modules..."
 cd "${PROJECT_ROOT}"
 TARBALL="/tmp/tests-$$.tar.gz"
-tar czf "${TARBALL}" t/openhap/integration/
+tar czf "${TARBALL}" t/openhap/integration/ lib/OpenHAP/Test/
 vm_scp "${TARBALL}" "root@localhost:/tmp/tests.tar.gz"
 rm -f "${TARBALL}"
 
-echo "==> Running tests..."
+echo "==> Running integration tests..."
 vm_run <<'EOF'
 cd /tmp && tar xzf tests.tar.gz
+
+# Install test support module
+mkdir -p /usr/local/libdata/perl5/site_perl/OpenHAP/Test
+cp lib/OpenHAP/Test/* /usr/local/libdata/perl5/site_perl/OpenHAP/Test/ 2>/dev/null || true
 
 # Set integration test flag
 export OPENHAP_INTEGRATION_TEST=1
 
-# Run tests
+# Run tests in order (environment first, then others)
 if command -v prove >/dev/null 2>&1; then
 	prove -I/usr/local/libdata/perl5/site_perl -v t/openhap/integration/
 	result=$?
 else
 	result=0
+	# Run environment test first
+	for test in t/openhap/integration/environment.t; do
+		[ -f "$test" ] || continue
+		echo "Running $test..."
+		perl -I/usr/local/libdata/perl5/site_perl "$test" || result=1
+	done
+	# Run remaining tests
 	for test in t/openhap/integration/*.t; do
+		[ "$test" = "t/openhap/integration/environment.t" ] && continue
+		[ "$test" = "t/openhap/integration/README.md" ] && continue
 		echo "Running $test..."
 		perl -I/usr/local/libdata/perl5/site_perl "$test" || result=1
 	done
