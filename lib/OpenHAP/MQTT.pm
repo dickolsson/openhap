@@ -206,6 +206,7 @@ sub tick( $self, $timeout = 0 )
 
 # $self->_dispatch_message($topic, $payload):
 #	dispatch a message to matching subscription callbacks
+#	$callback receives ($topic, $payload) - topic is the actual received topic
 sub _dispatch_message( $self, $topic, $payload )
 {
 	my $dispatched = 0;
@@ -213,7 +214,7 @@ sub _dispatch_message( $self, $topic, $payload )
 	for my $pattern ( keys %{ $self->{subscriptions} } ) {
 		if ( $self->_topic_matches( $pattern, $topic ) ) {
 			my $callback = $self->{subscriptions}{$pattern};
-			eval { $callback->($payload); };
+			eval { $callback->( $topic, $payload ); };
 			if ($@) {
 				log_err( 'MQTT callback error for %s: %s',
 					$topic, $@ );
