@@ -4,6 +4,9 @@ Exercise the `openhvf` utility to find weaknesses in error handling, edge cases,
 and failure modes. Be creative and adversarial—try to break things in unexpected
 ways.
 
+Document all your findings in `SCRATCHPADN.md` (with N being the next available
+number).
+
 ## Philosophy
 
 OpenBSD's approach to robustness:

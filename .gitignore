@@ -3,6 +3,9 @@
 .openhvf/
 build/
 
+# Exploratory testing
+explore/
+
 # Man pages (compiled)
 *.cat5
 *.cat8
