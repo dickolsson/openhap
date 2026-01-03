@@ -44,11 +44,17 @@ sub new( $class, %args )
 		die "Invalid log mode: $mode";
 	}
 
+	# Convert facility string to constant if needed
+	my $facility = $args{facility} // LOG_DAEMON;
+	if ( ref($facility) eq '' && $facility =~ /^\w+$/ ) {
+		$facility = _parse_facility($facility);
+	}
+
 	my $self = bless {
 		mode     => $mode,
 		level    => _parse_level($level),
 		ident    => $ident,
-		facility => $args{facility} // LOG_DAEMON,
+		facility => $facility,
 		opened   => 0,
 	}, $class;
 
@@ -127,6 +133,19 @@ my %priority_map = (
 	crit    => LOG_CRIT,
 );
 
+my %facility_map = (
+	daemon => LOG_DAEMON,
+	user   => LOG_USER,
+	local0 => LOG_LOCAL0,
+	local1 => LOG_LOCAL1,
+	local2 => LOG_LOCAL2,
+	local3 => LOG_LOCAL3,
+	local4 => LOG_LOCAL4,
+	local5 => LOG_LOCAL5,
+	local6 => LOG_LOCAL6,
+	local7 => LOG_LOCAL7,
+);
+
 sub _parse_level($level)
 {
 	$level = lc($level);
@@ -137,6 +156,12 @@ sub _level_to_priority($level)
 {
 	$level = lc($level);
 	return $priority_map{$level} // LOG_INFO;
+}
+
+sub _parse_facility($facility)
+{
+	$facility = lc($facility);
+	return $facility_map{$facility} // LOG_DAEMON;
 }
 
 sub _timestamp()

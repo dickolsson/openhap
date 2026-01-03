@@ -11,6 +11,7 @@ use OpenHAP::MQTT;
 use OpenHAP::MDNS;
 use OpenHAP::Daemon;
 use OpenHAP::DeviceLoader;
+use FuguLib::Signal;
 
 # Default configuration
 my $config_file  = '/etc/openhapd.conf';
@@ -35,7 +36,13 @@ if ($check_config) {
 	exit 0;
 }
 
-# Initialize logging
+# Daemonize first, before initializing logging
+# This ensures syslog connection is opened in the child process
+if ( !$foreground ) {
+	OpenHAP::Daemon->daemonize('/var/log/openhapd.log');
+}
+
+# Initialize logging after daemonizing
 my $log_level    = $config->get( 'log_level',    'info' );
 my $log_facility = $config->get( 'log_facility', 'daemon' );
 
@@ -47,10 +54,7 @@ OpenHAP::Log->init(
 	verbose    => $verbose,
 );
 
-# Daemonize unless running in foreground
-if ( !$foreground ) {
-	OpenHAP::Daemon->daemonize('/var/log/openhapd.log');
-}
+log_info('OpenHAP daemon initializing');
 
 # Get HAP settings
 my $hap_name = $config->get( 'hap_name', 'OpenHAP Bridge' );
@@ -108,12 +112,34 @@ $mdns->register_service();
 if ( $> == 0 ) {
 	use FuguLib::Privdrop;
 	FuguLib::Privdrop->drop_privileges( user => '_openhap' );
+
+	# Reinitialize logging after dropping privileges
+	# The syslog connection opened as root needs to be reopened as _openhap
+	OpenHAP::Log->finalize();
+	OpenHAP::Log->init(
+		ident      => 'openhapd',
+		foreground => $foreground,
+		level      => $log_level,
+		facility   => $log_facility,
+		verbose    => $verbose,
+	);
+
 	log_info('Dropped privileges to _openhap');
 }
 
 if ( !$hap->is_paired() ) {
 	log_notice( 'Not paired - use Home app with PIN: %s', $hap_pin );
 }
+
+# Setup signal handlers for graceful shutdown
+my $sig = FuguLib::Signal->new;
+$sig->add_cleanup(
+	sub ($signal) {
+		log_info( 'Received signal %s, shutting down gracefully',
+			$signal );
+		OpenHAP::Log->finalize();
+	} );
+$sig->setup_graceful_exit( 'INT', 'TERM', 'HUP' );
 
 # Run server
 log_info('Starting OpenHAP server');

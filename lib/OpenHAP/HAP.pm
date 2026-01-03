@@ -170,7 +170,7 @@ sub run($self)
 
 sub _init_session( $self, $socket )
 {
-	log_debug( 'New client connection from %s', $socket->peerhost );
+	log_info( 'Client connected from %s', $socket->peerhost );
 	$self->{sessions}{$socket} =
 	    OpenHAP::Session->new( socket => $socket, );
 }
@@ -184,7 +184,7 @@ sub _handle_client( $self, $sock, $select )
 	if ( !$bytes ) {
 
 		# Connection closed
-		log_debug( 'Client disconnected: %s', $sock->peerhost );
+		log_info( 'Client disconnected from %s', $sock->peerhost );
 		$select->remove($sock);
 		delete $self->{sessions}{$sock};
 		$sock->close();
@@ -206,6 +206,12 @@ sub _handle_client( $self, $sock, $select )
 	# Parse HTTP request
 	my $request = OpenHAP::HTTP::parse($data);
 
+	# Log HTTP request with client info
+	log_info(
+		'HTTP %s %s from %s', $request->{method},
+		$request->{path},     $sock->peerhost
+	);
+
 	# Dispatch request
 	my $response = $self->_dispatch( $request, $session );
 
@@ -222,7 +228,6 @@ sub _dispatch( $self, $request, $session )
 {
 	my $path   = $request->{path};
 	my $method = $request->{method};
-	log_debug( 'HTTP request: %s %s', $method, $path );
 
 	# Pairing endpoints (no verification required)
 	if ( $path eq '/pair-setup' && $method eq 'POST' ) {
