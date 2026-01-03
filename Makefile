@@ -55,10 +55,13 @@ install: install-man
 	# Install Perl libraries
 	install -d $(DESTDIR)$(LIBDIR)/OpenHAP
 	install -d $(DESTDIR)$(LIBDIR)/OpenHAP/Tasmota
+	install -d $(DESTDIR)$(LIBDIR)/FuguLib
 	install -m 644 lib/OpenHAP/*.pm $(DESTDIR)$(LIBDIR)/OpenHAP/
 	install -m 644 lib/OpenHAP/*.pod $(DESTDIR)$(LIBDIR)/OpenHAP/
 	install -m 644 lib/OpenHAP/Tasmota/*.pm $(DESTDIR)$(LIBDIR)/OpenHAP/Tasmota/
 	install -m 644 lib/OpenHAP/Tasmota/*.pod $(DESTDIR)$(LIBDIR)/OpenHAP/Tasmota/
+	install -m 644 lib/FuguLib/*.pm $(DESTDIR)$(LIBDIR)/FuguLib/
+	install -m 644 lib/FuguLib/*.pod $(DESTDIR)$(LIBDIR)/FuguLib/
 	# Install rc.d script
 	install -d $(DESTDIR)$(SYSCONFDIR)/rc.d
 	install -m 755 etc/rc.d/openhapd $(DESTDIR)$(SYSCONFDIR)/rc.d/openhapd
@@ -98,6 +101,7 @@ prettier-fix:
 package: clean
 	mkdir -p build/$(PACKAGE)/bin
 	mkdir -p build/$(PACKAGE)/lib/OpenHAP/Tasmota
+	mkdir -p build/$(PACKAGE)/lib/FuguLib
 	mkdir -p build/$(PACKAGE)/etc/rc.d
 	mkdir -p build/$(PACKAGE)/share/openhap/examples
 	mkdir -p build/$(PACKAGE)/man/openhap
@@ -106,6 +110,7 @@ package: clean
 	# Perl libraries
 	cp lib/OpenHAP/*.pm lib/OpenHAP/*.pod build/$(PACKAGE)/lib/OpenHAP/
 	cp lib/OpenHAP/Tasmota/*.pm lib/OpenHAP/Tasmota/*.pod build/$(PACKAGE)/lib/OpenHAP/Tasmota/
+	cp lib/FuguLib/*.pm lib/FuguLib/*.pod build/$(PACKAGE)/lib/FuguLib/
 	# rc.d script
 	cp etc/rc.d/openhapd build/$(PACKAGE)/etc/rc.d/
 	# Example configuration
@@ -139,6 +144,7 @@ uninstall:
 	rm -f $(DESTDIR)$(BINDIR)/hapctl
 	# Remove Perl libraries
 	rm -rf $(DESTDIR)$(LIBDIR)/OpenHAP
+	rm -rf $(DESTDIR)$(LIBDIR)/FuguLib
 	# Remove man pages
 	rm -f $(DESTDIR)$(MANDIR)/man5/openhapd.conf.5
 	rm -f $(DESTDIR)$(MANDIR)/man8/openhapd.8
