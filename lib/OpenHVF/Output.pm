@@ -19,26 +19,35 @@ use v5.36;
 
 package OpenHVF::Output;
 
+# OpenHVF::Output now wraps FuguLib::Log for consistency
+use FuguLib::Log;
+
 sub new( $class, $quiet = 0 )
 {
-	bless { quiet => $quiet }, $class;
+	my $mode   = $quiet ? 'quiet' : 'stderr';
+	my $logger = FuguLib::Log->new(
+		mode  => $mode,
+		ident => 'openhvf',
+		level => 'info',
+	);
+	bless { logger => $logger, quiet => $quiet }, $class;
 }
 
 sub info( $self, $message )
 {
 	return if $self->{quiet};
-	say $message;
+	$self->{logger}->info($message);
 }
 
 sub error( $self, $message )
 {
-	warn "openhvf: error: $message\n";
+	$self->{logger}->error( 'error: %s', $message );
 }
 
 sub success( $self, $message )
 {
 	return if $self->{quiet};
-	say $message;
+	$self->{logger}->info($message);
 }
 
 sub data( $self, $hashref )

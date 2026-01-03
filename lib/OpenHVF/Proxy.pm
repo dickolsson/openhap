@@ -61,31 +61,31 @@ sub start($self)
 		return;
 	}
 
-	my $pid = fork;
-	if ( !defined $pid ) {
-		warn "Fork failed: $!";
-		return;
-	}
+	# Spawn proxy using FuguLib::Process
+	my $log    = $self->{state}->vm_state_dir . "/proxy.log";
+	my $result = FuguLib::Process->spawn(
+		cmd => [
+			$^X,
+			'-e',
+'require OpenHVF::Proxy; OpenHVF::Proxy->_run_proxy_child($ARGV[0])',
+			$port
+		],
+		daemonize   => 1,
+		stdout      => $log,
+		stderr      => $log,
+		check_alive => 1,
+		on_success  => sub($pid) {
 
-	if ( $pid == 0 ) {
+			# Record state in callback
+			$self->{state}->set_proxy_pid($pid);
+			$self->{state}->set_proxy_port($port);
+		},
+		on_error => sub($err) {
+			warn "Proxy failed to start: $err\n";
+		},
+	);
 
-		# Child: become daemon
-		$DB::inhibit_exit = 0;
-		setsid();
-
-		# Redirect I/O
-		my $log = $self->{state}->vm_state_dir . "/proxy.log";
-		open STDOUT, '>>', $log or die "Cannot open $log: $!";
-		open STDERR, '>&', \*STDOUT;
-		open STDIN,  '<',  '/dev/null';
-
-		$self->_run_proxy($port);
-		exit 0;
-	}
-
-	# Parent: record state
-	$self->{state}->set_proxy_pid($pid);
-	$self->{state}->set_proxy_port($port);
+	return unless $result->{success};
 
 	# Wait for proxy to be ready
 	if ( !$self->wait_ready(CONNECT_TIMEOUT) ) {

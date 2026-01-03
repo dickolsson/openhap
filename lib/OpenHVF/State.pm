@@ -21,6 +21,7 @@ package OpenHVF::State;
 
 use File::Path qw(make_path);
 use JSON::XS;
+use FuguLib::State;
 
 use constant { MAX_VM_NAME_LENGTH => 255, };
 
@@ -50,11 +51,18 @@ sub new( $class, $state_dir, $vm_name )
 		proxy_pid_file => "$vm_state_dir/proxy.pid",
 		status_file    => "$vm_state_dir/status",
 		disk_path      => "$vm_state_dir/disk.qcow2",
+		_vm_state      => undef,
+		_proxy_state   => undef,
 	}, $class;
 
 	if ( !$self->_ensure_dir ) {
 		return;
 	}
+
+	# Initialize FuguLib::State objects for PID management
+	$self->{_vm_state}    = FuguLib::State->new( $self->{vm_pid_file} );
+	$self->{_proxy_state} = FuguLib::State->new( $self->{proxy_pid_file} );
+
 	$self->load;
 
 	return $self;
@@ -124,28 +132,16 @@ sub save($self)
 	return $self;
 }
 
-# VM PID management
+# VM PID management (using FuguLib::State)
 sub set_vm_pid( $self, $pid )
 {
-	open my $fh, '>', $self->{vm_pid_file} or do {
-		warn "Cannot write $self->{vm_pid_file}: $!";
-		return;
-	};
-	print $fh "$pid\n";
-	close $fh;
-
+	return unless $self->{_vm_state}->write_pid($pid);
 	return $self;
 }
 
 sub get_vm_pid($self)
 {
-	open my $fh, '<', $self->{vm_pid_file} or return;
-	my $pid = <$fh>;
-	close $fh;
-
-	chomp $pid  if defined $pid;
-	return $pid if $pid && $pid =~ /^\d+$/;
-	return;
+	return $self->{_vm_state}->read_pid();
 }
 
 sub clear_vm_pid($self)
@@ -156,35 +152,19 @@ sub clear_vm_pid($self)
 
 sub is_vm_running($self)
 {
-	my $pid = $self->get_vm_pid;
-	return 0 if !defined $pid;
-
-	# Check if process is alive
-	return kill( 0, $pid ) ? 1 : 0;
+	return $self->{_vm_state}->is_running() ? 1 : 0;
 }
 
-# Proxy PID management
+# Proxy PID management (using FuguLib::State)
 sub set_proxy_pid( $self, $pid )
 {
-	open my $fh, '>', $self->{proxy_pid_file} or do {
-		warn "Cannot write $self->{proxy_pid_file}: $!";
-		return;
-	};
-	print $fh "$pid\n";
-	close $fh;
-
+	return unless $self->{_proxy_state}->write_pid($pid);
 	return $self;
 }
 
 sub get_proxy_pid($self)
 {
-	open my $fh, '<', $self->{proxy_pid_file} or return;
-	my $pid = <$fh>;
-	close $fh;
-
-	chomp $pid  if defined $pid;
-	return $pid if $pid && $pid =~ /^\d+$/;
-	return;
+	return $self->{_proxy_state}->read_pid();
 }
 
 sub clear_proxy_pid($self)
