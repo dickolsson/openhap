@@ -19,33 +19,6 @@ use v5.36;
 
 package OpenHAP::Test::Integration;
 
-=head1 NAME
-
-OpenHAP::Test::Integration - Base module for OpenHAP integration tests
-
-=head1 SYNOPSIS
-
-    use v5.36;
-    use Test::More;
-    use OpenHAP::Test::Integration;
-    
-    my $env = OpenHAP::Test::Integration->new;
-    $env->setup;
-    
-    # Run tests...
-    my $response = $env->http_request('GET', '/accessories');
-    ok(defined $response, 'received response');
-    
-    $env->teardown;
-    done_testing();
-
-=head1 DESCRIPTION
-
-Provides common setup, teardown, and utility functions for integration tests.
-Ensures environment is properly configured and dependencies are available.
-
-=cut
-
 use Exporter 'import';
 use IO::Socket::INET;
 use Time::HiRes qw(sleep);
@@ -68,24 +41,6 @@ use constant {
 	PIDFILE           => '/var/run/openhapd.pid',
 };
 
-=head1 METHODS
-
-=head2 new
-
-    my $env = OpenHAP::Test::Integration->new(%options);
-
-Create a new integration test environment. Options:
-
-=over 4
-
-=item config_file - Path to openhapd.conf (default: /etc/openhapd.conf)
-
-=item skip_setup - Skip automatic setup validation
-
-=back
-
-=cut
-
 sub new( $class, %options )
 {
 	my $self = bless {
@@ -100,15 +55,6 @@ sub new( $class, %options )
 
 	return $self;
 }
-
-=head2 setup
-
-    $env->setup;
-
-Validate environment and prepare for testing. Dies if environment is not ready.
-This ensures all integration tests run in a known-good state.
-
-=cut
 
 sub setup($self)
 {
@@ -131,15 +77,6 @@ sub setup($self)
 	return 1;
 }
 
-=head2 teardown
-
-    $env->teardown;
-
-Clean up resources after testing. Closes all open connections and ensures
-proper cleanup.
-
-=cut
-
 sub teardown($self)
 {
 	# Close any open sockets
@@ -155,15 +92,6 @@ sub teardown($self)
 
 	return 1;
 }
-
-=head2 http_request
-
-    my $response = $env->http_request($method, $path, $body, $headers);
-
-Make an HTTP request to the HAP server. Returns full HTTP response as string,
-or undef on error.
-
-=cut
 
 sub http_request( $self, $method, $path, $body = undef, $headers = {} )
 {
@@ -211,14 +139,6 @@ sub http_request( $self, $method, $path, $body = undef, $headers = {} )
 	return $response;
 }
 
-=head2 parse_http_response
-
-    my ($status, $headers, $body) = parse_http_response($response);
-
-Parse an HTTP response into status code, headers hash, and body.
-
-=cut
-
 sub parse_http_response($response)
 {
 	return unless defined $response;
@@ -239,40 +159,15 @@ sub parse_http_response($response)
 	return ( $status, \%headers, $body // '' );
 }
 
-=head2 get_config_value
-
-    my $value = $env->get_config_value($key);
-
-Get a configuration value from openhapd.conf.
-
-=cut
-
 sub get_config_value( $self, $key )
 {
 	return $self->{config}{$key};
 }
 
-=head2 get_device_topics
-
-    my @topics = $env->get_device_topics;
-
-Get all device MQTT topics from configuration.
-
-=cut
-
 sub get_device_topics($self)
 {
 	return @{ $self->{device_topics} // [] };
 }
-
-=head2 ensure_daemon_running
-
-    $env->ensure_daemon_running or die "Cannot start daemon";
-
-Ensure openhapd daemon is running. Attempts to start if not running.
-Returns true if daemon is running, false otherwise.
-
-=cut
 
 sub ensure_daemon_running($self)
 {
@@ -287,14 +182,6 @@ sub ensure_daemon_running($self)
 	return system('rcctl check openhapd >/dev/null 2>&1') == 0;
 }
 
-=head2 ensure_daemon_stopped
-
-    $env->ensure_daemon_stopped;
-
-Ensure openhapd daemon is stopped.
-
-=cut
-
 sub ensure_daemon_stopped($self)
 {
 	return 1 if system('rcctl check openhapd >/dev/null 2>&1') != 0;
@@ -304,15 +191,6 @@ sub ensure_daemon_stopped($self)
 
 	return system('rcctl check openhapd >/dev/null 2>&1') != 0;
 }
-
-=head2 ensure_mqtt_running
-
-    $env->ensure_mqtt_running or die "MQTT broker required";
-
-Ensure MQTT broker (mosquitto) is running. Attempts to start if not running.
-Returns true if broker is running, false otherwise.
-
-=cut
 
 sub ensure_mqtt_running($self)
 {
@@ -327,14 +205,6 @@ sub ensure_mqtt_running($self)
 	return system('rcctl check mosquitto >/dev/null 2>&1') == 0;
 }
 
-=head2 clear_logs
-
-    $env->clear_logs;
-
-Clear (truncate) the daemon log file. Use with caution.
-
-=cut
-
 sub clear_logs($self)
 {
 	return unless -w SYSLOG_FILE;
@@ -344,14 +214,6 @@ sub clear_logs($self)
 
 	return 1;
 }
-
-=head2 get_log_lines
-
-    my @lines = $env->get_log_lines($pattern);
-
-Get log lines matching pattern since the baseline was recorded.
-
-=cut
 
 sub get_log_lines( $self, $pattern = undef )
 {
@@ -373,14 +235,6 @@ sub get_log_lines( $self, $pattern = undef )
 	return @lines;
 }
 
-=head2 get_mqtt
-
-    my $mqtt = $env->get_mqtt;
-
-Get MQTT client connection. Creates connection on first call.
-
-=cut
-
 sub get_mqtt($self)
 {
 	return $self->{mqtt} if defined $self->{mqtt};
@@ -400,8 +254,6 @@ sub get_mqtt($self)
 
 	return $self->{mqtt};
 }
-
-# Internal methods
 
 sub _verify_system($self)
 {
@@ -481,9 +333,3 @@ sub _count_log_lines($self)
 }
 
 1;
-
-=head1 AUTHOR
-
-Dick Olsson <hi@ekkis.net>
-
-=cut
