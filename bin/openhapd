@@ -102,6 +102,15 @@ my $mdns = OpenHAP::MDNS->new(
 
 $mdns->register_service();
 
+# Drop privileges after privileged operations
+# openhapd starts as root to allow mdnsctl to access /var/run/mdnsd.sock,
+# then drops to _openhap for the main event loop
+if ( $> == 0 ) {
+	use FuguLib::Privdrop;
+	FuguLib::Privdrop->drop_privileges( user => '_openhap' );
+	log_info('Dropped privileges to _openhap');
+}
+
 if ( !$hap->is_paired() ) {
 	log_notice( 'Not paired - use Home app with PIN: %s', $hap_pin );
 }

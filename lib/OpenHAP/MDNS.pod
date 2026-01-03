@@ -91,9 +91,14 @@ Path to the C<mdnsctl> command. Default: C</usr/sbin/mdnsctl>.
 
     $mdns->register_service();
 
-Register the HAP service with mdnsd via mdnsctl. Executes:
+Register the HAP service with mdnsd via mdnsctl. Forks a background
+process that executes:
 
-    mdnsctl proxy add _hap._tcp "Service Name" port "key=value" ...
+    mdnsctl publish "Service Name" _hap tcp port "key1=value1,key2=value2"
+
+The C<mdnsctl> process must remain running to maintain the service
+registration. The process ID is stored internally and can be killed
+via C<unregister_service()>.
 
 Returns C<1> on success, C<undef> on failure. Failures are logged as
 warnings but do not die, allowing the daemon to continue running even
@@ -106,12 +111,12 @@ without attempting re-registration.
 
     $mdns->unregister_service();
 
-Unregister the HAP service from mdnsd. Executes:
+Unregister the HAP service by killing the mdnsctl process. Sends
+a TERM signal to the background mdnsctl process started by
+C<register_service()>.
 
-    mdnsctl proxy del _hap._tcp "Service Name"
-
-Returns C<1> on success, C<undef> on failure. This should be called
-during daemon shutdown to clean up the service registration.
+Returns C<1> always. This should be called during daemon shutdown
+to clean up the service registration.
 
 If the service is not registered, this method returns immediately.
 

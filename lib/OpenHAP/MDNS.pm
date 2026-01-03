@@ -20,6 +20,7 @@ use v5.36;
 package OpenHAP::MDNS;
 
 use OpenHAP::Log qw(:all);
+use FuguLib::Process;
 
 # OpenHAP::MDNS - mDNS service registration wrapper for mdnsctl(8)
 #
@@ -81,60 +82,71 @@ sub register_service($self)
 		map { "$_=$self->{txt_records}{$_}" }
 		sort keys %{ $self->{txt_records} } );
 
+	# mdnsctl requires root/wheel access to /var/run/mdnsd.sock
+	# openhapd must start as root and call this before dropping privileges
 	my @cmd = (
 		$self->{mdnsctl}, 'publish',
-		$self->{service_name}, '_hap', 'tcp', $self->{port},
-		$txt_string,
+		$self->{service_name}, 'hap', 'tcp', $self->{port}, $txt_string,
 	);
 
 	log_debug( 'Registering mDNS service: %s', join( ' ', @cmd ) );
 
-	# Fork mdnsctl process to keep service registered
-	# mdnsctl publish must stay running to maintain the registration
-	my $pid = fork;
-	unless ( defined $pid ) {
-		log_warning( 'Cannot fork mdnsctl process: %s', $! );
+	# mdnsctl publish outputs status messages to stdout and stays running
+	# It exits immediately if stdout is /dev/null, so redirect to a log file
+	my $mdns_log = '/tmp/mdnsctl.log';
+
+	# Spawn mdnsctl process using FuguLib::Process
+	my $result = FuguLib::Process->spawn(
+		cmd         => \@cmd,
+		check_alive => 1,
+		stdout      => $mdns_log,
+		stderr      => $mdns_log,
+		on_success  => sub($pid) {
+			log_info(
+'Registered mDNS service: %s._hap._tcp port %d (PID: %d)',
+				$self->{service_name}, $self->{port}, $pid );
+		},
+		on_error => sub($err) {
+			log_warning( 'mDNS registration failed: %s', $err );
+		},
+	);
+
+	unless ( $result->{success} ) {
 		return;
 	}
 
-	if ( $pid == 0 ) {
-
-		# Child process
-		$DB::inhibit_exit = 0;
-
-		# Redirect output to /dev/null
-		open STDOUT, '>', '/dev/null' or exit 1;
-		open STDERR, '>', '/dev/null' or exit 1;
-
-		# Execute mdnsctl - exits quickly after registration
-		exec @cmd or exit 1;
-	}
-
-	# Parent process - wait for child to complete registration
-	waitpid( $pid, 0 );
-
-	$self->{pid}        = undef;    # Process has exited
+	$self->{pid}        = $result->{pid};
 	$self->{registered} = 1;
-
-	log_info( 'Registered mDNS service: %s._hap._tcp port %d',
-		$self->{service_name}, $self->{port} );
 
 	return 1;
 }
 
 # $self->unregister_service():
-#	Unregister the HAP service (no-op since mdnsd maintains registration)
+#	Unregister the HAP service by killing the mdnsctl process
 #	Returns 1 on success
 sub unregister_service($self)
 {
 	return if !$self->{registered};
 
-# Note: mdnsd maintains the service registration, so we just mark as unregistered
-# The service will remain advertised until mdnsd is restarted or reconfigured
+	# Kill the mdnsctl process if it's still running
+	if ( defined $self->{pid} ) {
+		my $killed = FuguLib::Process->terminate(
+			$self->{pid},
+			on_kill => sub() {
+				log_info(
+'Killed mdnsctl process (PID: %d) for service: %s._hap._tcp',
+					$self->{pid}, $self->{service_name} );
+			} );
+
+		if ( !$killed ) {
+			log_warning( 'Failed to kill mdnsctl process (PID: %d)',
+				$self->{pid} );
+		}
+
+		$self->{pid} = undef;
+	}
 
 	$self->{registered} = 0;
-	log_info( 'Marked mDNS service as unregistered: %s._hap._tcp',
-		$self->{service_name} );
 
 	return 1;
 }

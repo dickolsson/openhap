@@ -19,7 +19,9 @@ use v5.36;
 
 package OpenHAP::Daemon;
 
-use POSIX        qw(setsid);
+# OpenHAP::Daemon is now a wrapper around FuguLib for backward compatibility
+use FuguLib::Daemon;
+use FuguLib::State;
 use OpenHAP::Log qw(:all);
 
 # $class->daemonize($logfile):
@@ -28,33 +30,7 @@ use OpenHAP::Log qw(:all);
 #	Parent process exits successfully.
 sub daemonize( $class, $logfile = '/var/log/openhapd.log' )
 {
-	my $pid = fork;
-	unless ( defined $pid ) {
-		log_err( 'Cannot fork: %s', $! );
-		die "Cannot fork: $!";
-	}
-	exit 0 if $pid;    # Parent exits, child continues
-
-	$DB::inhibit_exit = 0;
-	setsid() or do {
-		log_err( 'Cannot start new session: %s', $! );
-		die "Cannot start new session: $!";
-	};
-
-	# Redirect standard file descriptors
-	open STDIN, '<', '/dev/null' or do {
-		log_err( 'Cannot read /dev/null: %s', $! );
-		die "Cannot read /dev/null: $!";
-	};
-	open STDOUT, '>>', $logfile or do {
-		log_err( 'Cannot write to %s: %s', $logfile, $! );
-		die "Cannot write to $logfile: $!";
-	};
-	open STDERR, '>&', \*STDOUT or do {
-		log_err( 'Cannot dup STDOUT: %s', $! );
-		die "Cannot dup STDOUT: $!";
-	};
-
+	FuguLib::Daemon->daemonize( logfile => $logfile );
 	log_debug( 'Daemonized successfully, PID: %d', $$ );
 	return;
 }
@@ -63,14 +39,11 @@ sub daemonize( $class, $logfile = '/var/log/openhapd.log' )
 #	Write current PID to file. Returns true on success.
 sub write_pidfile( $class, $path )
 {
-	open my $fh, '>', $path or do {
-		log_err( 'Cannot write PID file %s: %s', $path, $! );
+	my $state = FuguLib::State->new( pidfile => $path );
+	unless ( $state->write_pid($$) ) {
+		log_err( 'Cannot write PID file %s', $path );
 		return;
-	};
-
-	print $fh "$$\n";
-	close $fh;
-
+	}
 	log_debug( 'Wrote PID %d to %s', $$, $path );
 	return 1;
 }
@@ -80,20 +53,8 @@ sub write_pidfile( $class, $path )
 #	or cannot be read.
 sub read_pidfile( $class, $path )
 {
-	return unless -f $path;
-
-	open my $fh, '<', $path or do {
-		log_warning( 'Cannot read PID file %s: %s', $path, $! );
-		return;
-	};
-
-	my $pid = <$fh>;
-	close $fh;
-
-	return unless defined $pid;
-	chomp $pid;
-	return unless $pid =~ /^\d+$/;
-
+	my $state = FuguLib::State->new( pidfile => $path );
+	my $pid   = $state->read_pid();
 	return $pid;
 }
 
@@ -102,13 +63,8 @@ sub read_pidfile( $class, $path )
 #	Returns PID if running, undef otherwise.
 sub check_running( $class, $pidfile )
 {
-	my $pid = $class->read_pidfile($pidfile);
-	return unless defined $pid;
-
-	# Check if process exists
-	return unless kill 0, $pid;
-
-	return $pid;
+	my $state = FuguLib::State->new( pidfile => $pidfile );
+	return $state->is_running() ? $state->read_pid() : undef;
 }
 
 1;

@@ -5,7 +5,7 @@
 
 daemon="/usr/local/bin/openhapd"
 daemon_flags="-c /etc/openhapd.conf"
-daemon_user="_openhap"
+# Note: daemon starts as root and drops to _openhap after privileged operations
 
 . /etc/rc.d/rc.subr
 
@@ -14,7 +14,7 @@ rc_configtest() {
 }
 
 rc_reload() {
-    pkill -HUP -U ${daemon_user} -xf "${pexp}"
+    pkill -HUP -xf "${pexp}"
 }
 
 pexp="perl ${daemon}.*"
