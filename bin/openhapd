@@ -97,18 +97,16 @@ else {
 my $loader = OpenHAP::DeviceLoader->new();
 $loader->load_devices( $config, $hap, $mqtt );
 
-# Register mDNS service
+# Create mDNS handler (registration happens after privilege drop)
 my $mdns = OpenHAP::MDNS->new(
 	service_name => $hap_name,
 	port         => $hap_port,
 	txt_records  => $hap->get_mdns_txt_records(),
 );
 
-$mdns->register_service();
-
-# Drop privileges after privileged operations
-# openhapd starts as root to allow mdnsctl to access /var/run/mdnsd.sock,
-# then drops to _openhap for the main event loop
+# Drop privileges before registering mDNS
+# _openhap must be in wheel group to access /var/run/mdnsd.sock
+# This ensures mdnsctl runs as _openhap and can be killed on shutdown
 if ( $> == 0 ) {
 	use FuguLib::Privdrop;
 	FuguLib::Privdrop->drop_privileges( user => '_openhap' );
@@ -127,6 +125,10 @@ if ( $> == 0 ) {
 	log_info('Dropped privileges to _openhap');
 }
 
+# Register mDNS service after privilege drop
+# mdnsctl will run as _openhap (must be in wheel group)
+$mdns->register_service();
+
 if ( !$hap->is_paired() ) {
 	log_notice( 'Not paired - use Home app with PIN: %s', $hap_pin );
 }
@@ -137,6 +139,10 @@ $sig->add_cleanup(
 	sub ($signal) {
 		log_info( 'Received signal %s, shutting down gracefully',
 			$signal );
+
+		# Terminate mdnsctl child process
+		$mdns->unregister_service();
+
 		OpenHAP::Log->finalize();
 	} );
 $sig->setup_graceful_exit( 'INT', 'TERM', 'HUP' );

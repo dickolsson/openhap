@@ -49,6 +49,7 @@ This installs:
 ```sh
 # Create system user
 doas useradd -c "OpenHAP" -d /var/empty -g =uid -r 100..999 -s /sbin/nologin _openhap
+doas usermod -G wheel _openhap  # Required for mdnsd socket access
 doas chown _openhap:_openhap /var/db/openhapd
 
 # Configure

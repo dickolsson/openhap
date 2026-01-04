@@ -69,6 +69,10 @@ make install
 id _openhap >/dev/null 2>&1 || \
 	useradd -c "OpenHAP Daemon" -d /var/empty -g =uid -r 100..999 -s /sbin/nologin _openhap 2>/dev/null || true
 
+# Add _openhap to wheel group for mdnsd socket access
+# mdnsctl requires wheel group membership to access /var/run/mdnsd.sock
+usermod -G wheel _openhap 2>/dev/null || true
+
 # Set ownership on data directory
 chown _openhap:_openhap /var/db/openhapd
 
