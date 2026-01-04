@@ -74,11 +74,15 @@ sub register_service($self)
 		return;
 	}
 
-# Build the mdnsctl command
-# Format: mdnsctl publish "Service Name" _hap tcp port "key1=value1,key2=value2"
+    # Build the mdnsctl command
+    # Format: mdnsctl publish "Service Name" _hap tcp port "key1=val1.key2=val2"
+    #
+    # mdnsd uses dot (.) as the delimiter between TXT record strings.
+    # serialize_dname() in mdnsd/packet.c splits on '.' and creates
+    # length-prefixed character-strings per RFC 6763.
 
-	# Combine TXT records into single comma-separated string
-	my $txt_string = join( ',',
+	# Combine TXT records into single dot-separated string
+	my $txt_string = join( '.',
 		map { "$_=$self->{txt_records}{$_}" }
 		sort keys %{ $self->{txt_records} } );
 

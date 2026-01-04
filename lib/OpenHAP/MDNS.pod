@@ -14,7 +14,7 @@ OpenHAP::MDNS - mDNS service registration wrapper for mdnsctl(8)
             'ff' => 0,
             'id' => 'AA:BB:CC:DD:EE:FF',
             'md' => 'OpenHAP',
-            'pv' => '1.1',
+            'pv' => '1',
             's#' => 1,
             'sf' => 1,
             'ci' => 2,
@@ -69,7 +69,7 @@ TXT record key-value pairs for the service. Required HAP fields:
 
 =item C<md> - Model name
 
-=item C<pv> - Protocol version (1.1)
+=item C<pv> - Protocol version (1, not 1.1 due to mdnsd dot delimiter)
 
 =item C<s#> - State number (typically 1)
 
@@ -94,7 +94,11 @@ Path to the C<mdnsctl> command. Default: C</usr/sbin/mdnsctl>.
 Register the HAP service with mdnsd via mdnsctl. Forks a background
 process that executes:
 
-    mdnsctl publish "Service Name" _hap tcp port "key1=value1,key2=value2"
+    mdnsctl publish "Service Name" hap tcp port "key1=val1.key2=val2"
+
+Note that TXT record entries are separated by dots (C<.>), not commas.
+This matches how C<mdnsd(8)> serializes TXT records internally using
+length-prefixed character-strings per RFC 6763.
 
 The C<mdnsctl> process must remain running to maintain the service
 registration. The process ID is stored internally and can be killed

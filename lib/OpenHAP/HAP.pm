@@ -927,12 +927,14 @@ sub get_device_id($self)
 
 sub get_mdns_txt_records($self)
 {
+	# Note: pv=1 instead of 1.1 because mdnsd uses '.' as TXT record
+	# delimiter and doesn't support escaping. HomeKit accepts pv=1.
 	my $records = {
 		'c#' => $self->get_config_number(),
 		'ff' => 0,
 		'id' => $self->get_device_id(),
 		'md' => $self->{name},
-		'pv' => '1.1',
+		'pv' => '1',
 		's#' => 1,
 		'sf' => $self->is_paired() ? 0 : 1,
 		'ci' => 2,

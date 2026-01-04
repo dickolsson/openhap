@@ -89,7 +89,7 @@ use File::Temp qw(tempdir);
 
 	# Verify values
 	is($txt->{'ff'}, 0, 'Feature flags is 0');
-	is($txt->{'pv'}, '1.1', 'Protocol version is 1.1');
+	is($txt->{'pv'}, '1', 'Protocol version is 1');
 	is($txt->{'s#'}, 1, 'State number is 1');
 	is($txt->{'ci'}, 2, 'Category identifier is 2 (bridge)');
 	is($txt->{'md'}, 'Test MDNS Bridge', 'Model name matches HAP name');
