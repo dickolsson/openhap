@@ -70,6 +70,28 @@ expect "#" {
     send "echo 'openbsd' > /etc/myname\r"
 }
 
+# P3: Install and enable QEMU Guest Agent for reliable filesystem operations
+expect "#" {
+    send "pkg_add qemu-ga\r"
+}
+
+# Wait for package installation (may take a while)
+expect {
+    "#" {
+        # Enable qemu_ga service
+        send "rcctl enable qemu_ga\r"
+    }
+    timeout {
+        puts stderr "Timeout waiting for qemu-ga installation"
+        # Continue anyway - agent is optional
+    }
+}
+
+expect "#" {
+    # Start qemu_ga service
+    send "rcctl start qemu_ga\r"
+}
+
 expect "#" {
     # Sync disk
     send "sync\r"
