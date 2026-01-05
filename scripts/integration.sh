@@ -31,6 +31,16 @@ cd /tmp && tar xzf tests.tar.gz
 mkdir -p /usr/local/libdata/perl5/site_perl/OpenHAP/Test
 cp lib/OpenHAP/Test/* /usr/local/libdata/perl5/site_perl/OpenHAP/Test/ 2>/dev/null || true
 
+# Clean up any orphaned processes from previous test runs
+# This ensures a known-good state before running tests
+pkill -9 -f 'perl.*openhapd' 2>/dev/null || true
+pkill -9 mdnsctl 2>/dev/null || true
+sleep 1
+
+# Start the daemon fresh
+rcctl start openhapd >/dev/null 2>&1 || true
+sleep 2
+
 # Set integration test flag
 export OPENHAP_INTEGRATION_TEST=1
 
