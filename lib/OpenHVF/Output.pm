@@ -39,6 +39,11 @@ sub info( $self, $message )
 	$self->{logger}->info($message);
 }
 
+sub warn( $self, $message )
+{
+	$self->{logger}->info( 'warning: %s', $message );
+}
+
 sub error( $self, $message )
 {
 	$self->{logger}->error( 'error: %s', $message );
