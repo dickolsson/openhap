@@ -34,6 +34,7 @@ use OpenHVF::SSH;
 use OpenHVF::Expect;
 use OpenHVF::Util;
 use OpenHVF::QMP;
+use OpenHVF::QGA;
 
 use constant {
 	EXIT_SUCCESS        => 0,
@@ -68,8 +69,30 @@ sub up($self)
 
 	# Check if already running
 	if ( $self->_is_running ) {
+
+		# If VM is running but SSH key needs to be installed or updated
+		# (first boot failed, or key changed in config)
+		if ( $state->is_installed && $self->_needs_ssh_key_update ) {
+			return $self->_complete_ssh_setup($output);
+		}
+
 		$output->info("VM '$config->{name}' is already running");
 		return EXIT_SUCCESS;
+	}
+
+	# P5: Check for unclean shutdown and verify disk integrity
+	if ( $state->was_unclean_shutdown ) {
+		$output->warn("Detected unclean shutdown, checking disk...");
+		my $disk  = OpenHVF::Disk->new( $state->{state_dir} );
+		my $check = $disk->check( $config->{name} );
+
+		if ( defined $check && $check->{status} ne 'ok' ) {
+			$output->error(
+"Disk corruption detected. Run 'openhvf disk repair $config->{name}'"
+			);
+			return EXIT_ERROR;
+		}
+		$state->clear_shutdown_state;
 	}
 
 	# Ensure image is downloaded
@@ -209,6 +232,14 @@ sub up($self)
 		return EXIT_SUCCESS;
 	}
 
+	# VM is installed - check if SSH key needs to be installed or updated
+	if ( $self->_needs_ssh_key_update ) {
+
+		# SSH key not installed or changed in config
+		# Use password auth to wait for SSH and install the key
+		return $self->_complete_ssh_setup($output);
+	}
+
 	# Wait for SSH (key-based auth for already installed VMs)
 	$output->info("Waiting for SSH...");
 	if ( !$self->wait_ssh(120) ) {
@@ -241,31 +272,19 @@ sub down($self)
 
 	$output->info("Shutting down VM...");
 
-	# Try graceful ACPI shutdown via QMP
-	if ( $self->_qmp_powerdown ) {
-		if ( $self->_wait_exit(30) ) {
-			$state->clear_vm_pid;
-			$output->success("VM stopped");
-			return EXIT_SUCCESS;
-		}
-	}
-
-	# Fall back to SSH shutdown
-	my $ssh = OpenHVF::SSH->new(
-		host => 'localhost',
-		port => $config->{ssh_port},
-		user => 'root',
-	);
-	$ssh->run_command('shutdown -p now');
-
-	if ( $self->_wait_exit(30) ) {
+	# Try graceful shutdown with filesystem sync
+	if ( $self->_graceful_shutdown ) {
+		$state->mark_clean_shutdown;
 		$state->clear_vm_pid;
 		$output->success("VM stopped");
 		return EXIT_SUCCESS;
 	}
 
-	# Force quit via QMP
-	$output->info("Force stopping VM...");
+	# Emergency force quit - filesystem may be corrupted
+	$output->warn(
+		"Graceful shutdown failed, force stopping (risk of corruption)"
+	);
+	$state->mark_unclean_shutdown;
 	$self->_qmp_quit;
 	$state->clear_vm_pid;
 	$output->success("VM stopped");
@@ -352,25 +371,29 @@ sub stop( $self, $force = 0 )
 	}
 
 	if ($force) {
-		$output->info("Force stopping VM...");
+		$output->warn(
+			"Force stopping VM (filesystem may be corrupted)");
+		$state->mark_unclean_shutdown;
 		$self->_qmp_quit;
 		$state->clear_vm_pid;
 		$output->success("VM stopped");
 		return EXIT_SUCCESS;
 	}
 
-	# Try graceful shutdown with timeout
+	# Try graceful shutdown with filesystem sync
 	$output->info("Shutting down VM gracefully...");
-	if ( $self->_qmp_powerdown ) {
-		if ( $self->_wait_exit(30) ) {
-			$state->clear_vm_pid;
-			$output->success("VM stopped");
-			return EXIT_SUCCESS;
-		}
+	if ( $self->_graceful_shutdown ) {
+		$state->mark_clean_shutdown;
+		$state->clear_vm_pid;
+		$output->success("VM stopped");
+		return EXIT_SUCCESS;
 	}
 
 	# If graceful shutdown times out, force stop
-	$output->info("Graceful shutdown timed out, force stopping...");
+	$output->warn(
+"Graceful shutdown timed out, force stopping (risk of corruption)"
+	);
+	$state->mark_unclean_shutdown;
 	$self->_qmp_quit;
 	$state->clear_vm_pid;
 	$output->success("VM stopped");
@@ -459,6 +482,68 @@ sub _wait_ssh_password( $self, $password, $timeout = 120 )
 	return $ssh->wait_available($timeout);
 }
 
+# $self->_needs_ssh_key_update:
+#	Check if SSH key needs to be installed or updated.
+#	Returns true if no key is installed, or if the configured key
+#	differs from the installed key.
+sub _needs_ssh_key_update($self)
+{
+	my $config = $self->{config};
+	my $state  = $self->{state};
+
+	my $configured_key = $config->{ssh_pubkey};
+	my $installed_key  = $state->get_installed_ssh_pubkey;
+
+	# No key configured - nothing to install
+	return 0 if !defined $configured_key || $configured_key eq '';
+
+	# No key installed yet
+	return 1 if !defined $installed_key;
+
+	# Compare keys (normalize whitespace for comparison)
+	my $configured_normalized = $configured_key =~ s/\s+/ /gr;
+	my $installed_normalized  = $installed_key  =~ s/\s+/ /gr;
+
+	return $configured_normalized ne $installed_normalized;
+}
+
+# $self->_complete_ssh_setup($output):
+#	Install or update the SSH key on the VM.
+#	Uses the stored root password to authenticate.
+#	Called when recovering from a failed first boot or when the
+#	configured SSH key has changed.
+sub _complete_ssh_setup( $self, $output )
+{
+	my $state  = $self->{state};
+	my $config = $self->{config};
+
+	my $root_password = $state->get_root_password;
+	if ( !defined $root_password ) {
+		$output->error(
+			"No root password stored - cannot complete SSH setup");
+		return EXIT_ERROR;
+	}
+
+	$output->info("Updating SSH key...");
+
+	# Wait for SSH with password auth
+	$output->info("Waiting for SSH...");
+	if ( !$self->_wait_ssh_password( $root_password, 120 ) ) {
+		$output->error("Timeout waiting for SSH");
+		return EXIT_TIMEOUT;
+	}
+
+	# Install SSH authorized key
+	if ( !$self->_install_ssh_key($root_password) ) {
+		$output->error("Failed to install SSH key");
+		return EXIT_ERROR;
+	}
+	$output->info("SSH key installed");
+
+	$output->success("VM ready");
+	return EXIT_SUCCESS;
+}
+
 # $self->_install_ssh_key($password):
 #	Install the SSH public key from config into authorized_keys
 #	Uses password authentication since key is not yet installed
@@ -502,8 +587,85 @@ sub _install_ssh_key( $self, $password )
 		return 0;
 	}
 
-	$state->mark_ssh_key_installed;
+	# Store which pubkey was installed for future comparison
+	$state->set_installed_ssh_pubkey($ssh_pubkey);
 	return 1;
+}
+
+# P1: Graceful shutdown with filesystem sync
+# Tries multiple methods in order of reliability:
+# 1. SSH sync + ACPI powerdown (sync via SSH, powerdown via QMP)
+# 2. QGA guest-shutdown (if available)
+# 3. Direct ACPI powerdown
+sub _graceful_shutdown($self)
+{
+	my $config = $self->{config};
+	my $output = $self->{output};
+
+	# Method 1: SSH sync + ACPI powerdown
+	# First sync filesystems via SSH, then use QMP to send ACPI power button
+	# This avoids the problem of SSH connection being killed by halt
+	my $ssh = OpenHVF::SSH->new(
+		host => 'localhost',
+		port => $config->{ssh_port},
+		user => 'root',
+	);
+
+	# Try to sync filesystems via SSH (non-blocking command)
+	my $sync_result = $ssh->run_command('sync; sync; sync');
+
+	if ( $sync_result->{exit_code} == 0 ) {
+
+		# Synced successfully, now use ACPI powerdown via QMP
+		if ( $self->_qmp_powerdown ) {
+			if ( $self->_wait_exit(60) ) {
+				$output->info(
+					"Shutdown via SSH sync + ACPI powerdown"
+				);
+				return 1;
+			}
+		}
+	}
+
+	# Method 2: Try QGA shutdown (if guest agent is available)
+	my $qga = $self->_qga_connect;
+	if ($qga) {
+
+		# Sync filesystems first
+		$qga->sync;
+
+		# Request shutdown via guest agent
+		$qga->shutdown('powerdown');
+		$qga->disconnect;
+
+		if ( $self->_wait_exit(60) ) {
+			$output->info("Shutdown via QEMU Guest Agent");
+			return 1;
+		}
+	}
+
+	# Method 3: Try direct ACPI powerdown as last resort
+	if ( $self->_qmp_powerdown ) {
+		if ( $self->_wait_exit(30) ) {
+			$output->info("Shutdown via ACPI powerdown");
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+# QGA methods
+sub _qga_socket_path($self)
+{
+	return $self->{state}{vm_state_dir} . '/qga.sock';
+}
+
+sub _qga_connect($self)
+{
+	my $qga = OpenHVF::QGA->new( $self->_qga_socket_path );
+	return if !$qga->is_available;
+	return $qga->open_connection ? $qga : undef;
 }
 
 # QMP methods
@@ -586,15 +748,25 @@ sub _start_qemu( $self, $boot_image = undef )
 		push @cmd, '-bios', $bios;
 	}
 
-	# Main disk
+	# Main disk with safe cache mode (writethrough syncs on each write)
 	my $disk_path = $state->disk_path;
-	push @cmd, '-drive', "file=$disk_path,format=qcow2,if=virtio";
+	push @cmd, '-drive',
+	    "file=$disk_path,format=qcow2,if=virtio,cache=writethrough";
 
 	# Boot image (CD-ROM) for installation
 	if ( defined $boot_image ) {
 		push @cmd, '-drive',
 		    "file=$boot_image,format=raw,if=virtio,readonly=on";
 	}
+
+	# QEMU Guest Agent virtio-serial channel
+	my $qga_path = $self->_qga_socket_path;
+	unlink $qga_path if -S $qga_path;
+	push @cmd, '-device', 'virtio-serial-pci';
+	push @cmd, '-chardev',
+	    "socket,path=$qga_path,server=on,wait=off,id=qga0";
+	push @cmd, '-device',
+	    'virtserialport,chardev=qga0,name=org.qemu.guest_agent.0';
 
 	# Network with port forwarding
 	my $ssh_port = $config->{ssh_port};
@@ -633,8 +805,12 @@ sub _start_qemu( $self, $boot_image = undef )
 	while ( time - $start < 5 ) {
 		if ( -f $state->{vm_pid_file} ) {
 			my $qemu_pid = $state->get_vm_pid;
-			return $qemu_pid
-			    if defined $qemu_pid && kill( 0, $qemu_pid );
+			if ( defined $qemu_pid && kill( 0, $qemu_pid ) ) {
+
+				# P7: Mark VM as running for shutdown tracking
+				$state->mark_running;
+				return $qemu_pid;
+			}
 		}
 		usleep(100_000);    # 0.1 seconds
 	}
@@ -643,6 +819,7 @@ sub _start_qemu( $self, $boot_image = undef )
 	my $pid = $result->{pid};
 	if ( kill( 0, $pid ) ) {
 		$state->set_vm_pid($pid);
+		$state->mark_running;
 		return $pid;
 	}
 
