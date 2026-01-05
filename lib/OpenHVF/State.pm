@@ -19,9 +19,12 @@ use v5.36;
 
 package OpenHVF::State;
 
-use File::Path qw(make_path);
+use File::Path     qw(make_path);
+use File::Temp     qw(tempfile);
+use File::Basename qw(dirname);
 use JSON::XS;
 use FuguLib::State;
+use IO::Handle;
 
 use constant { MAX_VM_NAME_LENGTH => 255, };
 
@@ -121,15 +124,45 @@ sub load($self)
 
 sub save($self)
 {
-	open my $fh, '>', $self->{status_file} or do {
-		warn "Cannot write $self->{status_file}: $!";
+	my $dir = dirname( $self->{status_file} );
+
+	# P4: Write to temp file then atomically rename
+	my ( $fh, $tmpfile ) = tempfile(
+		DIR    => $dir,
+		UNLINK => 0,
+	);
+
+	if ( !$fh ) {
+		warn "Cannot create temp file in $dir: $!";
+		return;
+	}
+
+	print $fh encode_json( $self->{data} );
+
+	# Ensure data is on disk before rename
+	$fh->flush;
+	$fh->sync;
+	close $fh;
+
+	# Atomic rename
+	rename( $tmpfile, $self->{status_file} ) or do {
+		unlink $tmpfile;
+		warn "Cannot save state: $!";
 		return;
 	};
 
-	print $fh encode_json( $self->{data} );
-	close $fh;
+	# Sync directory for durability
+	$self->_sync_directory($dir);
 
 	return $self;
+}
+
+sub _sync_directory( $self, $dir )
+{
+	if ( open my $dh, '<', $dir ) {
+		$dh->sync;
+		close $dh;
+	}
 }
 
 # VM PID management (using FuguLib::State)
@@ -241,15 +274,16 @@ sub get_root_password($self)
 }
 
 # SSH key installation state
-sub is_ssh_key_installed($self)
+# Stores the actual pubkey that was installed
+sub get_installed_ssh_pubkey($self)
 {
-	return $self->{data}{ssh_key_installed} ? 1 : 0;
+	return $self->{data}{ssh_pubkey_installed};
 }
 
-sub mark_ssh_key_installed($self)
+sub set_installed_ssh_pubkey( $self, $pubkey )
 {
-	$self->{data}{ssh_key_installed}    = 1;
-	$self->{data}{ssh_key_installed_at} = time;
+	$self->{data}{ssh_pubkey_installed}    = $pubkey;
+	$self->{data}{ssh_pubkey_installed_at} = time;
 	$self->save;
 	return $self;
 }
@@ -257,6 +291,61 @@ sub mark_ssh_key_installed($self)
 sub vm_state_dir($self)
 {
 	return $self->{vm_state_dir};
+}
+
+# P5/P7: Shutdown state tracking
+# Tracks whether VM was shutdown cleanly to detect filesystem corruption risk
+
+sub mark_clean_shutdown($self)
+{
+	$self->{data}{shutdown_clean} = 1;
+	$self->{data}{shutdown_at}    = time;
+	delete $self->{data}{running};
+	$self->save;
+	return $self;
+}
+
+sub mark_unclean_shutdown($self)
+{
+	$self->{data}{shutdown_clean} = 0;
+	$self->{data}{shutdown_at}    = time;
+	delete $self->{data}{running};
+	$self->save;
+	return $self;
+}
+
+sub mark_running($self)
+{
+	$self->{data}{running}    = 1;
+	$self->{data}{started_at} = time;
+	delete $self->{data}{shutdown_clean};
+	$self->save;
+	return $self;
+}
+
+sub was_unclean_shutdown($self)
+{
+	# If explicitly marked as unclean
+	if ( exists $self->{data}{shutdown_clean}
+		&& !$self->{data}{shutdown_clean} )
+	{
+		return 1;
+	}
+
+	# If marked running but VM process is dead = crashed/killed
+	if ( $self->{data}{running} && !$self->is_vm_running ) {
+		return 1;
+	}
+
+	return 0;
+}
+
+sub clear_shutdown_state($self)
+{
+	delete $self->{data}{shutdown_clean};
+	delete $self->{data}{running};
+	$self->save;
+	return $self;
 }
 
 sub data($self)

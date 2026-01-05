@@ -221,14 +221,15 @@ use_ok('OpenHVF::State');
     my $tmpdir = tempdir(CLEANUP => 1);
     my $state = OpenHVF::State->new($tmpdir, 'test');
     
-    ok(!$state->is_ssh_key_installed, 'SSH key not installed initially');
+    is($state->get_installed_ssh_pubkey, undef, 'No pubkey stored initially');
     
-    $state->mark_ssh_key_installed;
-    ok($state->is_ssh_key_installed, 'SSH key installed after mark');
+    my $test_pubkey = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... test@example';
+    $state->set_installed_ssh_pubkey($test_pubkey);
+    is($state->get_installed_ssh_pubkey, $test_pubkey, 'Pubkey stored correctly');
     
     # Reload state and verify persistence
     my $state2 = OpenHVF::State->new($tmpdir, 'test');
-    ok($state2->is_ssh_key_installed, 'SSH key state persisted');
+    is($state2->get_installed_ssh_pubkey, $test_pubkey, 'Pubkey persisted correctly');
 }
 
 # ============================================================
