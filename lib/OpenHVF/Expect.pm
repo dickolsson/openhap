@@ -63,9 +63,8 @@ sub run_install( $self, $config )
 {
 	# Find install script
 	my @search_paths = (
-		"$RealBin/../share/openhvf/expect/install-openbsd.exp",
-		"$RealBin/../scripts/integration/vm-install.exp",
-		"share/openhvf/expect/install-openbsd.exp",
+		"$RealBin/../share/openhvf/expect/install.exp",
+		"share/openhvf/expect/install.exp",
 	);
 
 	my $script;

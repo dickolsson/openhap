@@ -2,13 +2,13 @@
 #
 # Automated OpenBSD installation via serial console
 #
-# Usage: install-openbsd.exp <host> <port> [root_password] [proxy_url]
+# Usage: install.exp <host> <port> [root_password] [proxy_url]
 #
 
 set timeout 300
 
 if {[llength $argv] < 2} {
-    puts stderr "Usage: install-openbsd.exp <host> <port> \[root_password\] \[proxy_url\]"
+    puts stderr "Usage: install.exp <host> <port> \[root_password\] \[proxy_url\]"
     exit 1
 }
 
@@ -29,7 +29,7 @@ log_user 1
 
 # Helper proc to send response after matching
 proc respond {response} {
-    sleep 0.3
+    sleep 0.5
     send "$response\r"
 }
 
@@ -39,7 +39,9 @@ spawn telnet $host $port
 # Wait for telnet connection
 expect {
     "Connected to localhost" {
-        send_user "\n==> Connected to VM console\n"
+        # Send an empty line to trigger prompt if already at installer
+        sleep 0.5
+        send "\r"
     }
     timeout {
         send_user "\n==> ERROR: Failed to connect to VM console\n"
@@ -47,16 +49,11 @@ expect {
     }
 }
 
-# Wait for the installer menu
-send_user "\n==> Waiting for OpenBSD installer...\n"
-
-# Send an empty line to trigger prompt if already at installer
-sleep 2
-send "\r"
+sleep 0.5
 
 expect {
     "(I)nstall" {
-        send_user "\n==> Installer ready, starting installation\n"
+        send "i\r"
     }
     "Welcome to the OpenBSD" {
         # Wait a bit more for the menu to appear
@@ -74,7 +71,6 @@ expect {
 
 # Start installation
 sleep 0.5
-send "i\r"
 
 # Terminal type
 expect "Terminal type?" { respond "" }
@@ -150,14 +146,12 @@ expect "Server directory?" { respond "" }
 
 # Select sets - skip games and X
 expect "Set name(s)?" {
-    sleep 0.3
+    sleep 0.5
     send -- "-game* -x*\r"
 }
 
 # Confirm selection
 expect "Set name(s)?" { respond "done" }
-
-send_user "\n==> Downloading and installing sets (this may take several minutes)...\n"
 
 # Wait for sets to install and prompt for more sets
 set timeout 900
@@ -180,16 +174,10 @@ expect {
         respond "yes"
         exp_continue
     }
-    "CONGRATULATIONS" {
-        send_user "\n==> Installation completed!\n"
-    }
 }
 
 # Reboot - choose halt instead so we can restart without miniroot
 expect "(R)eboot?" { respond "h" }
-
-send_user "\n==> System halting - VM will need to be restarted\n"
-send_user "==> Installation script finished successfully\n"
 
 # Wait for system to halt
 sleep 5
