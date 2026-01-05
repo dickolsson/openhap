@@ -49,7 +49,7 @@ my $topic = $device_topics[0];
 
 	$mqtt->subscribe(
 		"tele/$topic/LWT",
-		sub( $t, $p ) {
+		sub( $t, $p, $ = undef ) {
 			$lwt_received = 1;
 			$lwt_payload  = $p;
 		} );
@@ -69,7 +69,7 @@ my $topic = $device_topics[0];
 
 	$mqtt->subscribe(
 		"tele/$topic/STATE",
-		sub( $t, $p ) {
+		sub( $t, $p, $ = undef ) {
 			$state_received = 1;
 		} );
 
@@ -89,7 +89,7 @@ my $topic = $device_topics[0];
 
 	$mqtt->subscribe(
 		"stat/$topic/RESULT",
-		sub( $t, $p ) {
+		sub( $t, $p, $ = undef ) {
 			$result_received = 1;
 		} );
 
@@ -109,7 +109,7 @@ my $topic = $device_topics[0];
 
 		$mqtt->subscribe(
 			"stat/$topic/POWER$i",
-			sub( $t, $p ) {
+			sub( $t, $p, $ = undef ) {
 				$power_received = 1;
 			} );
 
@@ -177,7 +177,7 @@ my $topic = $device_topics[0];
 	my $status_received = 0;
 	$mqtt->subscribe(
 		"stat/$topic/STATUS",
-		sub( $t, $p ) {
+		sub( $t, $p, $ = undef ) {
 			$status_received = 1;
 		} );
 
@@ -245,7 +245,7 @@ my $topic = $device_topics[0];
 	my $status8_received = 0;
 	$mqtt->subscribe(
 		"stat/$topic/STATUS8",
-		sub( $t, $p ) {
+		sub( $t, $p, $ = undef ) {
 			$status8_received = 1;
 		} );
 
@@ -271,7 +271,7 @@ my $topic = $device_topics[0];
 	my $status11_received = 0;
 	$mqtt->subscribe(
 		"stat/$topic/STATUS11",
-		sub( $t, $p ) {
+		sub( $t, $p, $ = undef ) {
 			$status11_received = 1;
 		} );
 
@@ -288,7 +288,7 @@ my $topic = $device_topics[0];
 	my $status10_received = 0;
 	$mqtt->subscribe(
 		"stat/$topic/STATUS10",
-		sub( $t, $p ) {
+		sub( $t, $p, $ = undef ) {
 			$status10_received = 1;
 		} );
 
