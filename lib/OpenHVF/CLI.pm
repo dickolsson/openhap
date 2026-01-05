@@ -58,6 +58,7 @@ my %commands = (
 	'expect'  => \&cmd_expect,
 	'wait'    => \&cmd_wait,
 	'image'   => \&cmd_image,
+	'disk'    => \&cmd_disk,
 	'init'    => \&cmd_init,
 	'help'    => \&cmd_help,
 );
@@ -111,6 +112,7 @@ sub run( $class, @argv )
 	# Reject multiple commands
 	if (       @argv > 0
 		&& $command ne 'image'
+		&& $command ne 'disk'
 		&& $command ne 'ssh'
 		&& $command ne 'expect' )
 	{
@@ -358,6 +360,73 @@ sub cmd_image( $self, @args )
 	return EXIT_SUCCESS;
 }
 
+# P5: Disk management
+sub cmd_disk( $self, @args )
+{
+	my $action = shift @args;
+	if ( !defined $action || $action !~ /^(check|repair|info)$/ ) {
+		$self->{output}
+		    ->error("Usage: openhvf disk <check|repair|info>");
+		return EXIT_INVALID_ARGS;
+	}
+
+	my $disk = OpenHVF::Disk->new( $self->{state}{state_dir} );
+
+	if ( $action eq 'info' ) {
+		my $info = $disk->info( $self->{vm_name} );
+		if ( !defined $info ) {
+			$self->{output}->error("Disk not found");
+			return EXIT_ERROR;
+		}
+		$self->{output}->data($info);
+		return EXIT_SUCCESS;
+	}
+
+	if ( $action eq 'check' ) {
+		$self->{output}->info("Checking disk image...");
+		my $result = $disk->check( $self->{vm_name} );
+		if ( !defined $result ) {
+			$self->{output}->error("Disk not found");
+			return EXIT_ERROR;
+		}
+
+		if ( $result->{status} eq 'ok' ) {
+			$self->{output}->success("Disk image OK");
+			return EXIT_SUCCESS;
+		}
+
+		$self->{output}->error("Disk image has errors");
+		print $result->{output} if $result->{output};
+		return EXIT_ERROR;
+	}
+
+	if ( $action eq 'repair' ) {
+		$self->{output}->info("Repairing disk image...");
+
+		# Check if VM is running first
+		my $vm = $self->_load_vm;
+		if ( defined $vm && $vm->is_running ) {
+			$self->{output}
+			    ->error("Cannot repair disk while VM is running");
+			return EXIT_ERROR;
+		}
+
+		my $ok = $disk->repair( $self->{vm_name} );
+		if ($ok) {
+
+			# Clear unclean shutdown state after successful repair
+			$self->{state}->clear_shutdown_state;
+			$self->{output}->success("Disk repaired");
+			return EXIT_SUCCESS;
+		}
+
+		$self->{output}->error("Disk repair failed");
+		return EXIT_ERROR;
+	}
+
+	return EXIT_ERROR;
+}
+
 # Initialize project
 sub cmd_init( $self, @args )
 {
@@ -435,12 +504,13 @@ Commands:
   destroy             Stop VM and delete disk image
   status              Show VM status
   start               Start VM in background
-  stop [--force]      Stop VM
+  stop [--force]      Stop VM (--force risks filesystem corruption)
   ssh [command]       Open SSH session or run command
   console             Show console connection info
   expect <script>     Run expect script against console
   wait [--timeout=N]  Wait for VM to be ready (SSH available)
   image <cmd>         Manage images (download, list)
+  disk <cmd>          Manage disk (check, repair, info)
   init [dir]          Initialize .openhvf/ directory
   help                Show this help
 

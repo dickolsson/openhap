@@ -89,4 +89,41 @@ sub info( $self, $name )
 	return eval { JSON::XS::decode_json($output) };
 }
 
+# P5: Check disk image integrity
+# Returns hashref with 'status' ('ok' or 'corrupted') and 'output'
+sub check( $self, $name )
+{
+	my $path = $self->path($name);
+	return if !-f $path;
+
+	my $output    = `qemu-img check "$path" 2>&1`;
+	my $exit_code = $?;
+
+	if ( $exit_code != 0 ) {
+		return {
+			status => 'corrupted',
+			output => $output,
+			path   => $path,
+		};
+	}
+
+	return {
+		status => 'ok',
+		output => $output,
+		path   => $path,
+	};
+}
+
+# P5: Repair disk image
+# Returns true on success, false on failure
+sub repair( $self, $name )
+{
+	my $path = $self->path($name);
+	return 0 if !-f $path;
+
+	# Run qemu-img check with repair option
+	my $result = system( 'qemu-img', 'check', '-r', 'all', $path );
+	return $result == 0;
+}
+
 1;
