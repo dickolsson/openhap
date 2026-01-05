@@ -228,9 +228,26 @@ sub _fetch_url( $self, $url )
 
 sub _download_file( $self, $url, $path )
 {
-	# Use curl with progress
-	my $result = system( 'curl', '-fL', '-o', $path, $url );
-	return $result == 0;
+	my $tmppath = "$path.downloading";
+
+	# Remove any leftover partial download
+	unlink $tmppath if -f $tmppath;
+
+	# Download to temp file
+	my $result = system( 'curl', '-fL', '-o', $tmppath, '--', $url );
+
+	if ( $result != 0 ) {
+		unlink $tmppath;
+		return 0;
+	}
+
+	# Atomic rename to final path
+	rename( $tmppath, $path ) or do {
+		unlink $tmppath;
+		return 0;
+	};
+
+	return 1;
 }
 
 1;
