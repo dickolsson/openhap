@@ -86,6 +86,18 @@ cd /tmp && rm -rf openhap-* openhap.tar.gz
 rcctl enable mosquitto
 rcctl start mosquitto
 
+# Configure and enable mdnsd with the first active network interface
+# mdnsd requires an interface to be specified for multicast DNS
+if rcctl get mdnsd >/dev/null 2>&1; then
+	# Find the first active network interface (not loopback)
+	IFACE=$(ifconfig -a | grep '^[a-z]' | grep -v '^lo' | grep -v '^enc' | grep -v '^pflog' | head -1 | cut -d: -f1)
+	if [ -n "${IFACE}" ]; then
+		rcctl set mdnsd flags "${IFACE}"
+		rcctl enable mdnsd
+		rcctl start mdnsd 2>/dev/null || true
+	fi
+fi
+
 if [ -x /etc/rc.d/openhapd ]; then
 	rcctl enable openhapd
 	rcctl start openhapd
