@@ -19,74 +19,130 @@ use v5.36;
 
 package OpenHVF::Output;
 
+use FuguLib::Log;
+
 sub new( $class, $quiet = 0 )
 {
-	bless { quiet => $quiet }, $class;
+	my $mode =
+	    $quiet ? FuguLib::Log::MODE_QUIET : FuguLib::Log::MODE_STDERR;
+	my $log = FuguLib::Log->new(
+		mode  => $mode,
+		level => 'info',
+		ident => 'openhvf',
+	);
+
+	bless { log => $log }, $class;
 }
 
 sub info( $self, $message )
 {
-	return if $self->{quiet};
-	say STDERR "INFO: $message";
+	$self->{log}->info($message);
 }
 
 sub error( $self, $message )
 {
-	warn "ERROR: $message\n";
+	$self->{log}->error($message);
 }
 
 sub warn( $self, $message )
 {
-	return if $self->{quiet};
-	say STDERR "WARNING: $message";
+	$self->{log}->warning($message);
 }
 
 sub success( $self, $message )
 {
-	return if $self->{quiet};
-	say STDERR "SUCCESS: $message";
+	$self->{log}->info($message);
 }
 
 sub data( $self, $hashref )
 {
-	return if $self->{quiet};
 	$self->_format_data($hashref);
 }
 
 sub _format_data( $self, $data, $indent = 0 )
 {
 	my $prefix = '  ' x $indent;
+	my @lines;
 
 	for my $key ( sort keys %$data ) {
 		my $value = $data->{$key};
 
 		if ( ref $value eq 'HASH' ) {
-			say STDERR "$prefix$key:";
-			$self->_format_data( $value, $indent + 1 );
+			push @lines, "$prefix$key:";
+			push @lines,
+			    $self->_format_data_lines( $value, $indent + 1 );
 		}
 		elsif ( ref $value eq 'ARRAY' ) {
-			say STDERR "$prefix$key:";
+			push @lines, "$prefix$key:";
 			for my $item (@$value) {
 				if ( ref $item ) {
-					$self->_format_data( $item,
+					push @lines,
+					    $self->_format_data_lines( $item,
 						$indent + 1 );
 				}
 				else {
-					say STDERR "$prefix  - $item";
+					push @lines, "$prefix  - $item";
 				}
 			}
 		}
 		else {
 			$value //= '';
-			say STDERR "$prefix$key: $value";
+			push @lines, "$prefix$key: $value";
 		}
 	}
+
+	if ( $indent == 0 ) {
+
+		# Top level: log all lines
+		for my $line (@lines) {
+			$self->{log}->info($line);
+		}
+	}
+	else {
+
+		# Nested: return lines for parent
+		return @lines;
+	}
+}
+
+sub _format_data_lines( $self, $data, $indent = 0 )
+{
+	my $prefix = '  ' x $indent;
+	my @lines;
+
+	for my $key ( sort keys %$data ) {
+		my $value = $data->{$key};
+
+		if ( ref $value eq 'HASH' ) {
+			push @lines, "$prefix$key:";
+			push @lines,
+			    $self->_format_data_lines( $value, $indent + 1 );
+		}
+		elsif ( ref $value eq 'ARRAY' ) {
+			push @lines, "$prefix$key:";
+			for my $item (@$value) {
+				if ( ref $item ) {
+					push @lines,
+					    $self->_format_data_lines( $item,
+						$indent + 1 );
+				}
+				else {
+					push @lines, "$prefix  - $item";
+				}
+			}
+		}
+		else {
+			$value //= '';
+			push @lines, "$prefix$key: $value";
+		}
+	}
+
+	return @lines;
 }
 
 sub pid( $self, $name, $pid )
 {
-	return if $self->{quiet};
-	say STDERR "Started $name (PID: $pid)";
+	$self->{log}->info("Started $name (PID: $pid)");
 }
 
 1;
