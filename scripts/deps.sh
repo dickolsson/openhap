@@ -53,18 +53,10 @@ if [ -n "$PKG_PACKAGES" ]; then
 	echo "Installing OS packages:$PKG_PACKAGES"
 	case "$OS" in
 		OpenBSD)
-			if command -v doas >/dev/null 2>&1; then
-				doas pkg_add $PKG_PACKAGES
-			else
-				pkg_add $PKG_PACKAGES
-			fi
+			pkg_add $PKG_PACKAGES
 			;;
 		Linux)
-			if command -v sudo >/dev/null 2>&1; then
-				sudo apt-get install -y $PKG_PACKAGES
-			else
-				apt-get install -y $PKG_PACKAGES
-			fi
+			sudo apt-get install -y $PKG_PACKAGES
 			;;
 		Darwin)
 			brew install $PKG_PACKAGES
