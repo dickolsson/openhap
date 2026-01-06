@@ -122,6 +122,8 @@ package: clean
 	mkdir -p build/$(PACKAGE)/etc/rc.d
 	mkdir -p build/$(PACKAGE)/share/openhap/examples
 	mkdir -p build/$(PACKAGE)/man/openhap
+	mkdir -p build/$(PACKAGE)/scripts
+	mkdir -p build/$(PACKAGE)/deps
 	# Binaries
 	cp bin/openhapd bin/hapctl build/$(PACKAGE)/bin/
 	# Perl libraries
@@ -135,6 +137,11 @@ package: clean
 	cp share/openhap/examples/openhapd.conf.sample build/$(PACKAGE)/share/openhap/examples/
 	# Man pages
 	cp $(MAN5) $(MAN8) build/$(PACKAGE)/man/openhap/
+	# Scripts for dependency management
+	cp scripts/ftp.sh scripts/pkg_add.sh build/$(PACKAGE)/scripts/
+	chmod +x build/$(PACKAGE)/scripts/*.sh
+	# Dependency files
+	cp deps/*.txt build/$(PACKAGE)/deps/
 	# Makefile and cpanfile for installation
 	cp Makefile cpanfile build/$(PACKAGE)/
 	# Documentation
