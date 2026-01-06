@@ -19,23 +19,27 @@ use v5.36;
 
 package OpenHVF::Image;
 
-# OpenHVF::Image - Read-only access to proxy-cached OpenBSD images
+# OpenHVF::Image - Download and cache OpenBSD miniroot images
 #
-# This module provides a simple interface to find and list OpenBSD
-# miniroot images cached by the proxy. It does not download files -
-# all caching is handled by the Proxy module.
+# This module provides access to OpenBSD miniroot images. Images are
+# automatically downloaded when needed and stored in the proxy cache for reuse.
+# Downloads use the ftp.sh script (curl/wget/ftp fallbacks) and files are
+# stored via the Proxy::Cache module for consistent caching.
 
 use constant {
 	CDN_HOST => 'cdn.openbsd.org',
 	ARCH     => 'arm64',
 };
 
-sub new( $class, $cache_dir )
+sub new( $class, $cache_dir, $proxy = undef )
 {
 	# Expand ~ in path
 	$cache_dir =~ s/^~/$ENV{HOME}/;
 
-	my $self = bless { cache_dir => $cache_dir, }, $class;
+	my $self = bless {
+		cache_dir => $cache_dir,
+		proxy     => $proxy,
+	}, $class;
 
 	return $self;
 }
@@ -47,6 +51,77 @@ sub path( $self, $version )
 {
 	my $path = $self->_image_path($version);
 	return -f $path ? $path : undef;
+}
+
+# $self->ensure($version):
+#	Ensure image is available, downloading if necessary
+#	Returns path on success, undef on failure
+sub ensure( $self, $version )
+{
+	# Check if already cached
+	my $path = $self->path($version);
+	return $path if defined $path;
+
+	# Download via proxy if available
+	return $self->download($version);
+}
+
+# $self->download($version):
+#	Download miniroot image for version via proxy cache
+#	Returns path on success, undef on failure
+sub download( $self, $version )
+{
+	if ( !defined $self->{proxy} ) {
+		warn "No proxy available for download\n";
+		return;
+	}
+
+	my $url = $self->url($version);
+
+	# Download using ftp.sh script (uses curl/wget/ftp)
+	# Then store in proxy cache
+	require File::Temp;
+	require File::Basename;
+	require File::Spec;
+	require Cwd;
+	my $tmp      = File::Temp->new( SUFFIX => '.img' );
+	my $tmp_path = $tmp->filename;
+
+	# Find ftp.sh script relative to this module
+	# Module is at lib/OpenHVF/Image.pm, script is at scripts/ftp.sh
+	my $module_file = File::Spec->rel2abs(__FILE__);
+	my $module_dir  = File::Basename::dirname($module_file);
+	my $project_root =
+	    File::Basename::dirname( File::Basename::dirname($module_dir) );
+	my $ftp_sh = File::Spec->catfile( $project_root, 'scripts', 'ftp.sh' );
+
+	if ( !-x $ftp_sh ) {
+		warn "Cannot find ftp.sh script at $ftp_sh\n";
+		return;
+	}
+
+	# Download to temp file
+	my $result = system( $ftp_sh, $tmp_path, $url );
+	if ( $result != 0 ) {
+		warn "Download failed: exit code $result\n";
+		return;
+	}
+
+	# Verify file was downloaded
+	if ( !-f $tmp_path || -z $tmp_path ) {
+		warn "Download succeeded but file is empty\n";
+		return;
+	}
+
+	# Store in proxy cache
+	my $cache       = $self->{proxy}->cache;
+	my $cached_path = $cache->store_from_file( $url, $tmp_path );
+	if ( !defined $cached_path ) {
+		warn "Failed to store in cache\n";
+		return;
+	}
+
+	return $cached_path;
 }
 
 # $self->url($version):

@@ -81,8 +81,7 @@ sub up($self)
 	}
 
 	# Start caching proxy for VM installation (packages downloaded by VM)
-	# Note: The proxy is HTTP-only and meant for VM-side downloads.
-	# Host-side downloads (miniroot image) use HTTPS directly without proxy.
+	# Also used for downloading the miniroot image on first run
 	my $cache_dir = $self->_cache_dir;
 	my $proxy     = $state->ensure_proxy($cache_dir);
 	my $proxy_vm_url;    # For VM-side downloads (inside OpenBSD)
@@ -96,17 +95,18 @@ sub up($self)
 			"Proxy not available, VM downloads will not be cached");
 	}
 
-	# Check if image is cached (downloaded by previous proxy-enabled run)
+	# Ensure image is available (download via proxy if needed)
 	$output->info("Checking OpenBSD image...");
-	my $image      = OpenHVF::Image->new($cache_dir);
-	my $image_path = $image->path( $config->{version} );
+	my $image      = OpenHVF::Image->new( $cache_dir, $proxy );
+	my $image_path = $image->ensure( $config->{version} );
 
 	if ( !defined $image_path ) {
 		my $url = $image->url( $config->{version} );
 		$output->error(
-			"Image not cached for OpenBSD $config->{version}");
-		$output->error("Download manually and place in proxy cache:");
-		$output->error("  curl -fLO $url");
+"Failed to download image for OpenBSD $config->{version}"
+		);
+		$output->error("URL: $url");
+		$output->error("Try downloading manually: curl -fLO $url");
 		return EXIT_ERROR;
 	}
 	else {
