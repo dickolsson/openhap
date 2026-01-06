@@ -1,23 +1,23 @@
 # HAP HTTP Endpoints
 
-This document describes the HTTP endpoints, request/response formats, and
-status codes used by HAP over IP.
+This document describes the HTTP endpoints, request/response formats, and status
+codes used by HAP over IP.
 
 ---
 
 ## 1. Endpoint Summary
 
-| Method | Path               | Auth Required | Content-Type              | Description                 |
-| ------ | ------------------ | ------------- | ------------------------- | --------------------------- |
-| POST   | `/identify`        | No            | None                      | Trigger identification      |
-| POST   | `/pair-setup`      | No            | `application/pairing+tlv8`| Perform pair setup          |
-| POST   | `/pair-verify`     | No            | `application/pairing+tlv8`| Perform pair verify         |
-| POST   | `/pairings`        | Yes           | `application/pairing+tlv8`| Manage pairings             |
-| GET    | `/accessories`     | Yes           | `application/hap+json`    | Get accessory database      |
-| GET    | `/characteristics` | Yes           | `application/hap+json`    | Read characteristics        |
-| PUT    | `/characteristics` | Yes           | `application/hap+json`    | Write characteristics       |
-| POST   | `/prepare`         | Yes           | `application/hap+json`    | Timed write preparation     |
-| POST   | `/resource`        | Yes           | `application/hap+json`    | Request resources (images)  |
+| Method | Path               | Auth Required | Content-Type               | Description                |
+| ------ | ------------------ | ------------- | -------------------------- | -------------------------- |
+| POST   | `/identify`        | No            | None                       | Trigger identification     |
+| POST   | `/pair-setup`      | No            | `application/pairing+tlv8` | Perform pair setup         |
+| POST   | `/pair-verify`     | No            | `application/pairing+tlv8` | Perform pair verify        |
+| POST   | `/pairings`        | Yes           | `application/pairing+tlv8` | Manage pairings            |
+| GET    | `/accessories`     | Yes           | `application/hap+json`     | Get accessory database     |
+| GET    | `/characteristics` | Yes           | `application/hap+json`     | Read characteristics       |
+| PUT    | `/characteristics` | Yes           | `application/hap+json`     | Write characteristics      |
+| POST   | `/prepare`         | Yes           | `application/hap+json`     | Timed write preparation    |
+| POST   | `/resource`        | Yes           | `application/hap+json`     | Request resources (images) |
 
 "Auth Required" = must complete Pair Verify first (encrypted session).
 
@@ -27,11 +27,11 @@ status codes used by HAP over IP.
 
 From `internal-types.ts:86-90`:
 
-| MIME Type                    | Usage                              |
-| ---------------------------- | ---------------------------------- |
-| `application/pairing+tlv8`   | Pairing endpoints (TLV8 body)      |
-| `application/hap+json`       | Accessory/characteristics (JSON)   |
-| `image/jpeg`                 | Image resources                    |
+| MIME Type                  | Usage                            |
+| -------------------------- | -------------------------------- |
+| `application/pairing+tlv8` | Pairing endpoints (TLV8 body)    |
+| `application/hap+json`     | Accessory/characteristics (JSON) |
+| `image/jpeg`               | Image resources                  |
 
 ---
 
@@ -85,11 +85,11 @@ Content-Length: <length>
 
 **Error Responses:**
 
-| HTTP Code | Condition                           |
-| --------- | ----------------------------------- |
-| `400`     | Bad TLV, state errors               |
-| `429`     | Already pairing (Busy error)        |
-| `500`     | Internal error                      |
+| HTTP Code | Condition                    |
+| --------- | ---------------------------- |
+| `400`     | Bad TLV, state errors        |
+| `429`     | Already pairing (Busy error) |
+| `500`     | Internal error               |
 
 ---
 
@@ -179,10 +179,10 @@ Content-Length: <length>
 
 ### 7.1 Accessory Object
 
-| Field     | Type    | Required | Description                    |
-| --------- | ------- | -------- | ------------------------------ |
-| `aid`     | integer | Yes      | Accessory ID (unique)          |
-| `services`| array   | Yes      | Array of Service objects       |
+| Field      | Type    | Required | Description              |
+| ---------- | ------- | -------- | ------------------------ |
+| `aid`      | integer | Yes      | Accessory ID (unique)    |
+| `services` | array   | Yes      | Array of Service objects |
 
 ### 7.2 Service Object
 
@@ -197,21 +197,21 @@ Content-Length: <length>
 
 ### 7.3 Characteristic Object
 
-| Field         | Type    | Required | Description                              |
-| ------------- | ------- | -------- | ---------------------------------------- |
-| `iid`         | integer | Yes      | Instance ID                              |
-| `type`        | string  | Yes      | Characteristic type UUID (short form)    |
-| `perms`       | array   | Yes      | Permission strings                       |
-| `format`      | string  | Yes      | Value format                             |
-| `value`       | varies  | Cond.    | Current value (if readable)              |
-| `description` | string  | No       | Human-readable name                      |
-| `unit`        | string  | No       | Unit of measurement                      |
-| `minValue`    | number  | No       | Minimum allowed value                    |
-| `maxValue`    | number  | No       | Maximum allowed value                    |
-| `minStep`     | number  | No       | Minimum step between values              |
-| `maxLen`      | integer | No       | Maximum string length                    |
-| `valid-values`| array   | No       | List of valid enum values                |
-| `ev`          | boolean | No       | Event notifications enabled              |
+| Field          | Type    | Required | Description                           |
+| -------------- | ------- | -------- | ------------------------------------- |
+| `iid`          | integer | Yes      | Instance ID                           |
+| `type`         | string  | Yes      | Characteristic type UUID (short form) |
+| `perms`        | array   | Yes      | Permission strings                    |
+| `format`       | string  | Yes      | Value format                          |
+| `value`        | varies  | Cond.    | Current value (if readable)           |
+| `description`  | string  | No       | Human-readable name                   |
+| `unit`         | string  | No       | Unit of measurement                   |
+| `minValue`     | number  | No       | Minimum allowed value                 |
+| `maxValue`     | number  | No       | Maximum allowed value                 |
+| `minStep`      | number  | No       | Minimum step between values           |
+| `maxLen`       | integer | No       | Maximum string length                 |
+| `valid-values` | array   | No       | List of valid enum values             |
+| `ev`           | boolean | No       | Event notifications enabled           |
 
 ---
 
@@ -227,13 +227,13 @@ GET /characteristics?id=1.10,1.11&meta=1 HTTP/1.1
 
 **Query Parameters:**
 
-| Parameter | Description                              |
-| --------- | ---------------------------------------- |
-| `id`      | Comma-separated `aid.iid` pairs          |
-| `meta`    | Include metadata (`1` or `true`)         |
-| `perms`   | Include permissions                      |
-| `type`    | Include type UUID                        |
-| `ev`      | Include event notification status        |
+| Parameter | Description                       |
+| --------- | --------------------------------- |
+| `id`      | Comma-separated `aid.iid` pairs   |
+| `meta`    | Include metadata (`1` or `true`)  |
+| `perms`   | Include permissions               |
+| `type`    | Include type UUID                 |
+| `ev`      | Include event notification status |
 
 **Response:**
 
@@ -285,13 +285,13 @@ Content-Type: application/hap+json
 
 **Write Fields:**
 
-| Field   | Type    | Description                           |
-| ------- | ------- | ------------------------------------- |
-| `aid`   | integer | Accessory ID                          |
-| `iid`   | integer | Instance ID                           |
-| `value` | varies  | New value to write                    |
-| `ev`    | boolean | Enable/disable event notifications    |
-| `r`     | boolean | Request write response                |
+| Field   | Type    | Description                        |
+| ------- | ------- | ---------------------------------- |
+| `aid`   | integer | Accessory ID                       |
+| `iid`   | integer | Instance ID                        |
+| `value` | varies  | New value to write                 |
+| `ev`    | boolean | Enable/disable event notifications |
+| `r`     | boolean | Request write response             |
 
 **Response (success):**
 
@@ -331,10 +331,10 @@ Content-Type: application/hap+json
 }
 ```
 
-| Field | Type    | Description                              |
-| ----- | ------- | ---------------------------------------- |
-| `ttl` | integer | Time-to-live in milliseconds             |
-| `pid` | integer | 64-bit transaction ID                    |
+| Field | Type    | Description                  |
+| ----- | ------- | ---------------------------- |
+| `ttl` | integer | Time-to-live in milliseconds |
+| `pid` | integer | 64-bit transaction ID        |
 
 **Response:**
 
@@ -384,21 +384,21 @@ Content-Type: image/jpeg
 
 From `HAPServer.ts:48-92` and `const.py:84-95`:
 
-| Code     | Name                          | Description                              |
-| -------- | ----------------------------- | ---------------------------------------- |
-| `0`      | SUCCESS                       | Success                                  |
-| `-70401` | INSUFFICIENT_PRIVILEGES       | Insufficient privileges                  |
-| `-70402` | SERVICE_COMMUNICATION_FAILURE | Communication failure with service       |
-| `-70403` | RESOURCE_BUSY                 | Resource is busy, try again              |
-| `-70404` | READ_ONLY_CHARACTERISTIC      | Cannot write read-only characteristic    |
-| `-70405` | WRITE_ONLY_CHARACTERISTIC     | Cannot read write-only characteristic    |
-| `-70406` | NOTIFICATION_NOT_SUPPORTED    | Events not supported for characteristic  |
-| `-70407` | OUT_OF_RESOURCE               | Out of resources                         |
-| `-70408` | OPERATION_TIMED_OUT           | Operation timed out                      |
-| `-70409` | RESOURCE_DOES_NOT_EXIST       | Resource does not exist (invalid aid.iid)|
-| `-70410` | INVALID_VALUE_IN_REQUEST      | Invalid value in request                 |
-| `-70411` | INSUFFICIENT_AUTHORIZATION    | Insufficient authorization               |
-| `-70412` | NOT_ALLOWED_IN_CURRENT_STATE  | Not allowed in current state             |
+| Code     | Name                          | Description                               |
+| -------- | ----------------------------- | ----------------------------------------- |
+| `0`      | SUCCESS                       | Success                                   |
+| `-70401` | INSUFFICIENT_PRIVILEGES       | Insufficient privileges                   |
+| `-70402` | SERVICE_COMMUNICATION_FAILURE | Communication failure with service        |
+| `-70403` | RESOURCE_BUSY                 | Resource is busy, try again               |
+| `-70404` | READ_ONLY_CHARACTERISTIC      | Cannot write read-only characteristic     |
+| `-70405` | WRITE_ONLY_CHARACTERISTIC     | Cannot read write-only characteristic     |
+| `-70406` | NOTIFICATION_NOT_SUPPORTED    | Events not supported for characteristic   |
+| `-70407` | OUT_OF_RESOURCE               | Out of resources                          |
+| `-70408` | OPERATION_TIMED_OUT           | Operation timed out                       |
+| `-70409` | RESOURCE_DOES_NOT_EXIST       | Resource does not exist (invalid aid.iid) |
+| `-70410` | INVALID_VALUE_IN_REQUEST      | Invalid value in request                  |
+| `-70411` | INSUFFICIENT_AUTHORIZATION    | Insufficient authorization                |
+| `-70412` | NOT_ALLOWED_IN_CURRENT_STATE  | Not allowed in current state              |
 
 ---
 
@@ -408,38 +408,38 @@ From `HAPServer.ts:119-139`:
 
 ### 13.1 Success Codes
 
-| Code  | Name          | Usage                                    |
-| ----- | ------------- | ---------------------------------------- |
-| `200` | OK            | Success with body                        |
-| `204` | No Content    | Success, no body (PUT success)           |
-| `207` | Multi-Status  | Partial success (include status per item)|
+| Code  | Name         | Usage                                     |
+| ----- | ------------ | ----------------------------------------- |
+| `200` | OK           | Success with body                         |
+| `204` | No Content   | Success, no body (PUT success)            |
+| `207` | Multi-Status | Partial success (include status per item) |
 
 ### 13.2 Client Error Codes
 
-| Code  | Name                  | Usage                                |
-| ----- | --------------------- | ------------------------------------ |
-| `400` | Bad Request           | Malformed request                    |
-| `404` | Not Found             | Unknown endpoint                     |
-| `422` | Unprocessable Entity  | Well-formed but invalid parameters   |
+| Code  | Name                 | Usage                              |
+| ----- | -------------------- | ---------------------------------- |
+| `400` | Bad Request          | Malformed request                  |
+| `404` | Not Found            | Unknown endpoint                   |
+| `422` | Unprocessable Entity | Well-formed but invalid parameters |
 
 ### 13.3 Server Error Codes
 
-| Code  | Name                  | Usage                                |
-| ----- | --------------------- | ------------------------------------ |
-| `500` | Internal Server Error | Server error                         |
-| `503` | Service Unavailable   | Max connections reached              |
+| Code  | Name                  | Usage                   |
+| ----- | --------------------- | ----------------------- |
+| `500` | Internal Server Error | Server error            |
+| `503` | Service Unavailable   | Max connections reached |
 
 ### 13.4 Pairing-Specific Codes
 
 From `HAPServer.ts:148-159`:
 
-| Code  | Name                             | Usage                            |
-| ----- | -------------------------------- | -------------------------------- |
-| `400` | Bad Request                      | Bad TLV, state errors            |
-| `405` | Method Not Allowed               | Wrong HTTP method                |
-| `429` | Too Many Requests                | Already pairing                  |
-| `470` | Connection Authorization Required| No pair-verify performed         |
-| `500` | Internal Server Error            | Server error                     |
+| Code  | Name                              | Usage                    |
+| ----- | --------------------------------- | ------------------------ |
+| `400` | Bad Request                       | Bad TLV, state errors    |
+| `405` | Method Not Allowed                | Wrong HTTP method        |
+| `429` | Too Many Requests                 | Already pairing          |
+| `470` | Connection Authorization Required | No pair-verify performed |
+| `500` | Internal Server Error             | Server error             |
 
 ---
 
@@ -494,18 +494,18 @@ are lost.
 
 ### 15.1 JSON Encoding by Format
 
-| Format   | JSON Type | Example                    |
-| -------- | --------- | -------------------------- |
-| `bool`   | boolean   | `true`, `false`            |
-| `uint8`  | number    | `255`                      |
-| `uint16` | number    | `65535`                    |
-| `uint32` | number    | `4294967295`               |
-| `uint64` | number    | `9007199254740991`         |
-| `int`    | number    | `-1000`                    |
-| `float`  | number    | `23.5`                     |
-| `string` | string    | `"Hello World"`            |
-| `tlv8`   | string    | Base64-encoded TLV8 data   |
-| `data`   | string    | Base64-encoded binary      |
+| Format   | JSON Type | Example                  |
+| -------- | --------- | ------------------------ |
+| `bool`   | boolean   | `true`, `false`          |
+| `uint8`  | number    | `255`                    |
+| `uint16` | number    | `65535`                  |
+| `uint32` | number    | `4294967295`             |
+| `uint64` | number    | `9007199254740991`       |
+| `int`    | number    | `-1000`                  |
+| `float`  | number    | `23.5`                   |
+| `string` | string    | `"Hello World"`          |
+| `tlv8`   | string    | Base64-encoded TLV8 data |
+| `data`   | string    | Base64-encoded binary    |
 
 ### 15.2 Type Coercion
 

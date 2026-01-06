@@ -95,11 +95,11 @@ specification easier to navigate and maintain.
 **Topic files:** Break out detailed content into separate `spec/HAP-*.md` files.
 Let the natural structure of the content guide the split — for example, large
 tables (services, characteristics) belong in their own files, as do detailed
-protocol flows (pairing, encryption). Don't force a structure; let topics
-emerge from what needs documenting.
+protocol flows (pairing, encryption). Don't force a structure; let topics emerge
+from what needs documenting.
 
-Each topic file should be self-contained enough to be useful on its own, but
-can cross-reference other files in the spec.
+Each topic file should be self-contained enough to be useful on its own, but can
+cross-reference other files in the spec.
 
 ## Formatting Guidelines
 
@@ -113,9 +113,9 @@ Use:
 - References to source files where details were extracted
 
 Aim for depth over brevity — include edge cases, error conditions, and
-implementation notes. When documenting protocol flows, show the complete
-message structure at each step. When documenting data formats, include both
-the encoding rules and worked examples.
+implementation notes. When documenting protocol flows, show the complete message
+structure at each step. When documenting data formats, include both the encoding
+rules and worked examples.
 
 The specification should enable someone to implement HAP without reading any
 source code — but with pointers to where to look when more detail is needed.

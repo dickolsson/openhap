@@ -19,17 +19,17 @@ The service type is `_hap._tcp` (HAP over TCP/IP).
 
 All accessories MUST advertise these TXT record fields:
 
-| Key   | Description                    | Example             | Required |
-| ----- | ------------------------------ | ------------------- | -------- |
-| `c#`  | Configuration number           | `1`                 | Yes      |
-| `ff`  | Feature flags                  | `0`                 | Yes      |
-| `id`  | Device ID (MAC-like format)    | `AA:BB:CC:DD:EE:FF` | Yes      |
-| `md`  | Model name                     | `MyDevice`          | Yes      |
-| `pv`  | Protocol version               | `1.1`               | Yes      |
-| `s#`  | State number                   | `1`                 | Yes      |
-| `sf`  | Status flags                   | `1`                 | Yes      |
-| `ci`  | Category identifier            | `5`                 | Yes      |
-| `sh`  | Setup hash                     | `ABCD`              | Optional |
+| Key  | Description                 | Example             | Required |
+| ---- | --------------------------- | ------------------- | -------- |
+| `c#` | Configuration number        | `1`                 | Yes      |
+| `ff` | Feature flags               | `0`                 | Yes      |
+| `id` | Device ID (MAC-like format) | `AA:BB:CC:DD:EE:FF` | Yes      |
+| `md` | Model name                  | `MyDevice`          | Yes      |
+| `pv` | Protocol version            | `1.1`               | Yes      |
+| `s#` | State number                | `1`                 | Yes      |
+| `sf` | Status flags                | `1`                 | Yes      |
+| `ci` | Category identifier         | `5`                 | Yes      |
+| `sh` | Setup hash                  | `ABCD`              | Optional |
 
 From `Advertiser.ts:155-170`.
 
@@ -48,10 +48,10 @@ From `Advertiser.ts:155-170`.
 
 Bitmask of pairing feature flags:
 
-| Bit   | Value  | Name                     | Description                       |
-| ----- | ------ | ------------------------ | --------------------------------- |
-| 0     | `0x01` | Hardware Authentication  | Supports MFi hardware auth        |
-| 1     | `0x02` | Software Authentication  | Supports software authentication  |
+| Bit | Value  | Name                    | Description                      |
+| --- | ------ | ----------------------- | -------------------------------- |
+| 0   | `0x01` | Hardware Authentication | Supports MFi hardware auth       |
+| 1   | `0x02` | Software Authentication | Supports software authentication |
 
 From `Advertiser.ts:33-38`.
 
@@ -90,11 +90,11 @@ static protocolVersion = "1.1";
 
 Bitmask of current status:
 
-| Bit   | Value  | Name              | Description                       |
-| ----- | ------ | ----------------- | --------------------------------- |
-| 0     | `0x01` | NOT_PAIRED        | Accessory is not paired           |
-| 1     | `0x02` | NOT_JOINED_WIFI   | Accessory not joined to WiFi      |
-| 2     | `0x04` | PROBLEM_DETECTED  | Accessory has a problem           |
+| Bit | Value  | Name             | Description                  |
+| --- | ------ | ---------------- | ---------------------------- |
+| 0   | `0x01` | NOT_PAIRED       | Accessory is not paired      |
+| 1   | `0x02` | NOT_JOINED_WIFI  | Accessory not joined to WiFi |
+| 2   | `0x04` | PROBLEM_DETECTED | Accessory has a problem      |
 
 From `Advertiser.ts:22-26`:
 
@@ -108,15 +108,16 @@ export const enum StatusFlag {
 
 **Common values:**
 
-| sf Value | Meaning                    |
-| -------- | -------------------------- |
-| `1`      | Not paired                 |
-| `0`      | Paired, ready              |
-| `5`      | Not paired + problem       |
+| sf Value | Meaning              |
+| -------- | -------------------- |
+| `1`      | Not paired           |
+| `0`      | Paired, ready        |
+| `5`      | Not paired + problem |
 
 ### 3.8 Category Identifier (ci)
 
-Accessory category for UI icon selection. See [HAP-Categories.md](HAP-Categories.md).
+Accessory category for UI icon selection. See
+[HAP-Categories.md](HAP-Categories.md).
 
 Example: `ci=5` for Lightbulb.
 
@@ -197,12 +198,12 @@ The service advertises the TCP port number for HAP connections:
 
 When accessory state changes, update the TXT record:
 
-| Event                        | TXT Field to Update       |
-| ---------------------------- | ------------------------- |
-| Pairing added/removed        | `sf` (status flags)       |
-| Service/characteristic added | `c#` (increment)          |
-| Configuration changed        | `c#` (increment)          |
-| Problem detected             | `sf` (set bit 2)          |
+| Event                        | TXT Field to Update |
+| ---------------------------- | ------------------- |
+| Pairing added/removed        | `sf` (status flags) |
+| Service/characteristic added | `c#` (increment)    |
+| Configuration changed        | `c#` (increment)    |
+| Problem detected             | `sf` (set bit 2)    |
 
 **Silent updates:** Some mDNS implementations support "silent" TXT updates that
 don't trigger announcement packets. Use for frequent updates to avoid network

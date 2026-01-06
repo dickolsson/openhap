@@ -7,13 +7,13 @@ and Pair Verify for session establishment.
 
 ## 1. Cryptographic Algorithms
 
-| Purpose              | Algorithm           | Key/Output Size     | Notes                     |
-| -------------------- | ------------------- | ------------------- | ------------------------- |
-| Password verification| SRP-6a with SHA-512 | 3072-bit N          | RFC 5054 group            |
-| Key derivation       | HKDF-SHA-512        | 32 bytes output     | RFC 5869                  |
-| Symmetric encryption | ChaCha20-Poly1305   | 32 bytes key        | AEAD, 16-byte auth tag    |
-| Long-term identity   | Ed25519             | 32 bytes public key | Signatures                |
-| Session key exchange | X25519              | 32 bytes public key | Curve25519 ECDH           |
+| Purpose               | Algorithm           | Key/Output Size     | Notes                  |
+| --------------------- | ------------------- | ------------------- | ---------------------- |
+| Password verification | SRP-6a with SHA-512 | 3072-bit N          | RFC 5054 group         |
+| Key derivation        | HKDF-SHA-512        | 32 bytes output     | RFC 5869               |
+| Symmetric encryption  | ChaCha20-Poly1305   | 32 bytes key        | AEAD, 16-byte auth tag |
+| Long-term identity    | Ed25519             | 32 bytes public key | Signatures             |
+| Session key exchange  | X25519              | 32 bytes public key | Curve25519 ECDH        |
 
 ---
 
@@ -50,13 +50,13 @@ Controller                                    Accessory
 
 HAP uses SRP-6a with these specific parameters (from `SRP.h` and RFC 5054):
 
-| Parameter | Value                                                                |
-| --------- | -------------------------------------------------------------------- |
-| N         | 3072-bit prime from RFC 5054 (see below)                             |
-| g         | 5                                                                    |
-| Hash      | SHA-512 (replaces SHA-1 in standard SRP)                             |
-| I         | `"Pair-Setup"` (fixed username)                                      |
-| P         | 8-digit setup code in format `XXX-XX-XXX` (e.g., `"123-45-678"`)     |
+| Parameter | Value                                                            |
+| --------- | ---------------------------------------------------------------- |
+| N         | 3072-bit prime from RFC 5054 (see below)                         |
+| g         | 5                                                                |
+| Hash      | SHA-512 (replaces SHA-1 in standard SRP)                         |
+| I         | `"Pair-Setup"` (fixed username)                                  |
+| P         | 8-digit setup code in format `XXX-XX-XXX` (e.g., `"123-45-678"`) |
 
 **3072-bit Prime N (RFC 5054):**
 
@@ -83,18 +83,18 @@ BBE11757 7A615D6C 770988C0 BAD946E2 08E24FA0 74E5AB31
 
 Controller sends:
 
-| TLV Type | Value                                |
-| -------- | ------------------------------------ |
-| State    | `0x01` (M1)                          |
+| TLV Type | Value                                            |
+| -------- | ------------------------------------------------ |
+| State    | `0x01` (M1)                                      |
 | Method   | `0x00` (PairSetup) or `0x01` (PairSetupWithAuth) |
-| Flags    | Optional pairing flags (see below)   |
+| Flags    | Optional pairing flags (see below)               |
 
 **Pairing Flags (Type 0x13, from `HAPPairing.h:247-260`):**
 
-| Flag      | Value      | Description                                       |
-| --------- | ---------- | ------------------------------------------------- |
-| Transient | `1 << 4`   | Pair Setup M1-M4 only, no key exchange            |
-| Split     | `1 << 24`  | Used with Transient for split pairing             |
+| Flag      | Value     | Description                            |
+| --------- | --------- | -------------------------------------- |
+| Transient | `1 << 4`  | Pair Setup M1-M4 only, no key exchange |
+| Split     | `1 << 24` | Used with Transient for split pairing  |
 
 ### 2.4 M2: SRP Start Response
 
@@ -107,18 +107,18 @@ Accessory generates:
 
 Response TLVs:
 
-| TLV Type   | Value                          |
-| ---------- | ------------------------------ |
-| State      | `0x02` (M2)                    |
-| Salt       | 16 bytes random                |
-| PublicKey  | 384 bytes (3072-bit B)         |
+| TLV Type  | Value                  |
+| --------- | ---------------------- |
+| State     | `0x02` (M2)            |
+| Salt      | 16 bytes random        |
+| PublicKey | 384 bytes (3072-bit B) |
 
 **Error Response (if applicable):**
 
-| TLV Type | Value                          |
-| -------- | ------------------------------ |
-| State    | `0x02` (M2)                    |
-| Error    | Error code (see TLV8 doc)      |
+| TLV Type | Value                     |
+| -------- | ------------------------- |
+| State    | `0x02` (M2)               |
+| Error    | Error code (see TLV8 doc) |
 
 Common errors:
 
@@ -139,11 +139,11 @@ Controller computes:
 
 Request TLVs:
 
-| TLV Type   | Value                          |
-| ---------- | ------------------------------ |
-| State      | `0x03` (M3)                    |
-| PublicKey  | 384 bytes (3072-bit A)         |
-| Proof      | 64 bytes (SHA-512 M1)          |
+| TLV Type  | Value                  |
+| --------- | ---------------------- |
+| State     | `0x03` (M3)            |
+| PublicKey | 384 bytes (3072-bit A) |
+| Proof     | 64 bytes (SHA-512 M1)  |
 
 ### 2.6 M4: SRP Verify Response
 
@@ -158,10 +158,10 @@ Accessory:
 
 Response TLVs:
 
-| TLV Type   | Value                          |
-| ---------- | ------------------------------ |
-| State      | `0x04` (M4)                    |
-| Proof      | 64 bytes (SHA-512 M2)          |
+| TLV Type | Value                 |
+| -------- | --------------------- |
+| State    | `0x04` (M4)           |
+| Proof    | 64 bytes (SHA-512 M2) |
 
 **Error Response:**
 
@@ -201,11 +201,11 @@ iOSDeviceSignature = Ed25519_Sign(iOSDeviceLTSK, iOSDeviceInfo)
 
 **Sub-TLV (to be encrypted):**
 
-| TLV Type    | Value                           |
-| ----------- | ------------------------------- |
-| Identifier  | Controller's pairing ID (UUID)  |
-| PublicKey   | Controller's LTPK (32 bytes)    |
-| Signature   | Ed25519 signature (64 bytes)    |
+| TLV Type   | Value                          |
+| ---------- | ------------------------------ |
+| Identifier | Controller's pairing ID (UUID) |
+| PublicKey  | Controller's LTPK (32 bytes)   |
+| Signature  | Ed25519 signature (64 bytes)   |
 
 **Encryption:**
 
@@ -220,10 +220,10 @@ EncryptedData = ChaCha20-Poly1305-Encrypt(
 
 Request TLVs:
 
-| TLV Type      | Value                                     |
-| ------------- | ----------------------------------------- |
-| State         | `0x05` (M5)                               |
-| EncryptedData | Ciphertext + 16-byte auth tag             |
+| TLV Type      | Value                         |
+| ------------- | ----------------------------- |
+| State         | `0x05` (M5)                   |
+| EncryptedData | Ciphertext + 16-byte auth tag |
 
 ### 2.8 M6: Exchange Response
 
@@ -245,11 +245,11 @@ AccessorySignature = Ed25519_Sign(AccessoryLTSK, AccessoryInfo)
 
 **Sub-TLV (to be encrypted):**
 
-| TLV Type    | Value                                 |
-| ----------- | ------------------------------------- |
-| Identifier  | Accessory's pairing ID (MAC address)  |
-| PublicKey   | Accessory's LTPK (32 bytes)           |
-| Signature   | Ed25519 signature (64 bytes)          |
+| TLV Type   | Value                                |
+| ---------- | ------------------------------------ |
+| Identifier | Accessory's pairing ID (MAC address) |
+| PublicKey  | Accessory's LTPK (32 bytes)          |
+| Signature  | Ed25519 signature (64 bytes)         |
 
 **Encryption:**
 
@@ -264,10 +264,10 @@ EncryptedData = ChaCha20-Poly1305-Encrypt(
 
 Response TLVs:
 
-| TLV Type      | Value                                     |
-| ------------- | ----------------------------------------- |
-| State         | `0x06` (M6)                               |
-| EncryptedData | Ciphertext + 16-byte auth tag             |
+| TLV Type      | Value                         |
+| ------------- | ----------------------------- |
+| State         | `0x06` (M6)                   |
+| EncryptedData | Ciphertext + 16-byte auth tag |
 
 ---
 
@@ -299,17 +299,18 @@ Controller                                    Accessory
 
 Controller generates ephemeral X25519 keypair and sends public key:
 
-| TLV Type   | Value                              |
-| ---------- | ---------------------------------- |
-| State      | `0x01` (M1)                        |
-| PublicKey  | 32 bytes (X25519 ephemeral public) |
+| TLV Type  | Value                              |
+| --------- | ---------------------------------- |
+| State     | `0x01` (M1)                        |
+| PublicKey | 32 bytes (X25519 ephemeral public) |
 
 ### 3.3 M2: Verify Start Response
 
 Accessory:
 
 1. Generates ephemeral X25519 keypair
-2. Computes shared secret: `SharedSecret = X25519(accessoryEphemeralSK, controllerEphemeralPK)`
+2. Computes shared secret:
+   `SharedSecret = X25519(accessoryEphemeralSK, controllerEphemeralPK)`
 3. Derives encryption key:
 
 ```
@@ -321,7 +322,8 @@ SessionKey = HKDF-SHA-512(
 )
 ```
 
-4. Signs: `AccessoryInfo = accessoryEphemeralPK || accessoryPairingID || controllerEphemeralPK`
+4. Signs:
+   `AccessoryInfo = accessoryEphemeralPK || accessoryPairingID || controllerEphemeralPK`
 
 ```
 AccessorySignature = Ed25519_Sign(AccessoryLTSK, AccessoryInfo)
@@ -329,10 +331,10 @@ AccessorySignature = Ed25519_Sign(AccessoryLTSK, AccessoryInfo)
 
 **Sub-TLV:**
 
-| TLV Type    | Value                          |
-| ----------- | ------------------------------ |
-| Identifier  | Accessory's pairing ID         |
-| Signature   | Ed25519 signature (64 bytes)   |
+| TLV Type   | Value                        |
+| ---------- | ---------------------------- |
+| Identifier | Accessory's pairing ID       |
+| Signature  | Ed25519 signature (64 bytes) |
 
 **Encryption:**
 
@@ -347,22 +349,24 @@ EncryptedData = ChaCha20-Poly1305-Encrypt(
 
 Response TLVs:
 
-| TLV Type      | Value                              |
-| ------------- | ---------------------------------- |
-| State         | `0x02` (M2)                        |
-| PublicKey     | 32 bytes (accessory ephemeral PK)  |
-| EncryptedData | Ciphertext + 16-byte auth tag      |
+| TLV Type      | Value                             |
+| ------------- | --------------------------------- |
+| State         | `0x02` (M2)                       |
+| PublicKey     | 32 bytes (accessory ephemeral PK) |
+| EncryptedData | Ciphertext + 16-byte auth tag     |
 
 ### 3.4 M3: Verify Finish Request
 
 Controller:
 
-1. Computes shared secret: `SharedSecret = X25519(controllerEphemeralSK, accessoryEphemeralPK)`
+1. Computes shared secret:
+   `SharedSecret = X25519(controllerEphemeralSK, accessoryEphemeralPK)`
 2. Derives SessionKey (same as accessory)
 3. Decrypts M2's EncryptedData
 4. Looks up accessory's LTPK by pairing ID
 5. Verifies accessory's signature
-6. Signs: `ControllerInfo = controllerEphemeralPK || controllerPairingID || accessoryEphemeralPK`
+6. Signs:
+   `ControllerInfo = controllerEphemeralPK || controllerPairingID || accessoryEphemeralPK`
 
 ```
 ControllerSignature = Ed25519_Sign(ControllerLTSK, ControllerInfo)
@@ -370,10 +374,10 @@ ControllerSignature = Ed25519_Sign(ControllerLTSK, ControllerInfo)
 
 **Sub-TLV:**
 
-| TLV Type    | Value                          |
-| ----------- | ------------------------------ |
-| Identifier  | Controller's pairing ID        |
-| Signature   | Ed25519 signature (64 bytes)   |
+| TLV Type   | Value                        |
+| ---------- | ---------------------------- |
+| Identifier | Controller's pairing ID      |
+| Signature  | Ed25519 signature (64 bytes) |
 
 **Encryption:**
 
@@ -404,9 +408,9 @@ Accessory:
 
 Response TLVs:
 
-| TLV Type | Value                          |
-| -------- | ------------------------------ |
-| State    | `0x04` (M4)                    |
+| TLV Type | Value       |
+| -------- | ----------- |
+| State    | `0x04` (M4) |
 
 **Error Response:**
 
@@ -424,14 +428,14 @@ All HKDF operations use:
 - **Hash**: SHA-512
 - **Output Length**: 32 bytes
 
-| Context                | Salt                               | Info                                  |
-| ---------------------- | ---------------------------------- | ------------------------------------- |
-| Pair Setup Encryption  | `Pair-Setup-Encrypt-Salt`          | `Pair-Setup-Encrypt-Info`             |
-| Controller Signature   | `Pair-Setup-Controller-Sign-Salt`  | `Pair-Setup-Controller-Sign-Info`     |
-| Accessory Signature    | `Pair-Setup-Accessory-Sign-Salt`   | `Pair-Setup-Accessory-Sign-Info`      |
-| Pair Verify Encryption | `Pair-Verify-Encrypt-Salt`         | `Pair-Verify-Encrypt-Info`            |
-| Session Read Key       | `Control-Salt`                     | `Control-Read-Encryption-Key`         |
-| Session Write Key      | `Control-Salt`                     | `Control-Write-Encryption-Key`        |
+| Context                | Salt                              | Info                              |
+| ---------------------- | --------------------------------- | --------------------------------- |
+| Pair Setup Encryption  | `Pair-Setup-Encrypt-Salt`         | `Pair-Setup-Encrypt-Info`         |
+| Controller Signature   | `Pair-Setup-Controller-Sign-Salt` | `Pair-Setup-Controller-Sign-Info` |
+| Accessory Signature    | `Pair-Setup-Accessory-Sign-Salt`  | `Pair-Setup-Accessory-Sign-Info`  |
+| Pair Verify Encryption | `Pair-Verify-Encrypt-Salt`        | `Pair-Verify-Encrypt-Info`        |
+| Session Read Key       | `Control-Salt`                    | `Control-Read-Encryption-Key`     |
+| Session Write Key      | `Control-Salt`                    | `Control-Write-Encryption-Key`    |
 
 From `hap_handler.py` and `HAPPairingPairVerify.c:556-561`.
 
@@ -442,14 +446,15 @@ From `hap_handler.py` and `HAPPairingPairVerify.c:556-561`.
 Nonces for pairing encryption are 12 bytes: 4 zero bytes followed by the ASCII
 string (which is 8 bytes for all pairing nonces):
 
-| Message | Nonce String   | Hex (12 bytes)             |
-| ------- | -------------- | -------------------------- |
-| M5      | `PS-Msg05`     | `0000000050532D4D73673035` |
-| M6      | `PS-Msg06`     | `0000000050532D4D73673036` |
-| PV M2   | `PV-Msg02`     | `0000000050562D4D73673032` |
-| PV M3   | `PV-Msg03`     | `0000000050562D4D73673033` |
+| Message | Nonce String | Hex (12 bytes)             |
+| ------- | ------------ | -------------------------- |
+| M5      | `PS-Msg05`   | `0000000050532D4D73673035` |
+| M6      | `PS-Msg06`   | `0000000050532D4D73673036` |
+| PV M2   | `PV-Msg02`   | `0000000050562D4D73673032` |
+| PV M3   | `PV-Msg03`   | `0000000050562D4D73673033` |
 
-Construction: `pack('x[4]') . "PS-Msg05"` → 4 zero bytes + 8 ASCII bytes = 12 bytes total.
+Construction: `pack('x[4]') . "PS-Msg05"` → 4 zero bytes + 8 ASCII bytes = 12
+bytes total.
 
 ---
 
@@ -457,10 +462,10 @@ Construction: `pack('x[4]') . "PS-Msg05"` → 4 zero bytes + 8 ASCII bytes = 12 
 
 ### 6.1 Controller Permissions
 
-| Value  | Permission | Description                           |
-| ------ | ---------- | ------------------------------------- |
-| `0x00` | User       | Regular user, cannot manage pairings  |
-| `0x01` | Admin      | Can add, remove, and list pairings    |
+| Value  | Permission | Description                          |
+| ------ | ---------- | ------------------------------------ |
+| `0x00` | User       | Regular user, cannot manage pairings |
+| `0x01` | Admin      | Can add, remove, and list pairings   |
 
 The first controller to pair gets Admin permission.
 
@@ -482,42 +487,42 @@ For the accessory, store:
 
 ## 7. Add/Remove/List Pairings
 
-After initial pairing, controllers with Admin permission can manage pairings
-via POST `/pairings`:
+After initial pairing, controllers with Admin permission can manage pairings via
+POST `/pairings`:
 
 ### 7.1 Add Pairing
 
 Request:
 
-| TLV Type    | Value                          |
-| ----------- | ------------------------------ |
-| State       | `0x01` (M1)                    |
-| Method      | `0x03` (AddPairing)            |
-| Identifier  | New controller's pairing ID    |
-| PublicKey   | New controller's LTPK          |
-| Permissions | `0x00` or `0x01`               |
+| TLV Type    | Value                       |
+| ----------- | --------------------------- |
+| State       | `0x01` (M1)                 |
+| Method      | `0x03` (AddPairing)         |
+| Identifier  | New controller's pairing ID |
+| PublicKey   | New controller's LTPK       |
+| Permissions | `0x00` or `0x01`            |
 
 Response:
 
-| TLV Type | Value                          |
-| -------- | ------------------------------ |
-| State    | `0x02` (M2)                    |
+| TLV Type | Value       |
+| -------- | ----------- |
+| State    | `0x02` (M2) |
 
 ### 7.2 Remove Pairing
 
 Request:
 
-| TLV Type    | Value                          |
-| ----------- | ------------------------------ |
-| State       | `0x01` (M1)                    |
-| Method      | `0x04` (RemovePairing)         |
-| Identifier  | Controller's pairing ID        |
+| TLV Type   | Value                   |
+| ---------- | ----------------------- |
+| State      | `0x01` (M1)             |
+| Method     | `0x04` (RemovePairing)  |
+| Identifier | Controller's pairing ID |
 
 Response:
 
-| TLV Type | Value                          |
-| -------- | ------------------------------ |
-| State    | `0x02` (M2)                    |
+| TLV Type | Value       |
+| -------- | ----------- |
+| State    | `0x02` (M2) |
 
 When the last admin pairing is removed, accessory should:
 
@@ -530,20 +535,20 @@ When the last admin pairing is removed, accessory should:
 
 Request:
 
-| TLV Type | Value                          |
-| -------- | ------------------------------ |
-| State    | `0x01` (M1)                    |
-| Method   | `0x05` (ListPairings)          |
+| TLV Type | Value                 |
+| -------- | --------------------- |
+| State    | `0x01` (M1)           |
+| Method   | `0x05` (ListPairings) |
 
 Response (for each pairing, separated by 0xFF):
 
-| TLV Type    | Value                          |
-| ----------- | ------------------------------ |
-| State       | `0x02` (M2)                    |
-| Identifier  | Controller's pairing ID        |
-| PublicKey   | Controller's LTPK              |
-| Permissions | Permission byte                |
-| Separator   | (between pairings)             |
+| TLV Type    | Value                   |
+| ----------- | ----------------------- |
+| State       | `0x02` (M2)             |
+| Identifier  | Controller's pairing ID |
+| PublicKey   | Controller's LTPK       |
+| Permissions | Permission byte         |
+| Separator   | (between pairings)      |
 
 ---
 
@@ -553,4 +558,5 @@ From `HAPPairingPairSetup.c`:
 
 - Maximum unsuccessful attempts: **100**
 - After limit reached, respond with error `0x05` (MaxTries)
-- Counter may reset on successful pairing or after reboot (implementation choice)
+- Counter may reset on successful pairing or after reboot (implementation
+  choice)

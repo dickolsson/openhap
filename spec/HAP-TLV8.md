@@ -63,11 +63,11 @@ Without the separator, the decoder would concatenate the values.
 Unsigned integers are encoded in **little-endian** format, using the minimum
 bytes needed (1, 2, 4, or 8 bytes):
 
-| Value  | Bytes | Hex Encoding |
-| ------ | ----- | ------------ |
-| 1      | 1     | `01`         |
-| 256    | 2     | `00 01`      |
-| 65536  | 4     | `00 00 01 00`|
+| Value | Bytes | Hex Encoding  |
+| ----- | ----- | ------------- |
+| 1     | 1     | `01`          |
+| 256   | 2     | `00 01`       |
+| 65536 | 4     | `00 00 01 00` |
 
 ### 4.2 Strings
 
@@ -91,39 +91,39 @@ A TLV value can itself be a complete TLV8 structure (sub-TLV).
 
 These type codes are used in pair-setup, pair-verify, and pairings endpoints:
 
-| Code   | Name              | Description                                              | Source                   |
-| ------ | ----------------- | -------------------------------------------------------- | ------------------------ |
-| `0x00` | Method            | Pairing method (see Methods table)                       | `HAPPairing.h:108`       |
-| `0x01` | Identifier        | Pairing identifier (UTF-8 string, max 36 bytes)          | `HAPPairing.h:114`       |
-| `0x02` | Salt              | SRP salt (16+ bytes random)                              | `HAPPairing.h:120`       |
-| `0x03` | PublicKey         | Curve25519 or SRP public key                             | `HAPPairing.h:126`       |
-| `0x04` | Proof             | SRP proof (M1/M2) or Ed25519 password proof              | `HAPPairing.h:132`       |
-| `0x05` | EncryptedData     | Encrypted payload with auth tag appended                 | `HAPPairing.h:138`       |
-| `0x06` | State             | Pairing state: 1=M1, 2=M2, 3=M3, 4=M4, 5=M5, 6=M6        | `HAPPairing.h:144`       |
-| `0x07` | Error             | Error code if failed (omit if success)                   | `HAPPairing.h:150`       |
-| `0x08` | RetryDelay        | Seconds to wait before retry (obsolete since R3)         | `HAPPairing.h:158`       |
-| `0x09` | Certificate       | X.509 certificate (for MFi auth)                         | `HAPPairing.h:164`       |
-| `0x0A` | Signature         | Ed25519 or Apple Authentication Coprocessor signature    | `HAPPairing.h:170`       |
-| `0x0B` | Permissions       | Controller permissions (0x00=user, 0x01=admin)           | `HAPPairing.h:178`       |
-| `0x0C` | FragmentData      | Non-last fragment (obsolete since R7)                    | `HAPPairing.h:187`       |
-| `0x0D` | FragmentLast      | Last fragment (obsolete since R7)                        | `HAPPairing.h:196`       |
-| `0x0E` | SessionID         | Session resume identifier                                | `HAPPairing.h:203`       |
-| `0x13` | Flags             | Pairing type flags (32-bit)                              | `HAPPairing.h:209`       |
-| `0xFF` | Separator         | Zero-length TLV separating list items                    | `HAPPairing.h:215`       |
+| Code   | Name          | Description                                           | Source             |
+| ------ | ------------- | ----------------------------------------------------- | ------------------ |
+| `0x00` | Method        | Pairing method (see Methods table)                    | `HAPPairing.h:108` |
+| `0x01` | Identifier    | Pairing identifier (UTF-8 string, max 36 bytes)       | `HAPPairing.h:114` |
+| `0x02` | Salt          | SRP salt (16+ bytes random)                           | `HAPPairing.h:120` |
+| `0x03` | PublicKey     | Curve25519 or SRP public key                          | `HAPPairing.h:126` |
+| `0x04` | Proof         | SRP proof (M1/M2) or Ed25519 password proof           | `HAPPairing.h:132` |
+| `0x05` | EncryptedData | Encrypted payload with auth tag appended              | `HAPPairing.h:138` |
+| `0x06` | State         | Pairing state: 1=M1, 2=M2, 3=M3, 4=M4, 5=M5, 6=M6     | `HAPPairing.h:144` |
+| `0x07` | Error         | Error code if failed (omit if success)                | `HAPPairing.h:150` |
+| `0x08` | RetryDelay    | Seconds to wait before retry (obsolete since R3)      | `HAPPairing.h:158` |
+| `0x09` | Certificate   | X.509 certificate (for MFi auth)                      | `HAPPairing.h:164` |
+| `0x0A` | Signature     | Ed25519 or Apple Authentication Coprocessor signature | `HAPPairing.h:170` |
+| `0x0B` | Permissions   | Controller permissions (0x00=user, 0x01=admin)        | `HAPPairing.h:178` |
+| `0x0C` | FragmentData  | Non-last fragment (obsolete since R7)                 | `HAPPairing.h:187` |
+| `0x0D` | FragmentLast  | Last fragment (obsolete since R7)                     | `HAPPairing.h:196` |
+| `0x0E` | SessionID     | Session resume identifier                             | `HAPPairing.h:203` |
+| `0x13` | Flags         | Pairing type flags (32-bit)                           | `HAPPairing.h:209` |
+| `0xFF` | Separator     | Zero-length TLV separating list items                 | `HAPPairing.h:215` |
 
 ---
 
 ## 6. Pairing Methods
 
-| Value  | Name                | Description                           |
-| ------ | ------------------- | ------------------------------------- |
-| `0x00` | PairSetup           | Standard pair setup                   |
-| `0x01` | PairSetupWithAuth   | Pair setup with MFi authentication    |
-| `0x02` | PairVerify          | Session establishment                 |
-| `0x03` | AddPairing          | Add additional controller pairing     |
-| `0x04` | RemovePairing       | Remove a controller pairing           |
-| `0x05` | ListPairings        | List all current pairings             |
-| `0x06` | PairResume          | Resume a previous session (R14+)      |
+| Value  | Name              | Description                        |
+| ------ | ----------------- | ---------------------------------- |
+| `0x00` | PairSetup         | Standard pair setup                |
+| `0x01` | PairSetupWithAuth | Pair setup with MFi authentication |
+| `0x02` | PairVerify        | Session establishment              |
+| `0x03` | AddPairing        | Add additional controller pairing  |
+| `0x04` | RemovePairing     | Remove a controller pairing        |
+| `0x05` | ListPairings      | List all current pairings          |
+| `0x06` | PairResume        | Resume a previous session (R14+)   |
 
 From `HAPPairing.h:51-76`.
 
@@ -131,15 +131,15 @@ From `HAPPairing.h:51-76`.
 
 ## 7. Pairing Error Codes
 
-| Value  | Name              | Description                                      |
-| ------ | ----------------- | ------------------------------------------------ |
-| `0x01` | Unknown           | Generic error for unexpected conditions          |
-| `0x02` | Authentication    | Setup code or signature verification failed      |
-| `0x03` | Backoff           | Wait RetryDelay before retry (obsolete since R3) |
-| `0x04` | MaxPeers          | Server cannot accept more pairings               |
-| `0x05` | MaxTries          | Too many failed authentication attempts          |
-| `0x06` | Unavailable       | Pairing method unavailable                       |
-| `0x07` | Busy              | Server busy, cannot accept pairing now           |
+| Value  | Name           | Description                                      |
+| ------ | -------------- | ------------------------------------------------ |
+| `0x01` | Unknown        | Generic error for unexpected conditions          |
+| `0x02` | Authentication | Setup code or signature verification failed      |
+| `0x03` | Backoff        | Wait RetryDelay before retry (obsolete since R3) |
+| `0x04` | MaxPeers       | Server cannot accept more pairings               |
+| `0x05` | MaxTries       | Too many failed authentication attempts          |
+| `0x06` | Unavailable    | Pairing method unavailable                       |
+| `0x07` | Busy           | Server busy, cannot accept pairing now           |
 
 From `HAPPairing.h:82-102` and `HAPServer.ts:33-43`.
 

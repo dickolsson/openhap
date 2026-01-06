@@ -54,11 +54,11 @@ Encrypted HTTP data is transmitted as a sequence of frames. Each frame:
       LE uint16         Max 1024 bytes           Auth tag
 ```
 
-| Field          | Size      | Description                                    |
-| -------------- | --------- | ---------------------------------------------- |
-| Length         | 2 bytes   | Little-endian uint16, plaintext length (max 1024) |
-| Encrypted Data | 1-1024 B  | ChaCha20-Poly1305 ciphertext                   |
-| Auth Tag       | 16 bytes  | Poly1305 authentication tag                    |
+| Field          | Size     | Description                                       |
+| -------------- | -------- | ------------------------------------------------- |
+| Length         | 2 bytes  | Little-endian uint16, plaintext length (max 1024) |
+| Encrypted Data | 1-1024 B | ChaCha20-Poly1305 ciphertext                      |
+| Auth Tag       | 16 bytes | Poly1305 authentication tag                       |
 
 **Maximum frame payload**: 1024 bytes (`0x400`)
 
@@ -104,12 +104,17 @@ export function layerEncrypt(data: Buffer, encryption: HAPEncryption): Buffer {
     const encrypted = chacha20_poly1305_encryptAndSeal(
       encryption.accessoryToControllerKey,
       nonce,
-      leLength,  // AAD
-      data.subarray(offset, offset + length)
+      leLength, // AAD
+      data.subarray(offset, offset + length),
     );
     offset += length;
 
-    result = Buffer.concat([result, leLength, encrypted.ciphertext, encrypted.authTag]);
+    result = Buffer.concat([
+      result,
+      leLength,
+      encrypted.ciphertext,
+      encrypted.authTag,
+    ]);
   }
   return result;
 }
@@ -188,24 +193,24 @@ if (realDataLength > availableDataLength) {
 
 Each session maintains:
 
-| State Variable               | Type   | Initial | Description                     |
-| ---------------------------- | ------ | ------- | ------------------------------- |
-| AccessoryToControllerKey     | bytes  | derived | 32-byte encryption key (A→C)    |
-| ControllerToAccessoryKey     | bytes  | derived | 32-byte encryption key (C→A)    |
-| AccessoryToControllerCount   | uint64 | 0       | Nonce counter for outgoing      |
-| ControllerToAccessoryCount   | uint64 | 0       | Nonce counter for incoming      |
+| State Variable             | Type   | Initial | Description                  |
+| -------------------------- | ------ | ------- | ---------------------------- |
+| AccessoryToControllerKey   | bytes  | derived | 32-byte encryption key (A→C) |
+| ControllerToAccessoryKey   | bytes  | derived | 32-byte encryption key (C→A) |
+| AccessoryToControllerCount | uint64 | 0       | Nonce counter for outgoing   |
+| ControllerToAccessoryCount | uint64 | 0       | Nonce counter for incoming   |
 
 ---
 
 ## 7. ChaCha20-Poly1305 Parameters
 
-| Parameter      | Value                                  |
-| -------------- | -------------------------------------- |
-| Algorithm      | ChaCha20-Poly1305 (RFC 8439)           |
-| Key size       | 32 bytes (256 bits)                    |
-| Nonce size     | 12 bytes (96 bits)                     |
-| Auth tag size  | 16 bytes (128 bits)                    |
-| AEAD           | Yes (authenticated encryption)         |
+| Parameter     | Value                          |
+| ------------- | ------------------------------ |
+| Algorithm     | ChaCha20-Poly1305 (RFC 8439)   |
+| Key size      | 32 bytes (256 bits)            |
+| Nonce size    | 12 bytes (96 bits)             |
+| Auth tag size | 16 bytes (128 bits)            |
+| AEAD          | Yes (authenticated encryption) |
 
 ---
 
@@ -241,15 +246,15 @@ Total overhead: 3 frames × (2 + 16) = 54 bytes
 
 ## 9. Error Handling
 
-| Condition                    | Action                                  |
-| ---------------------------- | --------------------------------------- |
-| Auth tag verification failed | Close connection immediately            |
-| Nonce counter overflow       | Close connection (very unlikely)        |
-| Incomplete frame at EOF      | Treat as error, close connection        |
-| Frame length > 1024          | Treat as error, close connection        |
+| Condition                    | Action                           |
+| ---------------------------- | -------------------------------- |
+| Auth tag verification failed | Close connection immediately     |
+| Nonce counter overflow       | Close connection (very unlikely) |
+| Incomplete frame at EOF      | Treat as error, close connection |
+| Frame length > 1024          | Treat as error, close connection |
 
-**Security note:** Never send unencrypted data after session is established.
-All HTTP requests and responses must be encrypted.
+**Security note:** Never send unencrypted data after session is established. All
+HTTP requests and responses must be encrypted.
 
 ---
 

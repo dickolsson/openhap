@@ -24,9 +24,10 @@ communicate over MQTT and how OpenHAP must interact with them. Pay attention to:
 
 ## Review Approach
 
-Compare the OpenHAP MQTT implementation against the specification systematically.
-Focus on correctness—places where the implementation deviates from what the
-specification requires or makes incorrect assumptions about Tasmota behavior.
+Compare the OpenHAP MQTT implementation against the specification
+systematically. Focus on correctness—places where the implementation deviates
+from what the specification requires or makes incorrect assumptions about
+Tasmota behavior.
 
 For each aspect of the protocol, examine the relevant OpenHAP modules and verify
 they handle Tasmota communication correctly. Look for:
@@ -42,7 +43,8 @@ they handle Tasmota communication correctly. Look for:
 
 For each finding, record:
 
-1. **What the spec requires** — cite the specific requirement from `spec/MQTT.md`
+1. **What the spec requires** — cite the specific requirement from
+   `spec/MQTT.md`
 2. **What the code does** — identify the file and relevant code section
 3. **The discrepancy** — explain how the implementation differs
 4. **Severity** — will this cause device control failures, state sync issues, or
@@ -58,7 +60,7 @@ Review the MQTT and Tasmota integration code, particularly:
 - Response parsing
 - Telemetry handling
 - Device state synchronization
-- Device-specific modules (Tasmota/*.pm)
+- Device-specific modules (Tasmota/\*.pm)
 
 Do not review HAP protocol code or general infrastructure unless it directly
 affects MQTT/Tasmota compliance.

@@ -12,27 +12,27 @@ particular implementation.
 
 ## 1. Glossary
 
-| Term                  | Definition                                                                                                                                                      |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Accessory**         | A physical or virtual HomeKit device. Each accessory has a unique `aid` (accessory ID) and contains one or more services.                                      |
-| **aid**               | Accessory ID. A positive integer uniquely identifying an accessory within a HAP server. The bridge itself is always `aid=1`.                                   |
-| **Bridge**            | A special accessory (`aid=1`) that aggregates multiple accessories under a single HAP server.                                                                  |
-| **Characteristic**    | A typed value within a service representing a single property (e.g., On, Brightness). Has a unique `iid` within its accessory.                                 |
-| **Controller**        | A HomeKit client (iOS device, HomePod, Apple TV) that pairs with and controls accessories.                                                                     |
-| **HKDF**              | HMAC-based Key Derivation Function. HAP uses HKDF-SHA-512 for all key derivation.                                                                              |
-| **iid**               | Instance ID. A positive integer uniquely identifying a service or characteristic within an accessory. IID 1 is always the AccessoryInformation service.        |
-| **LTPK**              | Long-Term Public Key. An Ed25519 public key used for persistent identity. Both controllers and accessories have LTPKs.                                         |
-| **LTSK**              | Long-Term Secret Key. The Ed25519 private key corresponding to an LTPK.                                                                                        |
-| **Pairing**           | The process of establishing trust between a controller and accessory using a setup code. Results in exchanging LTPKs.                                          |
-| **Pair Setup**        | The initial pairing protocol (M1-M6) using SRP-6a to verify the setup code and exchange long-term public keys.                                                 |
-| **Pair Verify**       | The session establishment protocol (M1-M4) using X25519/Ed25519 to create an encrypted session between previously paired devices.                              |
-| **Service**           | A logical grouping of characteristics representing a device function (e.g., LightBulb, Switch). Has a unique `iid` and a type UUID.                            |
-| **Session**           | An encrypted HTTP connection between a controller and accessory, established after Pair Verify completes.                                                      |
-| **Setup Code**        | An 8-digit code in format `XXX-XX-XXX` used during Pair Setup. Also called PIN code.                                                                           |
-| **Setup ID**          | A 4-character alphanumeric code used with the setup code to generate QR codes and NFC tags for pairing.                                                        |
-| **SRP-6a**            | Secure Remote Password protocol variant used by HAP with SHA-512 instead of SHA-1, and a 3072-bit prime from RFC 5054.                                         |
-| **TLV8**              | Type-Length-Value encoding with 8-bit length field. Used for pairing protocol messages.                                                                        |
-| **UUID**              | Universally Unique Identifier. HAP uses Apple's base UUID `XXXXXXXX-0000-1000-8000-0026BB765291` with a 32-bit short form prefix for standard types.           |
+| Term               | Definition                                                                                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Accessory**      | A physical or virtual HomeKit device. Each accessory has a unique `aid` (accessory ID) and contains one or more services.                               |
+| **aid**            | Accessory ID. A positive integer uniquely identifying an accessory within a HAP server. The bridge itself is always `aid=1`.                            |
+| **Bridge**         | A special accessory (`aid=1`) that aggregates multiple accessories under a single HAP server.                                                           |
+| **Characteristic** | A typed value within a service representing a single property (e.g., On, Brightness). Has a unique `iid` within its accessory.                          |
+| **Controller**     | A HomeKit client (iOS device, HomePod, Apple TV) that pairs with and controls accessories.                                                              |
+| **HKDF**           | HMAC-based Key Derivation Function. HAP uses HKDF-SHA-512 for all key derivation.                                                                       |
+| **iid**            | Instance ID. A positive integer uniquely identifying a service or characteristic within an accessory. IID 1 is always the AccessoryInformation service. |
+| **LTPK**           | Long-Term Public Key. An Ed25519 public key used for persistent identity. Both controllers and accessories have LTPKs.                                  |
+| **LTSK**           | Long-Term Secret Key. The Ed25519 private key corresponding to an LTPK.                                                                                 |
+| **Pairing**        | The process of establishing trust between a controller and accessory using a setup code. Results in exchanging LTPKs.                                   |
+| **Pair Setup**     | The initial pairing protocol (M1-M6) using SRP-6a to verify the setup code and exchange long-term public keys.                                          |
+| **Pair Verify**    | The session establishment protocol (M1-M4) using X25519/Ed25519 to create an encrypted session between previously paired devices.                       |
+| **Service**        | A logical grouping of characteristics representing a device function (e.g., LightBulb, Switch). Has a unique `iid` and a type UUID.                     |
+| **Session**        | An encrypted HTTP connection between a controller and accessory, established after Pair Verify completes.                                               |
+| **Setup Code**     | An 8-digit code in format `XXX-XX-XXX` used during Pair Setup. Also called PIN code.                                                                    |
+| **Setup ID**       | A 4-character alphanumeric code used with the setup code to generate QR codes and NFC tags for pairing.                                                 |
+| **SRP-6a**         | Secure Remote Password protocol variant used by HAP with SHA-512 instead of SHA-1, and a 3072-bit prime from RFC 5054.                                  |
+| **TLV8**           | Type-Length-Value encoding with 8-bit length field. Used for pairing protocol messages.                                                                 |
+| **UUID**           | Universally Unique Identifier. HAP uses Apple's base UUID `XXXXXXXX-0000-1000-8000-0026BB765291` with a 32-bit short form prefix for standard types.    |
 
 ---
 
@@ -101,16 +101,16 @@ Bridge/Accessory (aid)
 
 Detailed protocol information is organized into these files:
 
-| File                                       | Content                                                                |
-| ------------------------------------------ | ---------------------------------------------------------------------- |
-| [HAP-TLV8.md](HAP-TLV8.md)                 | TLV8 encoding format, type codes, fragmentation                        |
-| [HAP-Pairing.md](HAP-Pairing.md)           | Pair Setup (M1-M6), Pair Verify (M1-M4), cryptographic parameters      |
-| [HAP-Encryption.md](HAP-Encryption.md)     | Session encryption, frame format, HKDF parameters, nonce handling      |
-| [HAP-HTTP.md](HAP-HTTP.md)                 | HTTP endpoints, request/response formats, status codes                 |
-| [HAP-mDNS.md](HAP-mDNS.md)                 | Service discovery, TXT record fields, status flags                     |
-| [HAP-Services.md](HAP-Services.md)         | Complete service definitions with UUIDs and characteristics            |
+| File                                             | Content                                                              |
+| ------------------------------------------------ | -------------------------------------------------------------------- |
+| [HAP-TLV8.md](HAP-TLV8.md)                       | TLV8 encoding format, type codes, fragmentation                      |
+| [HAP-Pairing.md](HAP-Pairing.md)                 | Pair Setup (M1-M6), Pair Verify (M1-M4), cryptographic parameters    |
+| [HAP-Encryption.md](HAP-Encryption.md)           | Session encryption, frame format, HKDF parameters, nonce handling    |
+| [HAP-HTTP.md](HAP-HTTP.md)                       | HTTP endpoints, request/response formats, status codes               |
+| [HAP-mDNS.md](HAP-mDNS.md)                       | Service discovery, TXT record fields, status flags                   |
+| [HAP-Services.md](HAP-Services.md)               | Complete service definitions with UUIDs and characteristics          |
 | [HAP-Characteristics.md](HAP-Characteristics.md) | Complete characteristic definitions with UUIDs, formats, constraints |
-| [HAP-Categories.md](HAP-Categories.md)     | Accessory category identifiers                                         |
+| [HAP-Categories.md](HAP-Categories.md)           | Accessory category identifiers                                       |
 
 ---
 
@@ -126,11 +126,11 @@ Base UUID: XXXXXXXX-0000-1000-8000-0026BB765291
 
 **Examples:**
 
-| Short Form | Full UUID                              | Type             |
-| ---------- | -------------------------------------- | ---------------- |
-| `3E`       | `0000003E-0000-1000-8000-0026BB765291` | AccessoryInfo    |
-| `43`       | `00000043-0000-1000-8000-0026BB765291` | LightBulb        |
-| `25`       | `00000025-0000-1000-8000-0026BB765291` | On               |
+| Short Form | Full UUID                              | Type          |
+| ---------- | -------------------------------------- | ------------- |
+| `3E`       | `0000003E-0000-1000-8000-0026BB765291` | AccessoryInfo |
+| `43`       | `00000043-0000-1000-8000-0026BB765291` | LightBulb     |
+| `25`       | `00000025-0000-1000-8000-0026BB765291` | On            |
 
 In JSON responses, UUIDs are typically encoded as the short form hex string
 without leading zeros (e.g., `"type": "3E"`).

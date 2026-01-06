@@ -10,37 +10,37 @@ which services can be implemented.
 
 From `const.py:23-50` and `Categories.md`:
 
-| ID   | Constant                  | Name                    |
-| ---- | ------------------------- | ----------------------- |
-| 1    | `CATEGORY_OTHER`          | Other                   |
-| 2    | `CATEGORY_BRIDGE`         | Bridge                  |
-| 3    | `CATEGORY_FAN`            | Fan                     |
-| 4    | `CATEGORY_GARAGE_DOOR_OPENER` | Garage Door Opener  |
-| 5    | `CATEGORY_LIGHTBULB`      | Lightbulb               |
-| 6    | `CATEGORY_DOOR_LOCK`      | Door Lock               |
-| 7    | `CATEGORY_OUTLET`         | Outlet                  |
-| 8    | `CATEGORY_SWITCH`         | Switch                  |
-| 9    | `CATEGORY_THERMOSTAT`     | Thermostat              |
-| 10   | `CATEGORY_SENSOR`         | Sensor                  |
-| 11   | `CATEGORY_ALARM_SYSTEM`   | Security System         |
-| 12   | `CATEGORY_DOOR`           | Door                    |
-| 13   | `CATEGORY_WINDOW`         | Window                  |
-| 14   | `CATEGORY_WINDOW_COVERING`| Window Covering         |
-| 15   | `CATEGORY_PROGRAMMABLE_SWITCH` | Programmable Switch|
-| 16   | `CATEGORY_RANGE_EXTENDER` | Range Extender          |
-| 17   | `CATEGORY_CAMERA`         | IP Camera               |
-| 18   | `CATEGORY_VIDEO_DOOR_BELL`| Video Doorbell          |
-| 19   | `CATEGORY_AIR_PURIFIER`   | Air Purifier            |
-| 20   | `CATEGORY_HEATER`         | Heater                  |
-| 21   | `CATEGORY_AIR_CONDITIONER`| Air Conditioner         |
-| 22   | `CATEGORY_HUMIDIFIER`     | Humidifier              |
-| 23   | `CATEGORY_DEHUMIDIFIER`   | Dehumidifier            |
-| 26   | `CATEGORY_SPEAKER`        | Speaker                 |
-| 28   | `CATEGORY_SPRINKLER`      | Sprinkler               |
-| 29   | `CATEGORY_FAUCET`         | Faucet                  |
-| 30   | `CATEGORY_SHOWER_HEAD`    | Shower Head             |
-| 31   | `CATEGORY_TELEVISION`     | Television              |
-| 32   | `CATEGORY_TARGET_CONTROLLER` | Remote Controller    |
+| ID  | Constant                       | Name                |
+| --- | ------------------------------ | ------------------- |
+| 1   | `CATEGORY_OTHER`               | Other               |
+| 2   | `CATEGORY_BRIDGE`              | Bridge              |
+| 3   | `CATEGORY_FAN`                 | Fan                 |
+| 4   | `CATEGORY_GARAGE_DOOR_OPENER`  | Garage Door Opener  |
+| 5   | `CATEGORY_LIGHTBULB`           | Lightbulb           |
+| 6   | `CATEGORY_DOOR_LOCK`           | Door Lock           |
+| 7   | `CATEGORY_OUTLET`              | Outlet              |
+| 8   | `CATEGORY_SWITCH`              | Switch              |
+| 9   | `CATEGORY_THERMOSTAT`          | Thermostat          |
+| 10  | `CATEGORY_SENSOR`              | Sensor              |
+| 11  | `CATEGORY_ALARM_SYSTEM`        | Security System     |
+| 12  | `CATEGORY_DOOR`                | Door                |
+| 13  | `CATEGORY_WINDOW`              | Window              |
+| 14  | `CATEGORY_WINDOW_COVERING`     | Window Covering     |
+| 15  | `CATEGORY_PROGRAMMABLE_SWITCH` | Programmable Switch |
+| 16  | `CATEGORY_RANGE_EXTENDER`      | Range Extender      |
+| 17  | `CATEGORY_CAMERA`              | IP Camera           |
+| 18  | `CATEGORY_VIDEO_DOOR_BELL`     | Video Doorbell      |
+| 19  | `CATEGORY_AIR_PURIFIER`        | Air Purifier        |
+| 20  | `CATEGORY_HEATER`              | Heater              |
+| 21  | `CATEGORY_AIR_CONDITIONER`     | Air Conditioner     |
+| 22  | `CATEGORY_HUMIDIFIER`          | Humidifier          |
+| 23  | `CATEGORY_DEHUMIDIFIER`        | Dehumidifier        |
+| 26  | `CATEGORY_SPEAKER`             | Speaker             |
+| 28  | `CATEGORY_SPRINKLER`           | Sprinkler           |
+| 29  | `CATEGORY_FAUCET`              | Faucet              |
+| 30  | `CATEGORY_SHOWER_HEAD`         | Shower Head         |
+| 31  | `CATEGORY_TELEVISION`          | Television          |
+| 32  | `CATEGORY_TARGET_CONTROLLER`   | Remote Controller   |
 
 Note: IDs 24, 25, 27 are not defined in the public specification.
 
@@ -123,8 +123,8 @@ This indicates a Lightbulb accessory.
    bridge's category should always be 2, regardless of what types of accessories
    it bridges.
 
-3. **Unknown categories**: If the Home app encounters an unknown category ID,
-   it falls back to the "Other" icon.
+3. **Unknown categories**: If the Home app encounters an unknown category ID, it
+   falls back to the "Other" icon.
 
 4. **Persistence**: The category should not change after initial pairing, as
    this may confuse users.
