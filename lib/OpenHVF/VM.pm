@@ -54,7 +54,7 @@ sub new( $class, %args )
 	my $self = bless {
 		config => $args{config},
 		state  => $args{state},
-		output => $args{output},
+		log    => $args{log},
 	}, $class;
 
 	return $self;
@@ -65,7 +65,7 @@ sub up($self)
 {
 	my $config = $self->{config};
 	my $state  = $self->{state};
-	my $output = $self->{output};
+	my $log    = $self->{log};
 
 	# Check if already running
 	if ( $self->_is_running ) {
@@ -73,11 +73,26 @@ sub up($self)
 		# If VM is running but SSH key needs to be installed or updated
 		# (first boot failed, or key changed in config)
 		if ( $state->is_installed && $self->_needs_ssh_key_update ) {
-			return $self->_complete_ssh_setup($output);
+			return $self->_complete_ssh_setup;
 		}
 
-		$output->info("VM '$config->{name}' is already running");
+		$log->info("VM '$config->{name}' is already running");
 		return EXIT_SUCCESS;
+	}
+
+	# Check for unclean shutdown and verify disk integrity
+	if ( $state->was_unclean_shutdown ) {
+		$log->warning("Detected unclean shutdown, checking disk...");
+		my $disk  = OpenHVF::Disk->new( $state->{state_dir} );
+		my $check = $disk->check( $config->{name} );
+
+		if ( defined $check && $check->{status} ne 'ok' ) {
+			$log->error(
+"Disk corruption detected. Run 'openhvf disk repair' to fix"
+			);
+			return EXIT_ERROR;
+		}
+		$state->clear_shutdown_state;
 	}
 
 	# Start caching proxy for VM installation (packages downloaded by VM)
@@ -88,57 +103,57 @@ sub up($self)
 
 	if ( defined $proxy ) {
 		$proxy_vm_url = $proxy->guest_url;
-		$output->info("Proxy started: $proxy_vm_url");
+		$log->info("Proxy started: $proxy_vm_url");
 	}
 	else {
-		$output->info(
+		$log->info(
 			"Proxy not available, VM downloads will not be cached");
 	}
 
 	# Ensure image is available (download via proxy if needed)
-	$output->info("Checking OpenBSD image...");
+	$log->info("Checking OpenBSD image...");
 	my $image      = OpenHVF::Image->new( $cache_dir, $proxy );
 	my $image_path = $image->ensure( $config->{version} );
 
 	if ( !defined $image_path ) {
 		my $url = $image->url( $config->{version} );
-		$output->error(
+		$log->error(
 "Failed to download image for OpenBSD $config->{version}"
 		);
-		$output->error("URL: $url");
-		$output->error("Try downloading manually: curl -fLO $url");
+		$log->error("URL: $url");
+		$log->error("Try downloading manually: curl -fLO $url");
 		return EXIT_ERROR;
 	}
 	else {
-		$output->info("Using cached image: $image_path");
+		$log->info("Using cached image: $image_path");
 	}
 
 	# Ensure disk exists
 	my $disk_path = $state->disk_path;
 
 	if ( !$state->disk_exists ) {
-		$output->info("Creating disk image ($config->{disk_size})...");
+		$log->info("Creating disk image ($config->{disk_size})...");
 		my $disk = OpenHVF::Disk->new( $state->{state_dir} );
 		my $result =
 		    $disk->create( $config->{name}, $config->{disk_size} );
 		if ( !defined $result ) {
-			$output->error("Failed to create disk");
+			$log->error("Failed to create disk");
 			return EXIT_ERROR;
 		}
 	}
 
 	# Start VM
-	$output->info("Starting VM...");
+	$log->info("Starting VM...");
 
 	# Only attach install media if not already installed
 	my $boot_image = $state->is_installed ? undef : $image_path;
 	my $pid        = $self->_start_qemu($boot_image);
 	if ( !defined $pid ) {
-		$output->error("Failed to start VM");
+		$log->error("Failed to start VM");
 		return EXIT_ERROR;
 	}
 
-	$output->pid( $config->{name}, $pid );
+	$log->info("Started $config->{name} (PID: $pid)");
 
 	# Install if needed
 	if ( !$state->is_installed ) {
@@ -150,16 +165,13 @@ sub up($self)
 		# Generate a strong random password for this installation
 		my $root_password = OpenHVF::Util->generate_password(32);
 		$state->set_root_password($root_password);
-		$output->info("Generated secure root password");
+		$log->info("Generated secure root password");
 
-		$output->info("Installing OpenBSD...");
+		$log->info("Installing OpenBSD...");
 		my $expect = OpenHVF::Expect->new(
 			host => 'localhost',
 			port => $config->{console_port},
 		);
-
-		# Wait a moment for VM to start
-		sleep 5;
 
 		# Use the generated password for installation
 		my $install_config = {
@@ -169,46 +181,43 @@ sub up($self)
 		};
 		my $ok = $expect->run_install($install_config);
 		if ( !$ok ) {
-			$output->error("Installation failed");
+			$log->error("Installation failed");
 			return EXIT_ERROR;
 		}
 
 		$state->mark_installed;
-		$output->info("Installation complete");
+		$log->info("Installation complete");
 
 		# Stop VM via QMP (graceful)
-		$output->info("Stopping installation VM...");
+		$log->info("Stopping installation VM...");
 		$self->_qmp_quit;
-		sleep 2;
+		$self->_wait_exit(5);
 		$state->clear_vm_pid;
 
 		# Restart VM without install media
-		$output->info("Restarting installed system...");
+		$log->info("Restarting installed system...");
 		$pid = $self->_start_qemu;    # No boot image, no exit_on_halt
 		if ( !defined $pid ) {
-			$output->error("Failed to restart VM");
+			$log->error("Failed to restart VM");
 			return EXIT_ERROR;
 		}
-		$output->pid( $config->{name}, $pid );
-
-		# Wait for first boot
-		sleep 10;
+		$log->info("Started $config->{name} (PID: $pid)");
 
 		# Wait for SSH with password auth
-		$output->info("Waiting for SSH...");
+		$log->info("Waiting for SSH...");
 		if ( !$self->_wait_ssh_password( $root_password, 120 ) ) {
-			$output->error("Timeout waiting for SSH");
+			$log->error("Timeout waiting for SSH");
 			return EXIT_TIMEOUT;
 		}
 
 		# Install SSH authorized key for future key-based auth
 		if ( !$self->_install_ssh_key($root_password) ) {
-			$output->error("Failed to install SSH key");
+			$log->error("Failed to install SSH key");
 			return EXIT_ERROR;
 		}
-		$output->info("SSH key installed");
+		$log->info("SSH key installed");
 
-		$output->success("VM ready");
+		$log->info("VM ready");
 		return EXIT_SUCCESS;
 	}
 
@@ -217,54 +226,56 @@ sub up($self)
 
 		# SSH key not installed or changed in config
 		# Use password auth to wait for SSH and install the key
-		return $self->_complete_ssh_setup($output);
+		return $self->_complete_ssh_setup;
 	}
 
 	# Wait for SSH (key-based auth for already installed VMs)
-	$output->info("Waiting for SSH...");
+	$log->info("Waiting for SSH...");
 	if ( !$self->wait_ssh(120) ) {
-		$output->error("Timeout waiting for SSH");
+		$log->error("Timeout waiting for SSH");
 		return EXIT_TIMEOUT;
 	}
 
-	$output->success("VM ready");
+	$log->info("VM ready");
 	return EXIT_SUCCESS;
 }
 
 sub down($self)
 {
 	my $state  = $self->{state};
-	my $output = $self->{output};
+	my $log    = $self->{log};
 	my $config = $self->{config};
 
 	# Stop proxy if running
 	my $cache_dir = $self->_cache_dir;
 	if ( $state->is_proxy_running ) {
 		$state->stop_proxy($cache_dir);
-		$output->info("Proxy stopped");
+		$log->info("Proxy stopped");
 	}
 
 	if ( !$self->_is_running ) {
-		$output->info("VM '$config->{name}' is not running");
+		$log->info("VM '$config->{name}' is not running");
 		return EXIT_SUCCESS;
 	}
 
-	$output->info("Shutting down VM...");
+	$log->info("Shutting down VM...");
 
 	# Try graceful shutdown with filesystem sync
 	if ( $self->_graceful_shutdown ) {
+		$state->mark_clean_shutdown;
 		$state->clear_vm_pid;
-		$output->success("VM stopped");
+		$log->info("VM stopped");
 		return EXIT_SUCCESS;
 	}
 
 	# Emergency force quit - filesystem may be corrupted
-	$output->warn(
+	$log->warning(
 		"Graceful shutdown failed, force stopping (risk of corruption)"
 	);
+	$state->mark_unclean_shutdown;
 	$self->_qmp_quit;
 	$state->clear_vm_pid;
-	$output->success("VM stopped");
+	$log->info("VM stopped");
 
 	return EXIT_SUCCESS;
 }
@@ -272,14 +283,14 @@ sub down($self)
 sub destroy($self)
 {
 	my $state  = $self->{state};
-	my $output = $self->{output};
+	my $log    = $self->{log};
 	my $config = $self->{config};
 
 	# Stop proxy if running
 	my $cache_dir = $self->_cache_dir;
 	if ( $state->is_proxy_running ) {
 		$state->stop_proxy($cache_dir);
-		$output->info("Proxy stopped");
+		$log->info("Proxy stopped");
 	}
 
 	# Stop if running
@@ -290,9 +301,9 @@ sub destroy($self)
 	# Remove disk
 	my $disk_path = $state->disk_path;
 	if ( -f $disk_path ) {
-		$output->info("Removing disk image...");
+		$log->info("Removing disk image...");
 		unlink $disk_path or do {
-			$output->error("Cannot remove $disk_path: $!");
+			$log->error("Cannot remove $disk_path: $!");
 			return EXIT_ERROR;
 		};
 	}
@@ -305,71 +316,74 @@ sub destroy($self)
 	$state->{data} = {};
 	$state->save;
 
-	$output->success("VM '$config->{name}' destroyed");
+	$log->info("VM '$config->{name}' destroyed");
 	return EXIT_SUCCESS;
 }
 
 sub start($self)
 {
 	my $state  = $self->{state};
-	my $output = $self->{output};
+	my $log    = $self->{log};
 	my $config = $self->{config};
 
 	if ( $self->_is_running ) {
-		$output->error("VM '$config->{name}' is already running");
+		$log->error("VM '$config->{name}' is already running");
 		return EXIT_VM_RUNNING;
 	}
 
 	if ( !$state->disk_exists ) {
-		$output->error("No disk image. Run 'openhvf up' first.");
+		$log->error("No disk image. Run 'openhvf up' first.");
 		return EXIT_ERROR;
 	}
 
 	my $pid = $self->_start_qemu;
 	if ( !defined $pid ) {
-		$output->error("Failed to start VM");
+		$log->error("Failed to start VM");
 		return EXIT_ERROR;
 	}
 
-	$output->pid( $config->{name}, $pid );
+	$log->info("Started $config->{name} (PID: $pid)");
 	return EXIT_SUCCESS;
 }
 
 sub stop( $self, $force = 0 )
 {
 	my $state  = $self->{state};
-	my $output = $self->{output};
+	my $log    = $self->{log};
 	my $config = $self->{config};
 
 	if ( !$self->_is_running ) {
-		$output->info("VM '$config->{name}' is not running");
+		$log->info("VM '$config->{name}' is not running");
 		return EXIT_SUCCESS;
 	}
 
 	if ($force) {
-		$output->warn(
+		$log->warning(
 			"Force stopping VM (filesystem may be corrupted)");
+		$state->mark_unclean_shutdown;
 		$self->_qmp_quit;
 		$state->clear_vm_pid;
-		$output->success("VM stopped");
+		$log->info("VM stopped");
 		return EXIT_SUCCESS;
 	}
 
 	# Try graceful shutdown with filesystem sync
-	$output->info("Shutting down VM gracefully...");
+	$log->info("Shutting down VM gracefully...");
 	if ( $self->_graceful_shutdown ) {
+		$state->mark_clean_shutdown;
 		$state->clear_vm_pid;
-		$output->success("VM stopped");
+		$log->info("VM stopped");
 		return EXIT_SUCCESS;
 	}
 
 	# If graceful shutdown times out, force stop
-	$output->warn(
+	$log->warning(
 "Graceful shutdown timed out, force stopping (risk of corruption)"
 	);
+	$state->mark_unclean_shutdown;
 	$self->_qmp_quit;
 	$state->clear_vm_pid;
-	$output->success("VM stopped");
+	$log->info("VM stopped");
 	return EXIT_SUCCESS;
 }
 
@@ -480,40 +494,41 @@ sub _needs_ssh_key_update($self)
 	return $configured_normalized ne $installed_normalized;
 }
 
-# $self->_complete_ssh_setup($output):
+# $self->_complete_ssh_setup():
 #	Install or update the SSH key on the VM.
 #	Uses the stored root password to authenticate.
 #	Called when recovering from a failed first boot or when the
 #	configured SSH key has changed.
-sub _complete_ssh_setup( $self, $output )
+sub _complete_ssh_setup($self)
 {
 	my $state  = $self->{state};
 	my $config = $self->{config};
+	my $log    = $self->{log};
 
 	my $root_password = $state->get_root_password;
 	if ( !defined $root_password ) {
-		$output->error(
+		$log->error(
 			"No root password stored - cannot complete SSH setup");
 		return EXIT_ERROR;
 	}
 
-	$output->info("Updating SSH key...");
+	$log->info("Updating SSH key...");
 
 	# Wait for SSH with password auth
-	$output->info("Waiting for SSH...");
+	$log->info("Waiting for SSH...");
 	if ( !$self->_wait_ssh_password( $root_password, 120 ) ) {
-		$output->error("Timeout waiting for SSH");
+		$log->error("Timeout waiting for SSH");
 		return EXIT_TIMEOUT;
 	}
 
 	# Install SSH authorized key
 	if ( !$self->_install_ssh_key($root_password) ) {
-		$output->error("Failed to install SSH key");
+		$log->error("Failed to install SSH key");
 		return EXIT_ERROR;
 	}
-	$output->info("SSH key installed");
+	$log->info("SSH key installed");
 
-	$output->success("VM ready");
+	$log->info("VM ready");
 	return EXIT_SUCCESS;
 }
 
@@ -524,12 +539,12 @@ sub _install_ssh_key( $self, $password )
 {
 	my $config = $self->{config};
 	my $state  = $self->{state};
-	my $output = $self->{output};
+	my $log    = $self->{log};
 
 	# Get SSH public key from config
 	my $ssh_pubkey = $config->{ssh_pubkey};
 	if ( !defined $ssh_pubkey || $ssh_pubkey eq '' ) {
-		$output->error("No ssh_pubkey configured in ~/.openhvfrc");
+		$log->error("No ssh_pubkey configured in ~/.openhvfrc");
 		return 0;
 	}
 
@@ -573,7 +588,7 @@ sub _install_ssh_key( $self, $password )
 sub _graceful_shutdown($self)
 {
 	my $config = $self->{config};
-	my $output = $self->{output};
+	my $log    = $self->{log};
 
 	# Method 1: SSH sync + ACPI powerdown
 	# First sync filesystems via SSH, then use QMP to send ACPI power button
@@ -592,7 +607,7 @@ sub _graceful_shutdown($self)
 		# Synced successfully, now use ACPI powerdown via QMP
 		if ( $self->_qmp_powerdown ) {
 			if ( $self->_wait_exit(60) ) {
-				$output->info(
+				$log->info(
 					"Shutdown via SSH sync + ACPI powerdown"
 				);
 				return 1;
@@ -612,7 +627,7 @@ sub _graceful_shutdown($self)
 		$qga->disconnect;
 
 		if ( $self->_wait_exit(60) ) {
-			$output->info("Shutdown via QEMU Guest Agent");
+			$log->info("Shutdown via QEMU Guest Agent");
 			return 1;
 		}
 	}
@@ -620,7 +635,7 @@ sub _graceful_shutdown($self)
 	# Method 3: Try direct ACPI powerdown as last resort
 	if ( $self->_qmp_powerdown ) {
 		if ( $self->_wait_exit(30) ) {
-			$output->info("Shutdown via ACPI powerdown");
+			$log->info("Shutdown via ACPI powerdown");
 			return 1;
 		}
 	}
@@ -789,6 +804,7 @@ sub _start_qemu( $self, $boot_image = undef )
 	my $pid = $result->{pid};
 	if ( kill( 0, $pid ) ) {
 		$state->set_vm_pid($pid);
+		$state->mark_running;
 		return $pid;
 	}
 

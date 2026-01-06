@@ -22,9 +22,9 @@ package OpenHVF::CLI;
 use Getopt::Long qw(:config require_order bundling);
 use File::Basename;
 
+use FuguLib::Log;
 use OpenHVF::Config;
 use OpenHVF::State;
-use OpenHVF::Output;
 use OpenHVF::Image;
 use OpenHVF::Disk;
 use OpenHVF::VM;
@@ -57,19 +57,27 @@ my %commands = (
 	'expect'  => \&cmd_expect,
 	'wait'    => \&cmd_wait,
 	'image'   => \&cmd_image,
+	'disk'    => \&cmd_disk,
 	'init'    => \&cmd_init,
 	'help'    => \&cmd_help,
 );
 
 sub new( $class, %opts )
 {
+	my $mode =
+	    $opts{quiet} ? FuguLib::Log::MODE_QUIET : FuguLib::Log::MODE_STDERR;
+	my $log = FuguLib::Log->new(
+		mode  => $mode,
+		level => 'info',
+		ident => 'openhvf',
+	);
+
 	my $self = bless {
 		vm_name => $opts{vm} // 'default',
 		project => $opts{project},
 		quiet   => $opts{quiet} // 0,
+		log     => $log,
 	}, $class;
-
-	$self->{output} = OpenHVF::Output->new( $self->{quiet} );
 
 	return $self;
 }
@@ -108,7 +116,7 @@ sub run( $class, @argv )
 		my $project_root = $opts{project}
 		    // OpenHVF::Config->find_project_root;
 		if ( !defined $project_root ) {
-			$self->{output}->error(
+			$self->{log}->error(
 "Not in an OpenHVF project. Run 'openhvf init' first."
 			);
 			return EXIT_CONFIG_ERROR;
@@ -116,7 +124,7 @@ sub run( $class, @argv )
 
 		# Validate project path exists
 		if ( !-d $project_root ) {
-			$self->{output}->error(
+			$self->{log}->error(
 				"Project path does not exist: $project_root");
 			return EXIT_CONFIG_ERROR;
 		}
@@ -125,7 +133,7 @@ sub run( $class, @argv )
 		    OpenHVF::State->new( $self->{config}->state_dir,
 			$self->{vm_name}, emulate => $opts{emulate} // 0, );
 		if ( !defined $self->{state} ) {
-			$self->{output}->error(
+			$self->{log}->error(
 "Cannot initialize state for VM '$self->{vm_name}'"
 			);
 			return EXIT_ERROR;
@@ -139,14 +147,14 @@ sub _load_vm($self)
 {
 	my $vm_config = $self->{config}->load_vm( $self->{vm_name} );
 	if ( !defined $vm_config ) {
-		$self->{output}->error("VM '$self->{vm_name}' not found");
+		$self->{log}->error("VM '$self->{vm_name}' not found");
 		return;
 	}
 
 	return OpenHVF::VM->new(
 		config => $vm_config,
 		state  => $self->{state},
-		output => $self->{output},
+		log    => $self->{log},
 	);
 }
 
@@ -176,7 +184,13 @@ sub cmd_status( $self, @args )
 {
 	my $vm     = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 	my $status = $vm->status;
-	$self->{output}->data($status);
+
+	# Format and log status data
+	for my $key ( sort keys %$status ) {
+		my $value = $status->{$key} // '';
+		$self->{log}->info("$key: $value");
+	}
+
 	return EXIT_SUCCESS;
 }
 
@@ -228,12 +242,10 @@ sub cmd_console( $self, @args )
 {
 	my $vm   = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 	my $port = $vm->console_port;
-	$self->{output}->info("Connect with: telnet localhost $port");
-	$self->{output}->data( {
-		type => 'telnet',
-		host => 'localhost',
-		port => $port,
-	} );
+	$self->{log}->info("Connect with: telnet localhost $port");
+	$self->{log}->info("type: telnet");
+	$self->{log}->info("host: localhost");
+	$self->{log}->info("port: $port");
 	return EXIT_SUCCESS;
 }
 
@@ -242,8 +254,7 @@ sub cmd_expect( $self, @args )
 {
 	my $script = shift @args;
 	if ( !defined $script ) {
-		$self->{output}
-		    ->error("Usage: openhvf expect <script> [args...]");
+		$self->{log}->error("Usage: openhvf expect <script> [args...]");
 		return EXIT_INVALID_ARGS;
 	}
 
@@ -268,23 +279,23 @@ sub cmd_wait( $self, @args )
 
 	# Validate timeout is a positive integer
 	if ( $timeout !~ /^\d+$/ ) {
-		$self->{output}->error("Invalid timeout value: $timeout");
+		$self->{log}->error("Invalid timeout value: $timeout");
 		return EXIT_INVALID_ARGS;
 	}
 	$timeout = int($timeout);
 	if ( $timeout <= 0 ) {
-		$self->{output}->error("Timeout must be a positive number");
+		$self->{log}->error("Timeout must be a positive number");
 		return EXIT_INVALID_ARGS;
 	}
 
 	my $vm = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 
 	if ( !$vm->wait_ssh($timeout) ) {
-		$self->{output}->error("Timeout waiting for SSH");
+		$self->{log}->error("Timeout waiting for SSH");
 		return EXIT_TIMEOUT;
 	}
 
-	$self->{output}->success("VM ready");
+	$self->{log}->info("VM ready");
 	return EXIT_SUCCESS;
 }
 
@@ -293,7 +304,7 @@ sub cmd_image( $self, @args )
 {
 	my $action = shift @args;
 	if ( !defined $action || $action !~ /^(download|list)$/ ) {
-		$self->{output}->error("Usage: openhvf image <download|list>");
+		$self->{log}->error("Usage: openhvf image <download|list>");
 		return EXIT_INVALID_ARGS;
 	}
 
@@ -303,7 +314,14 @@ sub cmd_image( $self, @args )
 
 	if ( $action eq 'list' ) {
 		my $images = $image->list;
-		$self->{output}->data( { images => $images } );
+		if ( ref $images eq 'ARRAY' && @$images ) {
+			for my $img (@$images) {
+				$self->{log}->info("  - $img");
+			}
+		}
+		else {
+			$self->{log}->info("No cached images");
+		}
 		return EXIT_SUCCESS;
 	}
 
@@ -313,15 +331,84 @@ sub cmd_image( $self, @args )
 	my $path    = $image->path($version);
 
 	if ( defined $path ) {
-		$self->{output}->success("Cached: $path");
+		$self->{log}->info("Cached: $path");
 	}
 	else {
 		my $url = $image->url($version);
-		$self->{output}->info("Image not cached. URL: $url");
-		$self->{output}
-		    ->info("Run 'openhvf up' to download via proxy.");
+		$self->{log}->info("Image not cached. URL: $url");
+		$self->{log}->info("Run 'openhvf up' to download via proxy.");
 	}
 	return EXIT_SUCCESS;
+}
+
+# Disk management
+sub cmd_disk( $self, @args )
+{
+	my $action = shift @args;
+	if ( !defined $action || $action !~ /^(check|repair|info)$/ ) {
+		$self->{log}->error("Usage: openhvf disk <check|repair|info>");
+		return EXIT_INVALID_ARGS;
+	}
+
+	my $disk = OpenHVF::Disk->new( $self->{state}{state_dir} );
+
+	if ( $action eq 'info' ) {
+		my $info = $disk->info( $self->{vm_name} );
+		if ( !defined $info ) {
+			$self->{log}->error("Disk not found");
+			return EXIT_ERROR;
+		}
+
+		# Print info in a readable format
+		for my $key ( sort keys %$info ) {
+			$self->{log}->info("$key: $info->{$key}");
+		}
+		return EXIT_SUCCESS;
+	}
+
+	if ( $action eq 'check' ) {
+		$self->{log}->info("Checking disk image...");
+		my $result = $disk->check( $self->{vm_name} );
+		if ( !defined $result ) {
+			$self->{log}->error("Disk not found");
+			return EXIT_ERROR;
+		}
+
+		if ( $result->{status} eq 'ok' ) {
+			$self->{log}->info("Disk image OK");
+			return EXIT_SUCCESS;
+		}
+
+		$self->{log}->error("Disk image has errors");
+		print $result->{output} if $result->{output};
+		return EXIT_ERROR;
+	}
+
+	if ( $action eq 'repair' ) {
+		$self->{log}->info("Repairing disk image...");
+
+		# Check if VM is running first
+		my $vm = $self->_load_vm;
+		if ( defined $vm && $vm->is_running ) {
+			$self->{log}
+			    ->error("Cannot repair disk while VM is running");
+			return EXIT_ERROR;
+		}
+
+		my $ok = $disk->repair( $self->{vm_name} );
+		if ($ok) {
+
+			# Clear unclean shutdown state after successful repair
+			$self->{state}->clear_shutdown_state;
+			$self->{log}->info("Disk repaired");
+			return EXIT_SUCCESS;
+		}
+
+		$self->{log}->error("Disk repair failed");
+		return EXIT_ERROR;
+	}
+
+	return EXIT_ERROR;
 }
 
 # Initialize project
@@ -332,17 +419,17 @@ sub cmd_init( $self, @args )
 	my $config_file = "$dir/.openhvfrc";
 
 	if ( -f $config_file ) {
-		$self->{output}->info("OpenHVF already initialized in $dir");
+		$self->{log}->info("OpenHVF already initialized in $dir");
 		return EXIT_SUCCESS;
 	}
 
 	# Check if directory is writable
 	if ( !-d $dir ) {
-		$self->{output}->error("Directory does not exist: $dir");
+		$self->{log}->error("Directory does not exist: $dir");
 		return EXIT_ERROR;
 	}
 	if ( !-w $dir ) {
-		$self->{output}->error("Cannot write to directory: $dir");
+		$self->{log}->error("Cannot write to directory: $dir");
 		return EXIT_ERROR;
 	}
 
@@ -354,7 +441,7 @@ sub cmd_init( $self, @args )
 	if ($@) {
 		my $err = $@;
 		$err =~ s/ at \S+ line \d+.*//s;
-		$self->{output}->error("Cannot create directory: $err");
+		$self->{log}->error("Cannot create directory: $err");
 		return EXIT_ERROR;
 	}
 
@@ -386,7 +473,7 @@ state/
 *.log
 EOF
 
-	$self->{output}->success("Initialized OpenHVF in $dir");
+	$self->{log}->info("Initialized OpenHVF in $dir");
 	return EXIT_SUCCESS;
 }
 
@@ -407,6 +494,7 @@ Commands:
   expect <script>     Run expect script against console
   wait [--timeout=N]  Wait for VM to be ready (SSH available)
   image <cmd>         Manage images (download, list)
+  disk <cmd>          Manage disk (check, repair, info)
   init [dir]          Initialize .openhvf/ directory
   help                Show this help
 
