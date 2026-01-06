@@ -46,7 +46,12 @@ sub create( $self, $name, $size, $backing_image = undef )
 
 	push @cmd, $path, $size;
 
-	my $result = system(@cmd);
+# Suppress qemu-img's verbose "Formatting..." output by redirecting to /dev/null
+# We use shell redirection since system() doesn't provide output control
+	my $cmd_str =
+	    join( ' ', map { my $s = $_; $s =~ s/'/'\\''/g; "'$s'" } @cmd );
+	my $result = system("$cmd_str >/dev/null 2>&1");
+
 	if ( $result != 0 ) {
 		warn "Failed to create disk image: $path\n";
 		return;
