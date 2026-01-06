@@ -3,7 +3,7 @@
 # Integration test: HAP pairing workflow
 
 use v5.36;
-use Test::More tests => 14;
+use Test::More tests => 15;
 use FindBin qw($RealBin);
 use lib "$RealBin/../../../lib";
 
@@ -35,6 +35,11 @@ ok($status == 200, 'pair-setup M1 accepted');
 # Test 5: Pair-setup M1 response contains TLV8 data
 my (undef, undef, $body) = OpenHAP::Test::Integration::parse_http_response($response);
 ok(length($body) > 0, 'pair-setup M1 returns data');
+
+# Test 5b: Pair-setup M2 response doesn't contain ASCII '0x' prefix in public key
+# This was a bug where Math::BigInt->as_hex() returned "0x..." which was incorrectly packed
+my $hex = unpack('H*', $body);
+unlike($hex, qr/03..0130783078/, 'M2 public key does not contain ASCII "0x" prefix');
 
 # Test 6: Pair-setup responds with proper Content-Type
 ok($response =~ /Content-Type:\s*application\/pairing\+tlv8/i,

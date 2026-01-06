@@ -310,4 +310,52 @@ SKIP: {
     is(OpenHAP::Pairing->get_failed_attempts(), 0, 'Failed attempts starts at 0');
 }
 
+# Test M2 response doesn't contain '0x' prefix in public key (Bug fix)
+SKIP: {
+    eval {
+        require Crypt::Ed25519;
+    };
+    skip 'Crypt::Ed25519 not available', 3 if $@;
+    
+    my $temp_dir = tempdir(CLEANUP => 1);
+    my $storage = OpenHAP::Storage->new(db_path => $temp_dir);
+    my ($ltsk, $ltpk) = OpenHAP::Crypto::generate_keypair_ed25519();
+    
+    # Reset global state
+    OpenHAP::Pairing->clear_pairing_state();
+    OpenHAP::Pairing->reset_auth_attempts();
+    
+    my $pairing = OpenHAP::Pairing->new(
+        pin => '123-45-678',
+        storage => $storage,
+        accessory_ltsk => $ltsk,
+        accessory_ltpk => $ltpk,
+    );
+    
+    my $session = OpenHAP::Session->new(socket => 'dummy6');
+    
+    require OpenHAP::TLV;
+    my $body = OpenHAP::TLV::encode(
+        OpenHAP::Pairing::kTLVType_State(), pack('C', 1),
+        OpenHAP::Pairing::kTLVType_Method(), pack('C', 0),
+    );
+    
+    my $response = $pairing->handle_pair_setup($body, $session);
+    my %resp = OpenHAP::TLV::decode($response);
+    
+    ok(defined $resp{ OpenHAP::Pairing::kTLVType_PublicKey() }, 'M2 contains PublicKey');
+    
+    my $public_key = $resp{ OpenHAP::Pairing::kTLVType_PublicKey() };
+    my $hex = unpack('H*', $public_key);
+    
+    # Check that the hex doesn't start with '30' which is ASCII '0'
+    # If the bug existed, we'd see '307830...' (0x30='0', 0x78='x')
+    isnt(substr($hex, 0, 4), '3078', 'Public key does not start with ASCII "0x"');
+    
+    # The public key should be 384 bytes (3072 bits)
+    is(length($public_key), 384, 'Public key is 384 bytes (3072 bits)');
+    
+    OpenHAP::Pairing->clear_pairing_state();
+}
+
 done_testing();
