@@ -1,4 +1,4 @@
-# HomeKit Accessory Protocol (HAP) Specification
+# HomeKit Accessory Protocol (HAP) Notes
 
 This document provides a protocol-level reference for implementing a HAP server
 over IP transport. It documents _what_ HAP requires, independent of any
