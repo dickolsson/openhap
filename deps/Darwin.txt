@@ -7,9 +7,9 @@ runtime cpan Net::MQTT::Simple
 
 test cpan Perl::Critic
 test cpan Perl::Tidy
+test cpan Net::SSH2
 
 develop pkg libssh2
 develop pkg qemu
 develop cpan HTTP::Daemon
 develop cpan LWP::UserAgent
-develop cpan Net::SSH2

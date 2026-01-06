@@ -8,8 +8,8 @@ runtime cpan Net::MQTT::Simple
 
 test pkg p5-Perl-Critic
 test pkg p5-Perl-Tidy
+test pkg p5-Net-SSH2
 
-develop pkg p5-Net-SSH2
 develop pkg p5-HTTP-Daemon
 develop pkg p5-libwww
 develop pkg libssh2
