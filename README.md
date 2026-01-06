@@ -16,8 +16,7 @@ control via the iOS Home app.
 ## Quick Start
 
 ```sh
-pkg_add p5-Crypt-Ed25519 p5-Crypt-Curve25519 p5-CryptX \
-        p5-JSON-XS p5-Math-BigInt-GMP mosquitto openmdns
+make deps
 make install
 cp /etc/examples/openhapd.conf /etc/openhapd.conf
 vi /etc/openhapd.conf
@@ -36,10 +35,10 @@ See [INSTALL.md](INSTALL.md) for complete installation instructions.
 ## Development
 
 ```sh
-make dev       # Install development dependencies
-make test      # Run test suite
-make lint      # Check code style
-make man       # Build man pages
+make deps-develop  # Install all dependencies
+make test          # Run test suite
+make lint          # Check code style
+make man           # Build man pages
 ```
 
 See [.github/copilot-instructions.md](.github/copilot-instructions.md) for

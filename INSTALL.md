@@ -9,40 +9,14 @@ options, see `openhapd(8)` and `hapctl(8)`.
 - OpenBSD 7.4+
 - Perl 5.36+ (base system)
 
-## Dependencies
-
-```sh
-pkg_add p5-Crypt-Ed25519 \
-        p5-Crypt-Curve25519 \
-        p5-CryptX \
-        p5-JSON-XS \
-        p5-Math-BigInt-GMP \
-        mosquitto \
-        openmdns
-
-# Install Net::MQTT::Simple from CPAN (no OpenBSD package available)
-perl -MCPAN -e 'CPAN::Shell->notest(install => "Net::MQTT::Simple")'
-```
-
 ## Install
 
 ```sh
 git clone https://github.com/dickolsson/openhap.git
 cd openhap
+make deps
 doas make install
 ```
-
-This installs:
-
-- `/usr/local/bin/openhapd` - HAP daemon
-- `/usr/local/bin/hapctl` - Control utility
-- `/usr/local/libdata/perl5/site_perl/OpenHAP/` - Perl modules
-- `/usr/local/man/man5/openhapd.conf.5` - Configuration man page
-- `/usr/local/man/man8/openhapd.8` - Daemon man page
-- `/usr/local/man/man8/hapctl.8` - Control utility man page
-- `/etc/rc.d/openhapd` - rc.d script
-- `/etc/examples/openhapd.conf` - Example configuration
-- `/var/db/openhapd/` - Data directory
 
 ## Setup
 
