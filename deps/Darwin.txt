@@ -1,3 +1,15 @@
-runtime mosquitto
-develop libssh2
-develop qemu
+runtime pkg mosquitto
+runtime cpan JSON::XS
+runtime cpan Crypt::Ed25519
+runtime cpan Crypt::Curve25519
+runtime cpan CryptX
+runtime cpan Net::MQTT::Simple
+
+test cpan Perl::Critic
+test cpan Perl::Tidy
+
+develop pkg libssh2
+develop pkg qemu
+develop cpan HTTP::Daemon
+develop cpan LWP::UserAgent
+develop cpan Net::SSH2

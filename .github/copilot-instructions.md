@@ -234,19 +234,31 @@ sub _transform($self, $data) { ...; return $transformed; }
 
 **Dependencies:** Perl modules in `cpanfile`, OS packages in `deps/[OS].txt`.
 
-Perl dependencies (cpanfile):
+Unified dependency format in `deps/*.txt`:
 
-- Core runtime: `Crypt::Ed25519`, `Crypt::Curve25519`, `CryptX`,
-  `Math::BigInt::GMP`, `JSON::XS`, `Net::MQTT::Simple`
-- Test dependencies (on 'test'): `Perl::Critic`, `Perl::Tidy`
-- Develop dependencies (on 'develop'): `HTTP::Daemon`, `LWP::UserAgent`,
-  `Net::SSH2` (for OpenHVF)
+```
+<environment> <type> <package-name>
+```
+
+- `environment`: `runtime`, `test`, `develop`
+- `type`: `pkg` (OS package) or `cpan` (CPAN module)
+- `package-name`: Name in the respective package system
+
+Examples:
+```
+runtime pkg mosquitto
+runtime pkg p5-JSON-XS
+runtime cpan Net::MQTT::Simple
+test pkg p5-Perl-Critic
+develop pkg p5-Net-SSH2
+```
 
 OS dependencies (deps/):
 
-- Format: `environment package` (e.g., `runtime mosquitto`, `develop libssh2`)
+- Format: `environment type package`
 - Files: `OpenBSD.txt`, `Darwin.txt`, `Linux.txt` (matches `uname` output)
 - Environments: `runtime`, `test`, `develop`
+- Types: `pkg` (OS package preferred), `cpan` (CPAN fallback)
 
 Makefile targets:
 
@@ -254,8 +266,12 @@ Makefile targets:
 - `make deps-test` — Install runtime + test dependencies
 - `make deps-develop` — Install all dependencies (runtime + test + develop)
 
-Cross-platform package management via `scripts/pkg_add.sh`
-(pkg_add/apt-get/brew) and `scripts/ftp.sh` (ftp/wget/curl).
+Cross-platform dependency management via `scripts/deps.sh` (handles both OS
+packages and CPAN modules) and `scripts/ftp.sh` (ftp/wget/curl).
+
+The `cpanfile` is maintained for development convenience and `carton`
+compatibility, but production deployments should use `deps/*.txt` with
+`make deps`.
 
 Use `require` for conditional module loading. Minimize dependencies.
 

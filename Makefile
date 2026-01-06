@@ -27,7 +27,7 @@ PERLTIDY		= perl -MPerl::Tidy -e 'Perl::Tidy::perltidy()'
 # OS detection
 UNAME			!= uname
 FTP				= scripts/ftp.sh
-PKG_ADD			= scripts/pkg_add.sh
+DEPS			= scripts/deps.sh
 
 # Man pages
 MAN5			= man/openhap/openhapd.conf.5
@@ -49,16 +49,13 @@ clean-man:
 	rm -f $(CATMAN5) $(CATMAN8)
 
 deps:
-	awk '$$1=="runtime"{print$$2}' deps/$(UNAME).txt | xargs -r $(PKG_ADD)
-	cpanm --notest --installdeps .
+	$(DEPS) runtime
 
 deps-develop: deps deps-test
-	awk '$$1=="develop"{print$$2}' deps/$(UNAME).txt | xargs -r $(PKG_ADD)
-	cpanm --notest --installdeps . --with-develop
+	$(DEPS) develop
 
 deps-test: deps
-	awk '$$1=="test"{print$$2}' deps/$(UNAME).txt | xargs -r $(PKG_ADD)
-	cpanm --notest --installdeps . --with-test
+	$(DEPS) test
 
 install: install-man
 	# Install binaries
@@ -138,7 +135,7 @@ package: clean
 	# Man pages
 	cp $(MAN5) $(MAN8) build/$(PACKAGE)/man/openhap/
 	# Scripts for dependency management
-	cp scripts/ftp.sh scripts/pkg_add.sh build/$(PACKAGE)/scripts/
+	cp scripts/ftp.sh scripts/deps.sh build/$(PACKAGE)/scripts/
 	chmod +x build/$(PACKAGE)/scripts/*.sh
 	# Dependency files
 	cp deps/*.txt build/$(PACKAGE)/deps/
