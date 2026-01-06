@@ -95,19 +95,34 @@ sub up($self)
 		$state->clear_shutdown_state;
 	}
 
-	# Ensure image is downloaded
+	# Start caching proxy for VM installation (packages downloaded by VM)
+	# Note: The proxy is HTTP-only and meant for VM-side downloads.
+	# Host-side downloads (miniroot image) use HTTPS directly without proxy.
+	my $cache_dir = $self->_cache_dir;
+	my $proxy     = $state->ensure_proxy($cache_dir);
+	my $proxy_vm_url;    # For VM-side downloads (inside OpenBSD)
+
+	if ( defined $proxy ) {
+		$proxy_vm_url = $proxy->guest_url;
+		$output->info("Proxy started: $proxy_vm_url");
+	}
+	else {
+		$output->info(
+			"Proxy not available, VM downloads will not be cached");
+	}
+
+	# Check if image is cached (downloaded by previous proxy-enabled run)
 	$output->info("Checking OpenBSD image...");
-	my $cache_dir  = $self->_cache_dir;
 	my $image      = OpenHVF::Image->new($cache_dir);
 	my $image_path = $image->path( $config->{version} );
 
 	if ( !defined $image_path ) {
-		$output->info("Downloading OpenBSD $config->{version}...");
-		$image_path = $image->download( $config->{version} );
-		if ( !defined $image_path ) {
-			$output->error("Failed to download image");
-			return EXIT_ERROR;
-		}
+		my $url = $image->url( $config->{version} );
+		$output->error(
+			"Image not cached for OpenBSD $config->{version}");
+		$output->error("Download manually and place in proxy cache:");
+		$output->error("  curl -fLO $url");
+		return EXIT_ERROR;
 	}
 	else {
 		$output->info("Using cached image: $image_path");
@@ -143,22 +158,9 @@ sub up($self)
 	# Install if needed
 	if ( !$state->is_installed ) {
 
-		# Start caching proxy for installation
-		require OpenHVF::Proxy;
-		my $proxy      = OpenHVF::Proxy->new( $state, $cache_dir );
-		my $proxy_port = $proxy->start;
-		my $proxy_url;
-
-		if ( defined $proxy_port ) {
-			$proxy_url = $proxy->url;
-			$output->info("Proxy started: $proxy_url");
-		}
-		else {
-			$proxy_url = 'none';
-			$output->info(
-"Proxy not available, downloads will not be cached"
-			);
-		}
+      # Proxy is already running (started above for image download)
+      # Use VM-accessible URL for installation (VM connects to host via gateway)
+		my $install_proxy_url = $proxy_vm_url // 'none';
 
 		# Generate a strong random password for this installation
 		my $root_password = OpenHVF::Util->generate_password(32);
@@ -178,23 +180,16 @@ sub up($self)
 		my $install_config = {
 			%$config,
 			root_password => $root_password,
-			proxy_url     => $proxy_url,
+			proxy_url     => $install_proxy_url,
 		};
 		my $ok = $expect->run_install($install_config);
 		if ( !$ok ) {
 			$output->error("Installation failed");
-			$proxy->stop if defined $proxy_port;
 			return EXIT_ERROR;
 		}
 
 		$state->mark_installed;
 		$output->info("Installation complete");
-
-		# Stop proxy after installation
-		if ( defined $proxy_port ) {
-			$proxy->stop;
-			$output->info("Proxy stopped");
-		}
 
 		# Stop VM via QMP (graceful)
 		$output->info("Stopping installation VM...");
@@ -258,10 +253,9 @@ sub down($self)
 	my $config = $self->{config};
 
 	# Stop proxy if running
-	require OpenHVF::Proxy;
-	my $proxy = OpenHVF::Proxy->new( $state, $self->_cache_dir );
-	if ( $proxy->is_running ) {
-		$proxy->stop;
+	my $cache_dir = $self->_cache_dir;
+	if ( $state->is_proxy_running ) {
+		$state->stop_proxy($cache_dir);
 		$output->info("Proxy stopped");
 	}
 
@@ -299,10 +293,9 @@ sub destroy($self)
 	my $config = $self->{config};
 
 	# Stop proxy if running
-	require OpenHVF::Proxy;
-	my $proxy = OpenHVF::Proxy->new( $state, $self->_cache_dir );
-	if ( $proxy->is_running ) {
-		$proxy->stop;
+	my $cache_dir = $self->_cache_dir;
+	if ( $state->is_proxy_running ) {
+		$state->stop_proxy($cache_dir);
 		$output->info("Proxy stopped");
 	}
 
@@ -790,7 +783,7 @@ sub _start_qemu( $self, $boot_image = undef )
 
 	# Spawn QEMU using FuguLib::Process
 	my $log_file = "$state->{vm_state_dir}/qemu.log";
-	my $result   = FuguLib::Process->spawn(
+	my $result   = FuguLib::Process->spawn_command(
 		cmd         => \@cmd,
 		daemonize   => 1,
 		stdout      => $log_file,

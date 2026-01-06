@@ -340,7 +340,8 @@ sub cmd_image( $self, @args )
 	}
 
 	my $cache_dir = $self->{config}->cache_dir;
-	my $image     = OpenHVF::Image->new($cache_dir);
+
+	my $image = OpenHVF::Image->new($cache_dir);
 
 	if ( $action eq 'list' ) {
 		my $images = $image->list;
@@ -348,15 +349,20 @@ sub cmd_image( $self, @args )
 		return EXIT_SUCCESS;
 	}
 
+	# 'download' action - show URL for manual download
+	# Images are cached by the proxy when VM boots
 	my $version = shift @args // '7.8';
+	my $path    = $image->path($version);
 
-	$self->{output}->info("Downloading OpenBSD $version...");
-	my $path = $image->download($version);
-	if ( !defined $path ) {
-		$self->{output}->error("Download failed");
-		return EXIT_DOWNLOAD_FAILED;
+	if ( defined $path ) {
+		$self->{output}->success("Cached: $path");
 	}
-	$self->{output}->success("Downloaded: $path");
+	else {
+		my $url = $image->url($version);
+		$self->{output}->info("Image not cached. URL: $url");
+		$self->{output}
+		    ->info("Run 'openhvf up' to download via proxy.");
+	}
 	return EXIT_SUCCESS;
 }
 
