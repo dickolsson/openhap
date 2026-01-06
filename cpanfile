@@ -2,7 +2,6 @@
 requires 'Crypt::Ed25519';
 requires 'Crypt::Curve25519';
 requires 'CryptX';
-requires 'Math::BigInt::GMP';
 
 # JSON parsing
 requires 'JSON::XS';

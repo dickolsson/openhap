@@ -1,7 +1,7 @@
 use v5.36;
 
 package OpenHAP::SRP;
-use Math::BigInt lib => 'GMP';
+use Math::BigInt;
 use Digest::SHA qw(sha512);
 use OpenHAP::Crypto;
 use OpenHAP::PIN qw(normalize_pin);
