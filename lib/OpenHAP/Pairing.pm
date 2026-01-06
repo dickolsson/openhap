@@ -4,7 +4,7 @@ package OpenHAP::Pairing;
 use OpenHAP::TLV;
 use OpenHAP::SRP;
 use OpenHAP::Crypto;
-use OpenHAP::Log qw(:all);
+
 use OpenHAP::PIN qw(normalize_pin);
 use Digest::SHA  qw(sha512);
 
@@ -102,7 +102,8 @@ sub handle_pair_setup( $self, $body, $session )
 	my %request = OpenHAP::TLV::decode($body);
 	my $state   = unpack( 'C', $request{ kTLVType_State() } );
 	my $method  = unpack( 'C', $request{ kTLVType_Method() } // "\x00" );
-	log_debug( 'Pair-setup M%d received (method=%d)', $state, $method );
+	$OpenHAP::logger->debug( 'Pair-setup M%d received (method=%d)',
+		$state, $method );
 
 	# Validate method (0x00 = PairSetup, 0x01 = PairSetupWithAuth)
 	if ( $method != 0 && $method != 1 ) {
@@ -126,7 +127,8 @@ sub _pair_setup_m1_m2( $self, $session, $method = 0 )
 {
 	# Check if max authentication attempts exceeded (HAP-Pairing.md §8)
 	if ( $failed_auth_attempts >= MAX_AUTH_ATTEMPTS ) {
-		log_warning('Pair-setup rejected: max attempts exceeded');
+		$OpenHAP::logger->warning(
+			'Pair-setup rejected: max attempts exceeded');
 		return $self->_error_response( kTLVError_MaxTries, 2 );
 	}
 
@@ -135,7 +137,8 @@ sub _pair_setup_m1_m2( $self, $session, $method = 0 )
 	if ( $method == 0 ) {
 		my $pairings = $self->{storage}->load_pairings();
 		if ( keys %$pairings > 0 ) {
-			log_debug('Pair-setup rejected: already paired');
+			$OpenHAP::logger->debug(
+				'Pair-setup rejected: already paired');
 			return $self->_error_response( kTLVError_Unavailable,
 				2 );
 		}
@@ -143,7 +146,8 @@ sub _pair_setup_m1_m2( $self, $session, $method = 0 )
 
 	# Check for concurrent pairing attempt (HAP-Pairing.md §2.4)
 	if ( $pairing_in_progress && $pairing_session_id != $session ) {
-		log_debug('Pair-setup rejected: another pairing in progress');
+		$OpenHAP::logger->debug(
+			'Pair-setup rejected: another pairing in progress');
 		return $self->_error_response( kTLVError_Busy, 2 );
 	}
 
@@ -183,7 +187,8 @@ sub _pair_setup_m3_m4( $self, $request, $session )
 	my $K = $srp->compute_session_key($A);
 	unless ( defined $K ) {
 		$failed_auth_attempts++;
-		log_warning('Pair-setup M3 rejected: invalid public key A');
+		$OpenHAP::logger->warning(
+			'Pair-setup M3 rejected: invalid public key A');
 		if ( $failed_auth_attempts >= MAX_AUTH_ATTEMPTS ) {
 			return $self->_error_response( kTLVError_MaxTries, 4 );
 		}
@@ -192,7 +197,7 @@ sub _pair_setup_m3_m4( $self, $request, $session )
 
 	unless ( $srp->verify_client_proof($M1) ) {
 		$failed_auth_attempts++;
-		log_warning(
+		$OpenHAP::logger->warning(
 'Pair-setup M3 proof verification failed (attempt %d/%d)',
 			$failed_auth_attempts, MAX_AUTH_ATTEMPTS
 		);
@@ -204,7 +209,7 @@ sub _pair_setup_m3_m4( $self, $request, $session )
 
 	# Generate server proof
 	my $M2 = $srp->generate_server_proof();
-	log_debug('Pair-setup M3 verified, sending M4');
+	$OpenHAP::logger->debug('Pair-setup M3 verified, sending M4');
 
 	# M4: Send proof
 	my $response = OpenHAP::TLV::encode( kTLVType_State, pack( 'C', 4 ),
@@ -263,7 +268,7 @@ sub _pair_setup_m5_m6( $self, $request, $session )
 	# Save pairing
 	$self->{storage}
 	    ->save_pairing( $ios_device_pairing_id, $ios_device_ltpk, 1 );
-	log_debug( 'Pair-setup M5 verified, pairing saved for %s',
+	$OpenHAP::logger->debug( 'Pair-setup M5 verified, pairing saved for %s',
 		$ios_device_pairing_id );
 
 	# Pairing successful - reset attempt counter and clear pairing lock
@@ -312,7 +317,7 @@ sub handle_pair_verify( $self, $body, $session )
 
 	my %request = OpenHAP::TLV::decode($body);
 	my $state   = unpack( 'C', $request{ kTLVType_State() } );
-	log_debug( 'Pair-verify M%d received', $state );
+	$OpenHAP::logger->debug( 'Pair-verify M%d received', $state );
 
 	if ( $state == 1 ) {
 		return $self->_pair_verify_m1_m2( \%request, $session );
@@ -328,7 +333,7 @@ sub _pair_verify_m1_m2( $self, $request, $session )
 {
 
 	my $ios_public_key = $request->{ kTLVType_PublicKey() };
-	log_debug('Pair-verify M1: generating ephemeral keypair');
+	$OpenHAP::logger->debug('Pair-verify M1: generating ephemeral keypair');
 
 	# Generate accessory ephemeral keypair
 	my ( $accessory_secret, $accessory_public ) =
@@ -437,7 +442,8 @@ sub _pair_verify_m3_m4( $self, $request, $session )
 	# Set up encrypted session
 	$session->set_encryption( $encrypt_key, $decrypt_key );
 	$session->set_verified($ios_pairing_id);
-	log_debug('Pair-verify M3 verified successfully, session encrypted');
+	$OpenHAP::logger->debug(
+		'Pair-verify M3 verified successfully, session encrypted');
 
 	# M4: Success
 	my $response = OpenHAP::TLV::encode( kTLVType_State, pack( 'C', 4 ), );

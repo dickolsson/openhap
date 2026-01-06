@@ -1,8 +1,7 @@
 use v5.36;
 
 package OpenHAP::Storage;
-use Carp         qw(croak);
-use OpenHAP::Log qw(:all);
+use Carp qw(croak);
 
 use File::Path qw(make_path);
 use Fcntl      qw(:flock);
@@ -30,19 +29,19 @@ sub load_accessory_keys($self)
 	if (       -f $self->{accessory_ltsk_file}
 		&& -f $self->{accessory_ltpk_file} )
 	{
-		log_debug('Loading accessory keys from storage');
+		$OpenHAP::logger->debug('Loading accessory keys from storage');
 		my $ltsk = $self->_read_file( $self->{accessory_ltsk_file} );
 		my $ltpk = $self->_read_file( $self->{accessory_ltpk_file} );
 		return ( $ltsk, $ltpk );
 	}
 
-	log_debug('No existing accessory keys found');
+	$OpenHAP::logger->debug('No existing accessory keys found');
 	return ();
 }
 
 sub save_accessory_keys( $self, $ltsk, $ltpk )
 {
-	log_debug('Generating and saving new accessory keys');
+	$OpenHAP::logger->debug('Generating and saving new accessory keys');
 	$self->_write_file( $self->{accessory_ltsk_file}, $ltsk, 0600 );
 	$self->_write_file( $self->{accessory_ltpk_file}, $ltpk, 0644 );
 
@@ -53,15 +52,15 @@ sub load_pairings($self)
 {
 	return {} unless -f $self->{pairings_file};
 
-	log_debug('Loading pairings from storage');
+	$OpenHAP::logger->debug('Loading pairings from storage');
 	my %pairings;
 	open my $fh, '<', $self->{pairings_file} or do {
-		log_err( 'Cannot open pairings file %s: %s',
+		$OpenHAP::logger->error( 'Cannot open pairings file %s: %s',
 			$self->{pairings_file}, $! );
 		die "Cannot open pairings file: $!";
 	};
 	flock( $fh, LOCK_SH ) or do {
-		log_err( 'Cannot lock pairings file %s: %s',
+		$OpenHAP::logger->error( 'Cannot lock pairings file %s: %s',
 			$self->{pairings_file}, $! );
 		die "Cannot lock pairings file: $!";
 	};
@@ -88,7 +87,8 @@ sub load_pairings($self)
 
 sub save_pairing( $self, $controller_id, $ltpk, $permissions = 1 )
 {
-	log_debug( 'Saving pairing for controller: %s', $controller_id );
+	$OpenHAP::logger->debug( 'Saving pairing for controller: %s',
+		$controller_id );
 	my $pairings = $self->load_pairings;
 	$pairings->{$controller_id} = {
 		ltpk        => $ltpk,
@@ -103,7 +103,8 @@ sub save_pairing( $self, $controller_id, $ltpk, $permissions = 1 )
 
 sub remove_pairing( $self, $controller_id )
 {
-	log_debug( 'Removing pairing for controller: %s', $controller_id );
+	$OpenHAP::logger->debug( 'Removing pairing for controller: %s',
+		$controller_id );
 	my $pairings = $self->load_pairings;
 	delete $pairings->{$controller_id};
 
@@ -117,7 +118,7 @@ sub remove_pairing( $self, $controller_id )
 # Called when last admin pairing is removed (HAP-Pairing.md §7.2)
 sub remove_all_pairings($self)
 {
-	log_debug('Removing all pairings');
+	$OpenHAP::logger->debug('Removing all pairings');
 	$self->_save_pairings( {} );
 	$self->increment_config_number();
 
@@ -129,13 +130,14 @@ sub _save_pairings( $self, $pairings )
 	my $old_umask = umask(0077);
 	open my $fh, '>', $self->{pairings_file} or do {
 		umask($old_umask);
-		log_err( 'Cannot open pairings file %s for writing: %s',
+		$OpenHAP::logger->error(
+			'Cannot open pairings file %s for writing: %s',
 			$self->{pairings_file}, $! );
 		croak "Cannot open pairings file: $!";
 	};
 	umask($old_umask);
 	flock( $fh, LOCK_EX ) or do {
-		log_err( 'Cannot lock pairings file %s: %s',
+		$OpenHAP::logger->error( 'Cannot lock pairings file %s: %s',
 			$self->{pairings_file}, $! );
 		croak "Cannot lock pairings file: $!";
 	};

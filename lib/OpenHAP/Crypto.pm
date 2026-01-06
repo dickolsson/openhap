@@ -1,7 +1,6 @@
 use v5.36;
 
 package OpenHAP::Crypto;
-use OpenHAP::Log qw(:all);
 
 use Crypt::Curve25519 ();
 use Crypt::Ed25519    ();
@@ -34,13 +33,14 @@ sub generate_random_bytes($length)
 {
 	# Use /dev/urandom for random bytes
 	open my $fh, '<', '/dev/urandom' or do {
-		log_err( 'Cannot open /dev/urandom: %s', $! );
+		$OpenHAP::logger->error( 'Cannot open /dev/urandom: %s', $! );
 		die "Cannot open /dev/urandom: $!";
 	};
 	my $n = read $fh, ( my $bytes ), $length;
 	close $fh;
 	if ( !defined $n || $n != $length ) {
-		log_err( 'Short read from /dev/urandom: got %d, expected %d',
+		$OpenHAP::logger->error(
+			'Short read from /dev/urandom: got %d, expected %d',
 			$n // 0, $length );
 		die "Short read from /dev/urandom: got $n, expected $length";
 	}
@@ -50,7 +50,7 @@ sub generate_random_bytes($length)
 
 sub generate_keypair_ed25519()
 {
-	log_debug('Generating new Ed25519 keypair');
+	$OpenHAP::logger->debug('Generating new Ed25519 keypair');
 	my ( $public_key, $secret_key ) = Crypt::Ed25519::generate_keypair();
 	return ( $secret_key, $public_key );
 }

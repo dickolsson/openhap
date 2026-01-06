@@ -19,7 +19,6 @@ use v5.36;
 
 package OpenHAP::DeviceLoader;
 
-use OpenHAP::Log qw(:all);
 use OpenHAP::Tasmota::Thermostat;
 use OpenHAP::Tasmota::Heater;
 use OpenHAP::Tasmota::Sensor;
@@ -41,7 +40,8 @@ sub new($class)
 sub load_devices( $self, $config, $hap, $mqtt )
 {
 	my @devices = $config->get_devices();
-	log_debug( 'Loading %d device(s) from configuration', scalar @devices );
+	$OpenHAP::logger->debug( 'Loading %d device(s) from configuration',
+		scalar @devices );
 
 	my $loaded_count   = 0;
 	my $mqtt_connected = $mqtt->is_connected();
@@ -55,13 +55,13 @@ sub load_devices( $self, $config, $hap, $mqtt )
 		push @{ $self->{devices} }, $accessory;
 		$loaded_count++;
 
-		log_info(
+		$OpenHAP::logger->info(
 			'Added %s: %s (AID=%d)',
 			$self->_device_type_name($device),
 			$device->{name}, $accessory->{aid} );
 	}
 
-	log_info( 'Loaded %d device(s), %d skipped',
+	$OpenHAP::logger->info( 'Loaded %d device(s), %d skipped',
 		$loaded_count, scalar(@devices) - $loaded_count );
 
 	return $loaded_count;
@@ -82,12 +82,14 @@ sub _create_device( $self, $device, $mqtt, $mqtt_connected )
 	my $dev_type    = $device->{type}    // 'unknown';
 	my $dev_subtype = $device->{subtype} // 'unknown';
 
-	log_debug( 'Processing device: type=%s, subtype=%s, name=%s',
+	$OpenHAP::logger->debug(
+		'Processing device: type=%s, subtype=%s, name=%s',
 		$dev_type, $dev_subtype, $device->{name} // '<unnamed>' );
 
 	# Validate device type
 	unless ( $self->_is_supported_device( $dev_type, $dev_subtype ) ) {
-		log_debug( 'Skipping unsupported device type: %s/%s',
+		$OpenHAP::logger->debug(
+			'Skipping unsupported device type: %s/%s',
 			$dev_type, $dev_subtype );
 		return;
 	}
@@ -103,7 +105,7 @@ sub _create_device( $self, $device, $mqtt, $mqtt_connected )
 			$dev_subtype );
 	};
 	if ($@) {
-		log_err(
+		$OpenHAP::logger->error(
 			'Failed to create %s "%s": %s',
 			$self->_device_type_name($device),
 			$device->{name}, $@
@@ -116,7 +118,7 @@ sub _create_device( $self, $device, $mqtt, $mqtt_connected )
 		$self->_subscribe_mqtt( $accessory, $device );
 	}
 	else {
-		log_debug(
+		$OpenHAP::logger->debug(
 			'MQTT not connected, deferring subscription for "%s"',
 			$device->{name} );
 	}
@@ -144,18 +146,19 @@ sub _is_supported_device( $self, $type, $subtype )
 sub _validate_device( $self, $device )
 {
 	unless ( defined $device->{name} && $device->{name} ne '' ) {
-		log_err('Device missing required field: name');
+		$OpenHAP::logger->error('Device missing required field: name');
 		return;
 	}
 
 	unless ( defined $device->{topic} && $device->{topic} ne '' ) {
-		log_err( 'Device "%s" missing required field: topic',
+		$OpenHAP::logger->error(
+			'Device "%s" missing required field: topic',
 			$device->{name} );
 		return;
 	}
 
 	unless ( defined $device->{id} && $device->{id} ne '' ) {
-		log_warning(
+		$OpenHAP::logger->warning(
 			'Device "%s" missing id field, using topic as serial',
 			$device->{name} );
 		$device->{id} = $device->{topic};
@@ -229,11 +232,13 @@ sub _subscribe_mqtt( $self, $accessory, $device )
 {
 	eval { $accessory->subscribe_mqtt(); };
 	if ($@) {
-		log_err( 'Failed to subscribe MQTT for "%s": %s',
+		$OpenHAP::logger->error(
+			'Failed to subscribe MQTT for "%s": %s',
 			$device->{name}, $@ );
 	}
 	else {
-		log_info( 'Subscribed to MQTT topic: %s', $device->{topic} );
+		$OpenHAP::logger->info( 'Subscribed to MQTT topic: %s',
+			$device->{topic} );
 	}
 }
 

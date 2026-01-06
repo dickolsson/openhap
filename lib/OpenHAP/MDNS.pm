@@ -19,7 +19,6 @@ use v5.36;
 
 package OpenHAP::MDNS;
 
-use OpenHAP::Log qw(:all);
 use FuguLib::Process;
 
 # OpenHAP::MDNS - mDNS service registration wrapper for mdnsctl(8)
@@ -68,7 +67,7 @@ sub register_service($self)
 	return if $self->{registered};
 
 	if ( !defined $self->{mdnsctl} ) {
-		log_warning(
+		$OpenHAP::logger->warning(
 'mdnsctl not found - mDNS service registration unavailable'
 		);
 		return;
@@ -93,7 +92,8 @@ sub register_service($self)
 		$self->{service_name}, 'hap', 'tcp', $self->{port}, $txt_string,
 	);
 
-	log_debug( 'Registering mDNS service: %s', join( ' ', @cmd ) );
+	$OpenHAP::logger->debug( 'Registering mDNS service: %s',
+		join( ' ', @cmd ) );
 
 	# mdnsctl publish outputs status messages to stdout and stays running
 	# It exits immediately if stdout is /dev/null, so redirect to a log file
@@ -106,12 +106,13 @@ sub register_service($self)
 		stdout      => $mdns_log,
 		stderr      => $mdns_log,
 		on_success  => sub($pid) {
-			log_info(
+			$OpenHAP::logger->info(
 'Registered mDNS service: %s._hap._tcp port %d (PID: %d)',
 				$self->{service_name}, $self->{port}, $pid );
 		},
 		on_error => sub($err) {
-			log_warning( 'mDNS registration failed: %s', $err );
+			$OpenHAP::logger->warning(
+				'mDNS registration failed: %s', $err );
 		},
 	);
 
@@ -137,13 +138,14 @@ sub unregister_service($self)
 		my $killed = FuguLib::Process->terminate(
 			$self->{pid},
 			on_kill => sub() {
-				log_info(
+				$OpenHAP::logger->info(
 'Killed mdnsctl process (PID: %d) for service: %s._hap._tcp',
 					$self->{pid}, $self->{service_name} );
 			} );
 
 		if ( !$killed ) {
-			log_warning( 'Failed to kill mdnsctl process (PID: %d)',
+			$OpenHAP::logger->warning(
+				'Failed to kill mdnsctl process (PID: %d)',
 				$self->{pid} );
 		}
 

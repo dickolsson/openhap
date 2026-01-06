@@ -3,7 +3,6 @@ use v5.36;
 package OpenHAP::Characteristic;
 
 use JSON::XS;
-use OpenHAP::Log qw(:all);
 
 # HAP Base UUID suffix for Apple-defined characteristics
 use constant HAP_BASE_UUID => '-0000-1000-8000-0026BB765291';
@@ -117,7 +116,7 @@ sub get_value($self)
 
 sub set_value( $self, $value )
 {
-	log_debug( 'Setting characteristic IID=%d to value: %s',
+	$OpenHAP::logger->debug( 'Setting characteristic IID=%d to value: %s',
 		$self->{iid}, defined $value ? $value : 'undef' );
 
 	# If there's a custom setter, use it
@@ -136,7 +135,7 @@ sub set_value( $self, $value )
 
 sub enable_events( $self, $enabled )
 {
-	log_debug(
+	$OpenHAP::logger->debug(
 		'Events %s for characteristic IID=%d',
 		$enabled ? 'enabled' : 'disabled',
 		$self->{iid} );

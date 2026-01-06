@@ -5,7 +5,7 @@ require OpenHAP::Tasmota::Base;
 our @ISA = qw(OpenHAP::Tasmota::Base);
 use OpenHAP::Service;
 use OpenHAP::Characteristic;
-use OpenHAP::Log qw(:all);
+
 use JSON::XS;
 
 # Supported sensor types for thermostat
@@ -110,7 +110,8 @@ sub subscribe_mqtt($self)
 
 	return unless $self->{mqtt_client}->is_connected();
 
-	log_debug( 'Thermostat %s subscribing to additional MQTT topics',
+	$OpenHAP::logger->debug(
+		'Thermostat %s subscribing to additional MQTT topics',
 		$self->{name} );
 
 	# M2: Subscribe to plain-text POWER response (SetOption4 support)
@@ -120,7 +121,8 @@ sub subscribe_mqtt($self)
 			my $new_state = ( $payload eq 'ON' ) ? 1 : 0;
 			if ( $self->{heating_state} != $new_state ) {
 				$self->{heating_state} = $new_state;
-				log_debug( 'Thermostat %s heating state: %s',
+				$OpenHAP::logger->debug(
+					'Thermostat %s heating state: %s',
 					$self->{name}, $payload );
 				$self->notify_change(11);
 			}
@@ -155,7 +157,7 @@ sub _on_power_update( $self, $state )
 {
 	if ( $self->{heating_state} != $state ) {
 		$self->{heating_state} = $state;
-		log_debug( 'Thermostat %s heating updated: %s',
+		$OpenHAP::logger->debug( 'Thermostat %s heating updated: %s',
 			$self->{name}, $state ? 'ON' : 'OFF' );
 		$self->notify_change(11);
 	}
@@ -180,7 +182,7 @@ sub _handle_status8( $self, $payload )
 	};
 
 	if ($@) {
-		log_err( 'Error parsing STATUS8 for %s: %s',
+		$OpenHAP::logger->error( 'Error parsing STATUS8 for %s: %s',
 			$self->{name}, $@ );
 	}
 }
@@ -201,7 +203,7 @@ sub _handle_status10( $self, $payload )
 	};
 
 	if ($@) {
-		log_err( 'Error parsing STATUS10 for %s: %s',
+		$OpenHAP::logger->error( 'Error parsing STATUS10 for %s: %s',
 			$self->{name}, $@ );
 	}
 }
@@ -217,7 +219,8 @@ sub _extract_temperature( $self, $data )
 		# Convert to Celsius if needed (H4)
 		$temp = $self->convert_temperature($temp);
 
-		log_debug( 'Thermostat %s temperature updated: %.1f°C',
+		$OpenHAP::logger->debug(
+			'Thermostat %s temperature updated: %.1f°C',
 			$self->{name}, $temp );
 		$self->{current_temp} = $temp;
 		$self->notify_change(13);
@@ -266,7 +269,8 @@ sub _find_temperature( $self, $data )
 
 sub _set_target_temp( $self, $temp )
 {
-	log_debug( 'Thermostat %s target temperature set to %.1f°C',
+	$OpenHAP::logger->debug(
+		'Thermostat %s target temperature set to %.1f°C',
 		$self->{name}, $temp );
 	$self->{target_temp} = $temp;
 	$self->_check_thermostat_logic();
@@ -274,7 +278,7 @@ sub _set_target_temp( $self, $temp )
 
 sub _set_target_state( $self, $state )
 {
-	log_debug( 'Thermostat %s target heating state set to %d',
+	$OpenHAP::logger->debug( 'Thermostat %s target heating state set to %d',
 		$self->{name}, $state );
 	$self->{target_heating_state} = $state;
 	$self->_check_thermostat_logic();

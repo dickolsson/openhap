@@ -2,8 +2,6 @@ use v5.36;
 
 package OpenHAP::MQTT;
 
-use OpenHAP::Log qw(:all);
-
 # MQTT client wrapper for OpenHAP
 # Integrates with IO::Select for event-driven message handling
 
@@ -26,7 +24,8 @@ sub new( $class, %args )
 
 sub mqtt_connect( $self, $timeout = 10 )
 {
-	log_debug( 'Connecting to MQTT broker at %s:%d (timeout: %ds)',
+	$OpenHAP::logger->debug(
+		'Connecting to MQTT broker at %s:%d (timeout: %ds)',
 		$self->{host}, $self->{port}, $timeout );
 
 	# Try to load Net::MQTT::Simple if available
@@ -67,7 +66,8 @@ sub mqtt_connect( $self, $timeout = 10 )
 
 		$self->{client}    = $mqtt;
 		$self->{connected} = 1;
-		log_debug('Successfully connected to MQTT broker');
+		$OpenHAP::logger->debug(
+			'Successfully connected to MQTT broker');
 		return 1;
 	};
 	alarm(0);    # Ensure alarm is cleared on error path
@@ -78,12 +78,13 @@ sub mqtt_connect( $self, $timeout = 10 )
 
 	     # Strip program name if present (e.g., "/usr/local/bin/openhapd: ")
 		$warning =~ s{^(?:.*/)?[^/]+:\s+}{};
-		log_debug( 'MQTT connection warning: %s', $warning );
+		$OpenHAP::logger->debug( 'MQTT connection warning: %s',
+			$warning );
 	}
 
 	if ( $@ || !$success ) {
 		my $err = $@ || 'Unknown error';
-		log_err( 'MQTT connection failed: %s', $err );
+		$OpenHAP::logger->error( 'MQTT connection failed: %s', $err );
 		$self->{connected} = 0;
 	}
 
@@ -95,7 +96,7 @@ sub mqtt_connect( $self, $timeout = 10 )
 #	$callback receives ($topic, $payload)
 sub subscribe( $self, $topic, $callback )
 {
-	log_debug( 'Subscribing to MQTT topic: %s', $topic );
+	$OpenHAP::logger->debug( 'Subscribing to MQTT topic: %s', $topic );
 	$self->{subscriptions}{$topic} = $callback;
 
 	return unless $self->{connected} && $self->{client};
@@ -112,7 +113,8 @@ sub subscribe( $self, $topic, $callback )
 	};
 
 	if ($@) {
-		log_err( 'MQTT subscribe error for %s: %s', $topic, $@ );
+		$OpenHAP::logger->error( 'MQTT subscribe error for %s: %s',
+			$topic, $@ );
 	}
 }
 
@@ -131,7 +133,7 @@ sub publish( $self, $topic, $payload, $retain = 0 )
 {
 	return unless $self->{connected} && $self->{client};
 
-	log_debug(
+	$OpenHAP::logger->debug(
 		'Publishing to MQTT topic %s: %s',
 		$topic,
 		length($payload) > 50
@@ -148,7 +150,7 @@ sub publish( $self, $topic, $payload, $retain = 0 )
 	};
 
 	if ($@) {
-		log_err( 'MQTT publish error: %s', $@ );
+		$OpenHAP::logger->error( 'MQTT publish error: %s', $@ );
 	}
 }
 
@@ -177,7 +179,7 @@ sub tick( $self, $timeout = 0 )
 
 	     # Strip program name if present (e.g., "/usr/local/bin/openhapd: ")
 		$warning =~ s{^(?:.*/)?[^/]+:\s+}{};
-		log_debug( 'MQTT: %s', $warning );
+		$OpenHAP::logger->debug( 'MQTT: %s', $warning );
 	}
 
 	if ($@) {
@@ -185,10 +187,11 @@ sub tick( $self, $timeout = 0 )
 		# Connection may have been lost
 		if ( $@ =~ /connection|socket|closed/i ) {
 			$self->{connected} = 0;
-			log_warning( 'MQTT connection lost: %s', $@ );
+			$OpenHAP::logger->warning( 'MQTT connection lost: %s',
+				$@ );
 			return 0;
 		}
-		log_err( 'MQTT tick error: %s', $@ );
+		$OpenHAP::logger->error( 'MQTT tick error: %s', $@ );
 	}
 
 	# Process pending messages through callbacks
@@ -216,7 +219,8 @@ sub _dispatch_message( $self, $topic, $payload )
 			my $callback = $self->{subscriptions}{$pattern};
 			eval { $callback->( $topic, $payload ); };
 			if ($@) {
-				log_err( 'MQTT callback error for %s: %s',
+				$OpenHAP::logger->error(
+					'MQTT callback error for %s: %s',
 					$topic, $@ );
 			}
 			$dispatched++;
@@ -277,7 +281,8 @@ sub resubscribe($self)
 				} );
 		};
 		if ($@) {
-			log_err( 'MQTT resubscribe error for %s: %s',
+			$OpenHAP::logger->error(
+				'MQTT resubscribe error for %s: %s',
 				$topic, $@ );
 		}
 	}
@@ -288,12 +293,12 @@ sub resubscribe($self)
 #	returns 1 on success, 0 on failure
 sub reconnect($self)
 {
-	log_debug('Attempting MQTT reconnection');
+	$OpenHAP::logger->debug('Attempting MQTT reconnection');
 	$self->disconnect();
 
 	if ( $self->mqtt_connect() ) {
 		$self->resubscribe();
-		log_debug('MQTT reconnected successfully');
+		$OpenHAP::logger->debug('MQTT reconnected successfully');
 		return 1;
 	}
 

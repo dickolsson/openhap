@@ -8,7 +8,7 @@ use MIME::Base64 qw(encode_base64);
 use Digest::SHA  qw(sha512);
 use Time::HiRes  qw(time);
 use OpenHAP::HTTP;
-use OpenHAP::Log qw(:all);
+
 use OpenHAP::Session;
 use OpenHAP::Pairing;
 use OpenHAP::Storage;
@@ -88,7 +88,8 @@ sub _mqtt_resubscribe_accessories($self)
 	for my $acc (@accessories) {
 		if ( $acc->can('subscribe_mqtt') ) {
 			eval { $acc->subscribe_mqtt(); };
-			log_err( 'Failed to resubscribe accessory: %s', $@ )
+			$OpenHAP::logger->error(
+				'Failed to resubscribe accessory: %s', $@ )
 			    if $@;
 		}
 	}
@@ -110,13 +111,15 @@ sub run($self)
 		Listen    => 10,
 	    )
 	    or do {
-		log_err( 'Cannot create server socket on port %d: %s',
+		$OpenHAP::logger->error(
+			'Cannot create server socket on port %d: %s',
 			$self->{port}, $! );
 		die "Cannot create server: $!";
 	    };
 
-	log_info( 'OpenHAP server listening on port %d', $self->{port} );
-	log_debug( 'Pairing PIN: %s', $self->{pin} );
+	$OpenHAP::logger->info( 'OpenHAP server listening on port %d',
+		$self->{port} );
+	$OpenHAP::logger->debug( 'Pairing PIN: %s', $self->{pin} );
 
 	my $select = IO::Select->new($server);
 
@@ -142,7 +145,7 @@ sub run($self)
 					$last_mqtt_reconnect = $now;
 					if ( $self->{mqtt_client}->reconnect() )
 					{
-						log_info(
+						$OpenHAP::logger->info(
 'Reconnected to MQTT broker'
 						);
 
@@ -152,7 +155,7 @@ sub run($self)
 						    ();
 					}
 					else {
-						log_debug(
+						$OpenHAP::logger->debug(
 'MQTT reconnection attempt failed, will retry'
 						);
 					}
@@ -182,7 +185,7 @@ sub run($self)
 
 sub _init_session( $self, $socket )
 {
-	log_info( 'Client connected from %s', $socket->peerhost );
+	$OpenHAP::logger->info( 'Client connected from %s', $socket->peerhost );
 	$self->{sessions}{$socket} =
 	    OpenHAP::Session->new( socket => $socket, );
 }
@@ -196,7 +199,8 @@ sub _handle_client( $self, $sock, $select )
 	if ( !$bytes ) {
 
 		# Connection closed
-		log_info( 'Client disconnected from %s', $sock->peerhost );
+		$OpenHAP::logger->info( 'Client disconnected from %s',
+			$sock->peerhost );
 		$select->remove($sock);
 		delete $self->{sessions}{$sock};
 		$sock->close();
@@ -207,7 +211,8 @@ sub _handle_client( $self, $sock, $select )
 	if ( $session->is_encrypted() ) {
 		$data = $session->decrypt($data);
 		unless ( defined $data ) {
-			log_warning('Decryption failed for client session');
+			$OpenHAP::logger->warning(
+				'Decryption failed for client session');
 			$select->remove($sock);
 			delete $self->{sessions}{$sock};
 			$sock->close();
@@ -219,7 +224,7 @@ sub _handle_client( $self, $sock, $select )
 	my $request = OpenHAP::HTTP::parse($data);
 
 	# Log HTTP request with client info
-	log_info(
+	$OpenHAP::logger->info(
 		'HTTP %s %s from %s', $request->{method},
 		$request->{path},     $sock->peerhost
 	);
@@ -302,7 +307,7 @@ sub _dispatch( $self, $request, $session )
 
 sub _handle_pair_setup( $self, $request, $session )
 {
-	log_debug('Handling pair-setup request');
+	$OpenHAP::logger->debug('Handling pair-setup request');
 	my $response_body =
 	    $self->{pairing}->handle_pair_setup( $request->{body}, $session );
 
@@ -315,7 +320,7 @@ sub _handle_pair_setup( $self, $request, $session )
 
 sub _handle_pair_verify( $self, $request, $session )
 {
-	log_debug('Handling pair-verify request');
+	$OpenHAP::logger->debug('Handling pair-verify request');
 	my $response_body =
 	    $self->{pairing}->handle_pair_verify( $request->{body}, $session );
 
@@ -342,7 +347,7 @@ sub _handle_characteristics_get( $self, $request, $session )
 	# Parse query string: ?id=1.11,1.13&meta=1&perms=1&type=1&ev=1
 	my $query = $request->{path};
 	$query =~ s/^.*\?//;
-	log_debug( 'Reading characteristics: %s', $query );
+	$OpenHAP::logger->debug( 'Reading characteristics: %s', $query );
 
 	my %params;
 	for my $pair ( split /&/, $query ) {
@@ -434,7 +439,7 @@ sub _handle_characteristics_get( $self, $request, $session )
 
 sub _handle_characteristics_put( $self, $request, $session )
 {
-	log_debug('Writing characteristics');
+	$OpenHAP::logger->debug('Writing characteristics');
 	my $data = eval { decode_json( $request->{body} ) };
 	return OpenHAP::HTTP::build_response( status => 400 ) unless $data;
 
@@ -554,7 +559,7 @@ sub _handle_identify( $self, $request, $session )
 		);
 	}
 
-	log_info('Identify request received (unpaired)');
+	$OpenHAP::logger->info('Identify request received (unpaired)');
 
 	# Trigger identification on the bridge
 	my $bridge = $self->{bridge};
@@ -580,7 +585,7 @@ sub _handle_pairings( $self, $request, $session )
 	my $method =
 	    unpack( 'C', $tlv{ OpenHAP::Pairing::kTLVType_Method() } // '' );
 
-	log_debug( 'Pairings request method=%d', $method // -1 );
+	$OpenHAP::logger->debug( 'Pairings request method=%d', $method // -1 );
 
 	# Method values: 3=Add, 4=Remove, 5=List
 	if ( $method == 3 ) {
@@ -614,7 +619,8 @@ sub _handle_add_pairing( $self, $tlv, $session )
 	my $perms      = unpack( 'C',
 		$tlv->{ OpenHAP::Pairing::kTLVType_Permissions() } // "\x00" );
 
-	log_debug( 'Add pairing request for: %s', $identifier // 'unknown' );
+	$OpenHAP::logger->debug( 'Add pairing request for: %s',
+		$identifier // 'unknown' );
 
 	# Verify admin permissions (only admins can add pairings)
 	my $pairings           = $self->{storage}->load_pairings();
@@ -638,7 +644,8 @@ sub _handle_add_pairing( $self, $tlv, $session )
 
 	# Save the pairing
 	$self->{storage}->save_pairing( $identifier, $ltpk, $perms );
-	log_info( 'Added pairing for controller: %s', $identifier );
+	$OpenHAP::logger->info( 'Added pairing for controller: %s',
+		$identifier );
 
 	my $response = OpenHAP::TLV::encode(
 		OpenHAP::Pairing::kTLVType_State(),
@@ -655,7 +662,8 @@ sub _handle_remove_pairing( $self, $tlv, $session )
 {
 	my $identifier = $tlv->{ OpenHAP::Pairing::kTLVType_Identifier() };
 
-	log_debug( 'Remove pairing request for: %s', $identifier // 'unknown' );
+	$OpenHAP::logger->debug( 'Remove pairing request for: %s',
+		$identifier // 'unknown' );
 
 	# Verify admin permissions
 	my $pairings           = $self->{storage}->load_pairings();
@@ -679,14 +687,15 @@ sub _handle_remove_pairing( $self, $tlv, $session )
 
 	# Remove the pairing
 	$self->{storage}->remove_pairing($identifier);
-	log_info( 'Removed pairing for controller: %s', $identifier );
+	$OpenHAP::logger->info( 'Removed pairing for controller: %s',
+		$identifier );
 
 	# Check if any admins remain (HAP-Pairing.md §7.2)
 	# When last admin is removed, clear all pairings and regenerate identity
 	my $remaining = $self->{storage}->load_pairings();
 	my $has_admin = grep { $_->{permissions} } values %$remaining;
 	unless ( $has_admin || keys %$remaining == 0 ) {
-		log_info(
+		$OpenHAP::logger->info(
 'Last admin removed - clearing all pairings and regenerating identity'
 		);
 		$self->{storage}->remove_all_pairings();
@@ -706,7 +715,7 @@ sub _handle_remove_pairing( $self, $tlv, $session )
 
 sub _handle_list_pairings( $self, $tlv, $session )
 {
-	log_debug('List pairings request');
+	$OpenHAP::logger->debug('List pairings request');
 
 	# Verify admin permissions
 	my $pairings           = $self->{storage}->load_pairings();
@@ -760,7 +769,7 @@ sub _handle_list_pairings( $self, $tlv, $session )
 
 sub _handle_prepare( $self, $request, $session )
 {
-	log_debug('Timed write prepare request');
+	$OpenHAP::logger->debug('Timed write prepare request');
 	my $data = eval { decode_json( $request->{body} ) };
 	return OpenHAP::HTTP::build_response( status => 400 ) unless $data;
 
@@ -799,14 +808,15 @@ sub _register_event_subscription( $self, $session, $aid, $iid )
 {
 	my $key = "$aid.$iid";
 	$self->{event_subscriptions}{$key}{$session} = $session;
-	log_debug( 'Registered event subscription for %s', $key );
+	$OpenHAP::logger->debug( 'Registered event subscription for %s', $key );
 }
 
 sub _unregister_event_subscription( $self, $session, $aid, $iid )
 {
 	my $key = "$aid.$iid";
 	delete $self->{event_subscriptions}{$key}{$session};
-	log_debug( 'Unregistered event subscription for %s', $key );
+	$OpenHAP::logger->debug( 'Unregistered event subscription for %s',
+		$key );
 }
 
 # Characteristic UUIDs for button events (require immediate delivery)
@@ -899,7 +909,7 @@ sub send_event( $self, $aid, $iid, $value )
 		if ( $socket && $socket->connected ) {
 			eval { $socket->syswrite($encrypted) };
 			if ($@) {
-				log_warning(
+				$OpenHAP::logger->warning(
 					'Failed to send event to session: %s',
 					$@ );
 			}
@@ -983,7 +993,7 @@ sub _regenerate_identity($self)
 	# Reset authentication attempt counter
 	OpenHAP::Pairing->reset_auth_attempts();
 
-	log_info('Accessory identity regenerated');
+	$OpenHAP::logger->info('Accessory identity regenerated');
 	return;
 }
 

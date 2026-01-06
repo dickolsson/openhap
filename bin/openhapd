@@ -6,7 +6,7 @@ use lib "$RealBin/../lib";
 
 use OpenHAP::HAP;
 use OpenHAP::Config;
-use OpenHAP::Log qw(:all);
+use FuguLib::Log;
 use OpenHAP::MQTT;
 use OpenHAP::MDNS;
 use OpenHAP::Daemon;
@@ -45,16 +45,17 @@ if ( !$foreground ) {
 # Initialize logging after daemonizing
 my $log_level    = $config->get( 'log_level',    'info' );
 my $log_facility = $config->get( 'log_facility', 'daemon' );
+my $log_mode     = $foreground ? 'stderr' : 'syslog';
 
-OpenHAP::Log->init(
-	ident      => 'openhapd',
-	foreground => $foreground,
-	level      => $log_level,
-	facility   => $log_facility,
-	verbose    => $verbose,
+# Create logger and set as package variable for all OpenHAP modules
+$OpenHAP::logger = FuguLib::Log->new(
+	mode     => $log_mode,
+	ident    => 'openhapd',
+	level    => $verbose ? 'debug' : $log_level,
+	facility => $log_facility,
 );
 
-log_info('OpenHAP daemon initializing');
+$OpenHAP::logger->info('OpenHAP daemon initializing');
 
 # Get HAP settings
 my $hap_name = $config->get( 'hap_name', 'OpenHAP Bridge' );
@@ -85,11 +86,13 @@ my $mqtt = OpenHAP::MQTT->new(
 
 # Try to connect to MQTT with timeout
 if ( $mqtt->mqtt_connect(5) ) {
-	log_info( 'Connected to MQTT broker at %s:%d', $mqtt_host, $mqtt_port );
+	$OpenHAP::logger->info( 'Connected to MQTT broker at %s:%d',
+		$mqtt_host, $mqtt_port );
 	$hap->set_mqtt_client($mqtt);
 }
 else {
-	log_warning('MQTT broker not available, will retry in background');
+	$OpenHAP::logger->warning(
+		'MQTT broker not available, will retry in background');
 	$hap->set_mqtt_client($mqtt);    # Set client anyway for reconnection
 }
 
@@ -113,16 +116,15 @@ if ( $> == 0 ) {
 
 	# Reinitialize logging after dropping privileges
 	# The syslog connection opened as root needs to be reopened as _openhap
-	OpenHAP::Log->finalize();
-	OpenHAP::Log->init(
-		ident      => 'openhapd',
-		foreground => $foreground,
-		level      => $log_level,
-		facility   => $log_facility,
-		verbose    => $verbose,
+	$OpenHAP::logger = undef;
+	$OpenHAP::logger = FuguLib::Log->new(
+		mode     => $log_mode,
+		ident    => 'openhapd',
+		level    => $verbose ? 'debug' : $log_level,
+		facility => $log_facility,
 	);
 
-	log_info('Dropped privileges to _openhap');
+	$OpenHAP::logger->info('Dropped privileges to _openhap');
 }
 
 # Register mDNS service after privilege drop
@@ -130,25 +132,27 @@ if ( $> == 0 ) {
 $mdns->register_service();
 
 if ( !$hap->is_paired() ) {
-	log_notice( 'Not paired - use Home app with PIN: %s', $hap_pin );
+	$OpenHAP::logger->notice( 'Not paired - use Home app with PIN: %s',
+		$hap_pin );
 }
 
 # Setup signal handlers for graceful shutdown
 my $sig = FuguLib::Signal->new;
 $sig->add_cleanup(
 	sub ($signal) {
-		log_info( 'Received signal %s, shutting down gracefully',
+		$OpenHAP::logger->info(
+			'Received signal %s, shutting down gracefully',
 			$signal );
 
 		# Terminate mdnsctl child process
 		$mdns->unregister_service();
 
-		OpenHAP::Log->finalize();
+		$OpenHAP::logger = undef;    # Close logger
 	} );
 $sig->setup_graceful_exit( 'INT', 'TERM', 'HUP' );
 
 # Run server
-log_info('Starting OpenHAP server');
+$OpenHAP::logger->info('Starting OpenHAP server');
 $hap->run();
 
 sub usage()

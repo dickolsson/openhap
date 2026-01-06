@@ -1,8 +1,7 @@
 use v5.36;
 
 package OpenHAP::Config;
-use Carp         qw(croak);
-use OpenHAP::Log qw(:all);
+use Carp qw(croak);
 
 sub new( $class, %args )
 {
@@ -19,7 +18,8 @@ sub load($self)
 	my $file = $self->{file};
 	return unless -f $file;
 
-	log_debug( 'Loading configuration from %s', $file );
+	$OpenHAP::logger->debug( 'Loading configuration from %s', $file )
+	    if $OpenHAP::logger;
 	open my $fh, '<', $file or croak "Cannot open config file $file: $!";
 	my @lines = <$fh>;
 	close $fh;
@@ -46,11 +46,11 @@ m/\A \s* device \s+ (\w+) \s+ (\w+) \s+ (\w+) \s* [{] /xms
 
 		# Device block end
 		elsif ( $line =~ m/\A \s* [}] /xms && $current_device ) {
-			log_debug(
+			$OpenHAP::logger->debug(
 				'Loaded device: %s %s %s',
 				$current_device->{type},
 				$current_device->{subtype},
-				$current_device->{id} );
+				$current_device->{id} ) if $OpenHAP::logger;
 			push @{ $self->{config}{devices} }, $current_device;
 			$current_device = undef;
 		}

@@ -1,7 +1,7 @@
 use v5.36;
 
 package OpenHAP::Bridge;
-use OpenHAP::Log qw(:all);
+
 require OpenHAP::Accessory;
 our @ISA = qw(OpenHAP::Accessory);
 
@@ -23,7 +23,7 @@ sub new( $class, %args )
 
 sub add_bridged_accessory( $self, $accessory )
 {
-	log_debug( 'Adding bridged accessory: AID=%d, name=%s',
+	$OpenHAP::logger->debug( 'Adding bridged accessory: AID=%d, name=%s',
 		$accessory->{aid}, $accessory->{name} );
 	push @{ $self->{bridged_accessories} }, $accessory;
 

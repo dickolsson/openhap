@@ -22,7 +22,6 @@ package OpenHAP::Daemon;
 # OpenHAP::Daemon is now a wrapper around FuguLib for backward compatibility
 use FuguLib::Daemon;
 use FuguLib::State;
-use OpenHAP::Log qw(:all);
 
 # $class->daemonize($logfile):
 #	Fork into background, detach from terminal, and redirect
@@ -31,7 +30,8 @@ use OpenHAP::Log qw(:all);
 sub daemonize( $class, $logfile = '/var/log/openhapd.log' )
 {
 	FuguLib::Daemon->daemonize( logfile => $logfile );
-	log_debug( 'Daemonized successfully, PID: %d', $$ );
+	$OpenHAP::logger->debug( 'Daemonized successfully, PID: %d', $$ )
+	    if $OpenHAP::logger;
 	return;
 }
 
@@ -41,10 +41,12 @@ sub write_pidfile( $class, $path )
 {
 	my $state = FuguLib::State->new( pidfile => $path );
 	unless ( $state->write_pid($$) ) {
-		log_err( 'Cannot write PID file %s', $path );
+		$OpenHAP::logger->error( 'Cannot write PID file %s', $path )
+		    if $OpenHAP::logger;
 		return;
 	}
-	log_debug( 'Wrote PID %d to %s', $$, $path );
+	$OpenHAP::logger->debug( 'Wrote PID %d to %s', $$, $path )
+	    if $OpenHAP::logger;
 	return 1;
 }
 

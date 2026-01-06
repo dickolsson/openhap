@@ -2,7 +2,6 @@ use v5.36;
 
 package OpenHAP::Session;
 use OpenHAP::Crypto;
-use OpenHAP::Log qw(:all);
 
 sub new( $class, %args )
 {
@@ -36,7 +35,7 @@ sub set_encryption( $self, $encrypt_key, $decrypt_key )
 	$self->{encrypted}     = 1;
 	$self->{encrypt_count} = 0;
 	$self->{decrypt_count} = 0;
-	log_debug('Session encryption enabled');
+	$OpenHAP::logger->debug('Session encryption enabled');
 }
 
 sub encrypt( $self, $data )
@@ -121,7 +120,8 @@ sub set_verified( $self, $controller_id )
 {
 	$self->{verified}      = 1;
 	$self->{controller_id} = $controller_id;
-	log_debug( 'Session verified for controller: %s', $controller_id );
+	$OpenHAP::logger->debug( 'Session verified for controller: %s',
+		$controller_id );
 
 	return;
 }

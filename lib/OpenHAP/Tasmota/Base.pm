@@ -21,7 +21,6 @@ package OpenHAP::Tasmota::Base;
 require OpenHAP::Accessory;
 our @ISA = qw(OpenHAP::Accessory);
 
-use OpenHAP::Log qw(:all);
 use JSON::XS;
 
 use constant {
@@ -61,7 +60,7 @@ sub subscribe_mqtt($self)
 
 	return unless $self->{mqtt_client}->is_connected();
 
-	log_debug( 'Tasmota %s subscribing to MQTT topics for %s',
+	$OpenHAP::logger->debug( 'Tasmota %s subscribing to MQTT topics for %s',
 		ref($self), $self->{name} );
 
 	# C1: Subscribe to LWT for device availability
@@ -107,7 +106,8 @@ sub query_initial_state($self)
 {
 	return unless $self->{mqtt_client}->is_connected();
 
-	log_debug( 'Querying initial state for %s', $self->{name} );
+	$OpenHAP::logger->debug( 'Querying initial state for %s',
+		$self->{name} );
 
 	# Request full status (Status 11) - recommended per spec §6.1
 	$self->{mqtt_client}
@@ -136,17 +136,18 @@ sub _handle_lwt( $self, $payload )
 
 	if ( $payload eq 'Online' ) {
 		$self->{availability} = AVAILABILITY_ONLINE;
-		log_info( 'Device %s is online', $self->{name} );
+		$OpenHAP::logger->info( 'Device %s is online', $self->{name} );
 
 		# Query initial state when device comes online (H3)
 		$self->query_initial_state();
 	}
 	elsif ( $payload eq 'Offline' ) {
 		$self->{availability} = AVAILABILITY_OFFLINE;
-		log_warning( 'Device %s is offline', $self->{name} );
+		$OpenHAP::logger->warning( 'Device %s is offline',
+			$self->{name} );
 	}
 	else {
-		log_debug( 'Unknown LWT payload for %s: %s',
+		$OpenHAP::logger->debug( 'Unknown LWT payload for %s: %s',
 			$self->{name}, $payload );
 	}
 
@@ -166,7 +167,8 @@ sub _handle_state( $self, $payload )
 	};
 
 	if ($@) {
-		log_err( 'Error parsing STATE for %s: %s', $self->{name}, $@ );
+		$OpenHAP::logger->error( 'Error parsing STATE for %s: %s',
+			$self->{name}, $@ );
 	}
 }
 
@@ -180,7 +182,8 @@ sub _handle_result( $self, $payload )
 	};
 
 	if ($@) {
-		log_err( 'Error parsing RESULT for %s: %s', $self->{name}, $@ );
+		$OpenHAP::logger->error( 'Error parsing RESULT for %s: %s',
+			$self->{name}, $@ );
 	}
 }
 
@@ -200,7 +203,8 @@ sub _handle_sensor( $self, $payload )
 	};
 
 	if ($@) {
-		log_err( 'Error parsing SENSOR for %s: %s', $self->{name}, $@ );
+		$OpenHAP::logger->error( 'Error parsing SENSOR for %s: %s',
+			$self->{name}, $@ );
 	}
 }
 
@@ -215,7 +219,8 @@ sub _handle_status11( $self, $payload )
 		if ( exists $data->{StatusSTS} ) {
 			my $sts = $data->{StatusSTS};
 
-			log_debug( 'STATUS11 received for %s', $self->{name} );
+			$OpenHAP::logger->debug( 'STATUS11 received for %s',
+				$self->{name} );
 
 			# Cache state data
 			$self->{last_state} =
@@ -227,7 +232,7 @@ sub _handle_status11( $self, $payload )
 	};
 
 	if ($@) {
-		log_err( 'Error parsing STATUS11 for %s: %s',
+		$OpenHAP::logger->error( 'Error parsing STATUS11 for %s: %s',
 			$self->{name}, $@ );
 	}
 }
@@ -359,7 +364,8 @@ sub set_power( $self, $state )
 	my $command = $state ? 'ON' : 'OFF';
 	my $topic   = $self->_get_power_topic();
 
-	log_debug( '%s power set to %s', $self->{name}, $command );
+	$OpenHAP::logger->debug( '%s power set to %s', $self->{name},
+		$command );
 	$self->{mqtt_client}->publish( $topic, $command );
 }
 
@@ -369,7 +375,7 @@ sub toggle_power($self)
 {
 	my $topic = $self->_get_power_topic();
 
-	log_debug( '%s power toggled', $self->{name} );
+	$OpenHAP::logger->debug( '%s power toggled', $self->{name} );
 	$self->{mqtt_client}->publish( $topic, 'TOGGLE' );
 }
 
@@ -380,7 +386,7 @@ sub blink( $self, $on = 1 )
 	my $topic   = $self->_get_power_topic();
 	my $command = $on ? 'BLINK' : 'BLINKOFF';
 
-	log_debug( '%s blink %s', $self->{name}, $command );
+	$OpenHAP::logger->debug( '%s blink %s', $self->{name}, $command );
 	$self->{mqtt_client}->publish( $topic, $command );
 }
 
@@ -398,7 +404,7 @@ sub query_status( $self, $type = 11 )
 #	Triggers STATE and SENSOR messages from the device.
 sub force_telemetry($self)
 {
-	log_debug( 'Forcing telemetry for %s', $self->{name} );
+	$OpenHAP::logger->debug( 'Forcing telemetry for %s', $self->{name} );
 	$self->{mqtt_client}
 	    ->publish( $self->_build_topic( 'cmnd', 'TelePeriod' ), '' );
 }

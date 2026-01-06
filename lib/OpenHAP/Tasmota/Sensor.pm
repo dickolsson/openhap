@@ -5,7 +5,7 @@ require OpenHAP::Tasmota::Base;
 our @ISA = qw(OpenHAP::Tasmota::Base);
 use OpenHAP::Service;
 use OpenHAP::Characteristic;
-use OpenHAP::Log qw(:all);
+
 use JSON::XS;
 
 # Supported sensor types (H5)
@@ -86,7 +86,8 @@ sub subscribe_mqtt($self)
 
 	return unless $self->{mqtt_client}->is_connected();
 
-	log_debug( 'Sensor %s subscribing to additional MQTT topics',
+	$OpenHAP::logger->debug(
+		'Sensor %s subscribing to additional MQTT topics',
 		$self->{name} );
 
 	# Subscribe to STATUS8 for sensor data (when actively queried)
@@ -130,7 +131,7 @@ sub _handle_status8( $self, $payload )
 	};
 
 	if ($@) {
-		log_err( 'Error parsing STATUS8 for %s: %s',
+		$OpenHAP::logger->error( 'Error parsing STATUS8 for %s: %s',
 			$self->{name}, $@ );
 	}
 }
@@ -152,7 +153,7 @@ sub _handle_status10( $self, $payload )
 	};
 
 	if ($@) {
-		log_err( 'Error parsing STATUS10 for %s: %s',
+		$OpenHAP::logger->error( 'Error parsing STATUS10 for %s: %s',
 			$self->{name}, $@ );
 	}
 }
@@ -168,14 +169,15 @@ sub _extract_sensor_values( $self, $data )
 		# Convert to Celsius if needed (H4)
 		$temp = $self->convert_temperature($temp);
 
-		log_debug( 'Sensor %s temperature updated: %.1f°C',
+		$OpenHAP::logger->debug(
+			'Sensor %s temperature updated: %.1f°C',
 			$self->{name}, $temp );
 		$self->{current_temp} = $temp;
 		$self->notify_change(11);
 	}
 
 	if ( defined $humidity && $self->{has_humidity} ) {
-		log_debug( 'Sensor %s humidity updated: %.1f%%',
+		$OpenHAP::logger->debug( 'Sensor %s humidity updated: %.1f%%',
 			$self->{name}, $humidity );
 		$self->{current_humidity} = $humidity;
 		$self->notify_change(21);
@@ -222,7 +224,7 @@ sub _find_sensor_values( $self, $data )
 				if ( defined $humidity
 					&& !$self->{has_humidity} )
 				{
-					log_debug(
+					$OpenHAP::logger->debug(
 'Sensor %s auto-detected humidity support',
 						$self->{name} );
 				}
