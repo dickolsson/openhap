@@ -39,7 +39,7 @@
     }
   },
 
-  "postCreateCommand": "cpanm --notest App::cpanminus && cpanm --notest --installdeps . && cpanm --notest Perl::Critic Perl::Tidy",
+  "postCreateCommand": "cpanm --notest App::cpanminus && make deps-develop",
 
   "remoteUser": "root",
 
