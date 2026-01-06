@@ -1,4 +1,4 @@
-.PHONY: all build check clean clean-man deps install install-man integration lint man package prettier prettier-fix test tidy tidy-fix uninstall upgrade vm-provision vm-up
+.PHONY: all build check clean clean-man deps deps-develop deps-test install install-man integration lint man package prettier prettier-fix test tidy tidy-fix uninstall upgrade vm-provision vm-up
 
 # Filesystem configuration
 PREFIX			?= /usr/local
@@ -21,9 +21,13 @@ GITHUB_REPO		?= openhap
 GITHUB_RELEASE	= https://github.com/$(GITHUB_OWNER)/$(GITHUB_REPO)/releases/download/$(TAG)/$(TARBALL)
 
 # Build tools
-FTP				?= ftp
 MANDOC			?= mandoc
 PERLTIDY		= perl -MPerl::Tidy -e 'Perl::Tidy::perltidy()'
+
+# OS detection
+UNAME			!= uname
+FTP				= scripts/ftp.sh
+PKG_ADD			= scripts/pkg_add.sh
 
 # Man pages
 MAN5			= man/openhap/openhapd.conf.5
@@ -45,7 +49,16 @@ clean-man:
 	rm -f $(CATMAN5) $(CATMAN8)
 
 deps:
+	awk '$$1=="runtime"{print$$2}' deps/$(UNAME).txt | xargs -r $(PKG_ADD)
 	cpanm --notest --installdeps .
+
+deps-develop: deps deps-test
+	awk '$$1=="develop"{print$$2}' deps/$(UNAME).txt | xargs -r $(PKG_ADD)
+	cpanm --notest --installdeps . --with-develop
+
+deps-test: deps
+	awk '$$1=="test"{print$$2}' deps/$(UNAME).txt | xargs -r $(PKG_ADD)
+	cpanm --notest --installdeps . --with-test
 
 install: install-man
 	# Install binaries
@@ -162,12 +175,12 @@ uninstall:
 
 upgrade:
 	@echo "==> Downloading $(TARBALL)"
-	$(FTP) -o ../$(TARBALL) $(GITHUB_RELEASE);
+	$(FTP) ../$(TARBALL) $(GITHUB_RELEASE)
 	cd .. && tar -xzf $(TARBALL)
 	@echo "==> Upgrade by running:\n    make uninstall\n    cd ../$(PACKAGE)\n    make install"
 
 vm-provision: vm-up
-	@./scripts/vm-provision.sh
+	@./scripts/vm_provision.sh
 
 vm-up:
-	@./scripts/vm-up.sh
+	@./scripts/vm_up.sh
