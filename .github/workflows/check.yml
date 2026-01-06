@@ -19,8 +19,8 @@ jobs:
         with:
           perl-version: "5.38"
 
-      - name: Install Perl::Tidy
-        run: cpanm --notest Perl::Tidy
+      - name: Install test dependencies
+        run: make deps-test
 
       - name: Check formatting
         run: make tidy
@@ -37,11 +37,8 @@ jobs:
         with:
           perl-version: "5.38"
 
-      - name: Install dependencies
-        run: make deps
-
-      - name: Install Perl::Critic
-        run: cpanm --notest Perl::Critic
+      - name: Install test dependencies
+        run: make deps-test
 
       - name: Check lint
         run: make lint
@@ -67,8 +64,8 @@ jobs:
         with:
           perl-version: ${{ matrix.perl-version }}
 
-      - name: Install dependencies
-        run: make deps
+      - name: Install test dependencies
+        run: make deps-test
 
       - name: Run tests
         run: make test
