@@ -224,7 +224,7 @@ use_ok('OpenHVF::State');
     is($state->get_installed_ssh_pubkey, undef, 'No pubkey stored initially');
     
     my $test_pubkey = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... test@example';
-    $state->set_installed_ssh_pubkey($test_pubkey);
+    $state->mark_ssh_key_installed($test_pubkey);
     is($state->get_installed_ssh_pubkey, $test_pubkey, 'Pubkey stored correctly');
     
     # Reload state and verify persistence

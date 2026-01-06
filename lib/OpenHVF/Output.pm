@@ -19,44 +19,31 @@ use v5.36;
 
 package OpenHVF::Output;
 
-# OpenHVF::Output now wraps FuguLib::Log for consistency
-use FuguLib::Log;
-
 sub new( $class, $quiet = 0 )
 {
-	my $mode   = $quiet ? 'quiet' : 'stderr';
-	my $logger = FuguLib::Log->new(
-		mode  => $mode,
-		ident => 'openhvf',
-		level => 'info',
-	);
-	bless { logger => $logger, quiet => $quiet }, $class;
+	bless { quiet => $quiet }, $class;
 }
 
 sub info( $self, $message )
 {
 	return if $self->{quiet};
-	$self->{logger}->info($message);
-}
-
-sub warn( $self, $message )
-{
-	$self->{logger}->info( 'warning: %s', $message );
+	say STDERR "INFO: $message";
 }
 
 sub error( $self, $message )
 {
-	$self->{logger}->error( 'error: %s', $message );
+	warn "ERROR: $message\n";
 }
 
 sub success( $self, $message )
 {
 	return if $self->{quiet};
-	$self->{logger}->info($message);
+	say STDERR "SUCCESS: $message";
 }
 
 sub data( $self, $hashref )
 {
+	return if $self->{quiet};
 	$self->_format_data($hashref);
 }
 
@@ -68,31 +55,32 @@ sub _format_data( $self, $data, $indent = 0 )
 		my $value = $data->{$key};
 
 		if ( ref $value eq 'HASH' ) {
-			say "$prefix$key:";
+			say STDERR "$prefix$key:";
 			$self->_format_data( $value, $indent + 1 );
 		}
 		elsif ( ref $value eq 'ARRAY' ) {
-			say "$prefix$key:";
+			say STDERR "$prefix$key:";
 			for my $item (@$value) {
 				if ( ref $item ) {
 					$self->_format_data( $item,
 						$indent + 1 );
 				}
 				else {
-					say "$prefix  - $item";
+					say STDERR "$prefix  - $item";
 				}
 			}
 		}
 		else {
 			$value //= '';
-			say "$prefix$key: $value";
+			say STDERR "$prefix$key: $value";
 		}
 	}
 }
 
 sub pid( $self, $name, $pid )
 {
-	say "Started $name (PID: $pid)";
+	return if $self->{quiet};
+	say STDERR "Started $name (PID: $pid)";
 }
 
 1;

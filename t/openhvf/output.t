@@ -30,17 +30,17 @@ use_ok('OpenHVF::Output');
 
 # Test data formatting
 {
-    my $output = OpenHVF::Output->new(1);
+    my $output = OpenHVF::Output->new(0); # Not quiet so we see output
     my $data = {key => 'value'};
-    
-    # Capture output
+
+    # Capture STDERR (where output goes)
     my $captured = '';
     {
-        local *STDOUT;
-        open STDOUT, '>', \$captured;
+        local *STDERR;
+        open STDERR, '>', \$captured;
         $output->data($data);
     }
-    
+
     like($captured, qr/key:\s*value/, 'data output contains key/value');
 }
 

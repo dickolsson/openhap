@@ -27,7 +27,7 @@ sub new( $class, %args )
 	my $self = bless {
 		host    => $args{host} // 'localhost',
 		port    => $args{port},
-		timeout => $args{timeout} // 300,
+		timeout => $args{timeout} // 180,
 	}, $class;
 
 	return $self;
@@ -59,31 +59,82 @@ sub run_script( $self, $script, @args )
 	return $result == 0;
 }
 
-sub run_install( $self, $config )
+sub _find_script( $self, $script_name )
 {
-	# Find install script
 	my @search_paths = (
-		"$RealBin/../share/openhvf/expect/install.exp",
-		"share/openhvf/expect/install.exp",
+		"$RealBin/../share/openhvf/expect/$script_name",
+		"share/openhvf/expect/$script_name",
 	);
 
-	my $script;
 	for my $path (@search_paths) {
-		if ( -f $path ) {
-			$script = $path;
-			last;
-		}
+		return $path if -f $path;
 	}
 
-	if ( !defined $script ) {
-		warn "Install script not found\n";
+	return;
+}
+
+sub run_install( $self, $config )
+{
+	my $script = $self->_find_script('install-openbsd.exp')
+	    // "$RealBin/../scripts/integration/vm-install.exp";
+
+	if ( !-f $script ) {
+		warn "Install script not found: $script\n";
 		return 0;
 	}
+
+	# Pass timeout via environment variable
+	local $ENV{OPENHVF_TIMEOUT} = $self->{timeout};
 
 	my @cmd = (
 		'expect', $script, $self->{host}, $self->{port},
 		$config->{root_password} // 'openbsd',
 		$config->{proxy_url}     // 'none',
+	);
+
+	my $result = system(@cmd);
+	return $result == 0;
+}
+
+sub install_ssh_key( $self, $password, $ssh_pubkey )
+{
+	if ( !defined $ssh_pubkey || $ssh_pubkey eq '' ) {
+		warn "No SSH public key provided\n";
+		return 0;
+	}
+
+	my $script = $self->_find_script('install-ssh-key.exp');
+	if ( !defined $script ) {
+		warn "install-ssh-key.exp script not found\n";
+		return 0;
+	}
+
+	# Pass timeout via environment variable for expect script
+	local $ENV{OPENHVF_TIMEOUT} = $self->{timeout};
+
+	my @cmd = (
+		'expect',  $script, $self->{host}, $self->{port},
+		$password, $ssh_pubkey
+	);
+
+	my $result = system(@cmd);
+	return $result == 0;
+}
+
+sub halt_system( $self, $password )
+{
+	my $script = $self->_find_script('command.exp');
+	if ( !defined $script ) {
+		warn "command.exp script not found\n";
+		return 0;
+	}
+
+	# Pass timeout via environment variable
+	local $ENV{OPENHVF_TIMEOUT} = $self->{timeout};
+
+	my @cmd = (
+		'expect',  $script, $self->{host}, $self->{port},
+		'halt -p', 'root',  $password
 	);
 
 	my $result = system(@cmd);

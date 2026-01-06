@@ -19,7 +19,7 @@ use v5.36;
 
 package OpenHVF::CLI;
 
-use Getopt::Long qw(:config no_ignore_case no_auto_abbrev);
+use Getopt::Long qw(:config require_order bundling);
 use File::Basename;
 
 use OpenHVF::Config;
@@ -30,7 +30,6 @@ use OpenHVF::Disk;
 use OpenHVF::VM;
 use OpenHVF::SSH;
 use OpenHVF::Expect;
-use FuguLib::Signal;
 
 use constant {
 	EXIT_SUCCESS         => 0,
@@ -58,7 +57,6 @@ my %commands = (
 	'expect'  => \&cmd_expect,
 	'wait'    => \&cmd_wait,
 	'image'   => \&cmd_image,
-	'disk'    => \&cmd_disk,
 	'init'    => \&cmd_init,
 	'help'    => \&cmd_help,
 );
@@ -80,23 +78,17 @@ sub run( $class, @argv )
 {
 	my %opts;
 	my $parser = Getopt::Long::Parser->new;
-	$parser->configure(
-		'pass_through',   'no_ignore_case',
-		'no_auto_abbrev', 'bundling'
-	);
+	$parser->configure( 'require_order', 'bundling' );
 
-	my $parse_ok = $parser->getoptionsfromarray(
+	$parser->getoptionsfromarray(
 		\@argv,
 		'vm=s'      => \$opts{vm},
 		'project=s' => \$opts{project},
 		'quiet|q'   => \$opts{quiet},
+		'verbose|v' => \$opts{verbose},
+		'emulate'   => \$opts{emulate},
 		'help|h'    => \$opts{help},
-	);
-
-	if ( !$parse_ok ) {
-		warn "openhvf: invalid options\n";
-		return EXIT_INVALID_ARGS;
-	}
+	) or return EXIT_INVALID_ARGS;
 
 	if ( $opts{help} && !@argv ) {
 		return cmd_help($class);
@@ -107,22 +99,6 @@ sub run( $class, @argv )
 	if ( !exists $commands{$command} ) {
 		warn "openhvf: unknown command: $command\n";
 		return EXIT_INVALID_ARGS;
-	}
-
-	# Reject multiple commands
-	if (       @argv > 0
-		&& $command ne 'image'
-		&& $command ne 'disk'
-		&& $command ne 'ssh'
-		&& $command ne 'expect' )
-	{
-		# Only these commands take additional arguments
-		my $next = $argv[0];
-		if ( exists $commands{$next} ) {
-			warn
-"openhvf: multiple commands not allowed: $command $next\n";
-			return EXIT_INVALID_ARGS;
-		}
 	}
 
 	my $self = $class->new(%opts);
@@ -147,7 +123,7 @@ sub run( $class, @argv )
 		$self->{config} = OpenHVF::Config->new($project_root);
 		$self->{state} =
 		    OpenHVF::State->new( $self->{config}->state_dir,
-			$self->{vm_name}, );
+			$self->{vm_name}, emulate => $opts{emulate} // 0, );
 		if ( !defined $self->{state} ) {
 			$self->{output}->error(
 "Cannot initialize state for VM '$self->{vm_name}'"
@@ -198,11 +174,6 @@ sub cmd_destroy( $self, @args )
 # Show VM status
 sub cmd_status( $self, @args )
 {
-	if (@args) {
-		warn "openhvf status: unknown option: $args[0]\n";
-		return EXIT_INVALID_ARGS;
-	}
-
 	my $vm     = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 	my $status = $vm->status;
 	$self->{output}->data($status);
@@ -212,11 +183,6 @@ sub cmd_status( $self, @args )
 # Start VM in background
 sub cmd_start( $self, @args )
 {
-	if (@args) {
-		warn "openhvf start: unknown option: $args[0]\n";
-		return EXIT_INVALID_ARGS;
-	}
-
 	my $vm = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 	return $vm->start;
 }
@@ -226,7 +192,7 @@ sub cmd_stop( $self, @args )
 {
 	my $force  = 0;
 	my $parser = Getopt::Long::Parser->new;
-	$parser->configure( 'bundling', 'no_ignore_case', 'no_auto_abbrev' );
+	$parser->configure('bundling');
 	$parser->getoptionsfromarray( \@args, 'force|f' => \$force, )
 	    or return EXIT_INVALID_ARGS;
 
@@ -260,14 +226,14 @@ sub cmd_ssh( $self, @args )
 # Show console connection info
 sub cmd_console( $self, @args )
 {
-	my $vm           = $self->_load_vm or return EXIT_VM_NOT_FOUND;
-	my $console_port = $vm->console_port;
-	my $ssh_port     = $vm->ssh_port;
-
-	$self->{output}->info("Console access methods:");
-	$self->{output}->info("  1. telnet localhost $console_port");
-	$self->{output}->info("  2. ssh -p $ssh_port root\@localhost");
-
+	my $vm   = $self->_load_vm or return EXIT_VM_NOT_FOUND;
+	my $port = $vm->console_port;
+	$self->{output}->info("Connect with: telnet localhost $port");
+	$self->{output}->data( {
+		type => 'telnet',
+		host => 'localhost',
+		port => $port,
+	} );
 	return EXIT_SUCCESS;
 }
 
@@ -296,7 +262,7 @@ sub cmd_wait( $self, @args )
 {
 	my $timeout = 120;
 	my $parser  = Getopt::Long::Parser->new;
-	$parser->configure( 'bundling', 'no_ignore_case', 'no_auto_abbrev' );
+	$parser->configure('bundling');
 	$parser->getoptionsfromarray( \@args, 'timeout=s' => \$timeout, )
 	    or return EXIT_INVALID_ARGS;
 
@@ -311,17 +277,9 @@ sub cmd_wait( $self, @args )
 		return EXIT_INVALID_ARGS;
 	}
 
-	# Setup signal handling for graceful interrupt
-	my $sig = FuguLib::Signal->new;
-	$sig->setup_interrupt_flag( 'INT', 'TERM', 'HUP' );
-
 	my $vm = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 
-	if ( !$vm->wait_ssh( $timeout, $sig ) ) {
-		if ( FuguLib::Signal::check_interrupted() ) {
-			$self->{output}->info("Wait cancelled");
-			return 130;    # Standard SIGINT exit code
-		}
+	if ( !$vm->wait_ssh($timeout) ) {
 		$self->{output}->error("Timeout waiting for SSH");
 		return EXIT_TIMEOUT;
 	}
@@ -364,73 +322,6 @@ sub cmd_image( $self, @args )
 		    ->info("Run 'openhvf up' to download via proxy.");
 	}
 	return EXIT_SUCCESS;
-}
-
-# P5: Disk management
-sub cmd_disk( $self, @args )
-{
-	my $action = shift @args;
-	if ( !defined $action || $action !~ /^(check|repair|info)$/ ) {
-		$self->{output}
-		    ->error("Usage: openhvf disk <check|repair|info>");
-		return EXIT_INVALID_ARGS;
-	}
-
-	my $disk = OpenHVF::Disk->new( $self->{state}{state_dir} );
-
-	if ( $action eq 'info' ) {
-		my $info = $disk->info( $self->{vm_name} );
-		if ( !defined $info ) {
-			$self->{output}->error("Disk not found");
-			return EXIT_ERROR;
-		}
-		$self->{output}->data($info);
-		return EXIT_SUCCESS;
-	}
-
-	if ( $action eq 'check' ) {
-		$self->{output}->info("Checking disk image...");
-		my $result = $disk->check( $self->{vm_name} );
-		if ( !defined $result ) {
-			$self->{output}->error("Disk not found");
-			return EXIT_ERROR;
-		}
-
-		if ( $result->{status} eq 'ok' ) {
-			$self->{output}->success("Disk image OK");
-			return EXIT_SUCCESS;
-		}
-
-		$self->{output}->error("Disk image has errors");
-		print $result->{output} if $result->{output};
-		return EXIT_ERROR;
-	}
-
-	if ( $action eq 'repair' ) {
-		$self->{output}->info("Repairing disk image...");
-
-		# Check if VM is running first
-		my $vm = $self->_load_vm;
-		if ( defined $vm && $vm->is_running ) {
-			$self->{output}
-			    ->error("Cannot repair disk while VM is running");
-			return EXIT_ERROR;
-		}
-
-		my $ok = $disk->repair( $self->{vm_name} );
-		if ($ok) {
-
-			# Clear unclean shutdown state after successful repair
-			$self->{state}->clear_shutdown_state;
-			$self->{output}->success("Disk repaired");
-			return EXIT_SUCCESS;
-		}
-
-		$self->{output}->error("Disk repair failed");
-		return EXIT_ERROR;
-	}
-
-	return EXIT_ERROR;
 }
 
 # Initialize project
@@ -510,13 +401,12 @@ Commands:
   destroy             Stop VM and delete disk image
   status              Show VM status
   start               Start VM in background
-  stop [--force]      Stop VM (--force risks filesystem corruption)
+  stop [--force]      Stop VM
   ssh [command]       Open SSH session or run command
   console             Show console connection info
   expect <script>     Run expect script against console
   wait [--timeout=N]  Wait for VM to be ready (SSH available)
   image <cmd>         Manage images (download, list)
-  disk <cmd>          Manage disk (check, repair, info)
   init [dir]          Initialize .openhvf/ directory
   help                Show this help
 
@@ -524,6 +414,7 @@ Global Options:
   --vm <name>     VM to operate on (default: "default")
   --project <dir> Project root (default: auto-discover)
   --quiet, -q     Suppress informational output
+  --emulate       Force TCG emulation (for testing on aarch64 hosts)
   --help, -h      Show help
 
 Examples:

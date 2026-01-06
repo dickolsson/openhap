@@ -23,6 +23,7 @@ use POSIX qw(setsid);
 use IO::Socket::INET;
 use Time::HiRes qw(usleep);
 
+use FuguLib::Process;
 use OpenHVF::Proxy::Cache;
 
 # $class->run_child($port, $cache_dir):

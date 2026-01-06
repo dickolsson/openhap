@@ -80,21 +80,6 @@ sub up($self)
 		return EXIT_SUCCESS;
 	}
 
-	# P5: Check for unclean shutdown and verify disk integrity
-	if ( $state->was_unclean_shutdown ) {
-		$output->warn("Detected unclean shutdown, checking disk...");
-		my $disk  = OpenHVF::Disk->new( $state->{state_dir} );
-		my $check = $disk->check( $config->{name} );
-
-		if ( defined $check && $check->{status} ne 'ok' ) {
-			$output->error(
-"Disk corruption detected. Run 'openhvf disk repair $config->{name}'"
-			);
-			return EXIT_ERROR;
-		}
-		$state->clear_shutdown_state;
-	}
-
 	# Start caching proxy for VM installation (packages downloaded by VM)
 	# Note: The proxy is HTTP-only and meant for VM-side downloads.
 	# Host-side downloads (miniroot image) use HTTPS directly without proxy.
@@ -268,7 +253,6 @@ sub down($self)
 
 	# Try graceful shutdown with filesystem sync
 	if ( $self->_graceful_shutdown ) {
-		$state->mark_clean_shutdown;
 		$state->clear_vm_pid;
 		$output->success("VM stopped");
 		return EXIT_SUCCESS;
@@ -278,7 +262,6 @@ sub down($self)
 	$output->warn(
 		"Graceful shutdown failed, force stopping (risk of corruption)"
 	);
-	$state->mark_unclean_shutdown;
 	$self->_qmp_quit;
 	$state->clear_vm_pid;
 	$output->success("VM stopped");
@@ -366,7 +349,6 @@ sub stop( $self, $force = 0 )
 	if ($force) {
 		$output->warn(
 			"Force stopping VM (filesystem may be corrupted)");
-		$state->mark_unclean_shutdown;
 		$self->_qmp_quit;
 		$state->clear_vm_pid;
 		$output->success("VM stopped");
@@ -376,7 +358,6 @@ sub stop( $self, $force = 0 )
 	# Try graceful shutdown with filesystem sync
 	$output->info("Shutting down VM gracefully...");
 	if ( $self->_graceful_shutdown ) {
-		$state->mark_clean_shutdown;
 		$state->clear_vm_pid;
 		$output->success("VM stopped");
 		return EXIT_SUCCESS;
@@ -386,7 +367,6 @@ sub stop( $self, $force = 0 )
 	$output->warn(
 "Graceful shutdown timed out, force stopping (risk of corruption)"
 	);
-	$state->mark_unclean_shutdown;
 	$self->_qmp_quit;
 	$state->clear_vm_pid;
 	$output->success("VM stopped");
@@ -799,9 +779,6 @@ sub _start_qemu( $self, $boot_image = undef )
 		if ( -f $state->{vm_pid_file} ) {
 			my $qemu_pid = $state->get_vm_pid;
 			if ( defined $qemu_pid && kill( 0, $qemu_pid ) ) {
-
-				# P7: Mark VM as running for shutdown tracking
-				$state->mark_running;
 				return $qemu_pid;
 			}
 		}
@@ -812,7 +789,6 @@ sub _start_qemu( $self, $boot_image = undef )
 	my $pid = $result->{pid};
 	if ( kill( 0, $pid ) ) {
 		$state->set_vm_pid($pid);
-		$state->mark_running;
 		return $pid;
 	}
 

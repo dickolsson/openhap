@@ -5,7 +5,12 @@
 # Usage: command.exp <host> <port> <command> [user] [password]
 #
 
-set timeout 60
+# Use environment variable if set, otherwise default to 60
+if {[info exists env(OPENHVF_TIMEOUT)]} {
+    set timeout $env(OPENHVF_TIMEOUT)
+} else {
+    set timeout 60
+}
 
 if {[llength $argv] < 3} {
     puts stderr "Usage: command.exp <host> <port> <command> \[user\] \[password\]"

@@ -19,16 +19,12 @@ use v5.36;
 
 package OpenHVF::State;
 
-use File::Path     qw(make_path);
-use File::Temp     qw(tempfile);
-use File::Basename qw(dirname);
+use File::Path qw(make_path);
 use JSON::XS;
-use FuguLib::State;
-use IO::Handle;
 
 use constant { MAX_VM_NAME_LENGTH => 255, };
 
-sub new( $class, $state_dir, $vm_name )
+sub new( $class, $state_dir, $vm_name, %opts )
 {
 	# Validate VM name length
 	if ( length($vm_name) > MAX_VM_NAME_LENGTH ) {
@@ -54,18 +50,11 @@ sub new( $class, $state_dir, $vm_name )
 		proxy_pid_file => "$vm_state_dir/proxy.pid",
 		status_file    => "$vm_state_dir/status",
 		disk_path      => "$vm_state_dir/disk.qcow2",
-		_vm_state      => undef,
-		_proxy_state   => undef,
 	}, $class;
 
 	if ( !$self->_ensure_dir ) {
 		return;
 	}
-
-	# Initialize FuguLib::State objects for PID management
-	$self->{_vm_state}    = FuguLib::State->new( $self->{vm_pid_file} );
-	$self->{_proxy_state} = FuguLib::State->new( $self->{proxy_pid_file} );
-
 	$self->load;
 
 	return $self;
@@ -124,57 +113,39 @@ sub load($self)
 
 sub save($self)
 {
-	my $dir = dirname( $self->{status_file} );
-
-	# P4: Write to temp file then atomically rename
-	my ( $fh, $tmpfile ) = tempfile(
-		DIR    => $dir,
-		UNLINK => 0,
-	);
-
-	if ( !$fh ) {
-		warn "Cannot create temp file in $dir: $!";
-		return;
-	}
-
-	print $fh encode_json( $self->{data} );
-
-	# Ensure data is on disk before rename
-	$fh->flush;
-	$fh->sync;
-	close $fh;
-
-	# Atomic rename
-	rename( $tmpfile, $self->{status_file} ) or do {
-		unlink $tmpfile;
-		warn "Cannot save state: $!";
+	open my $fh, '>', $self->{status_file} or do {
+		warn "Cannot write $self->{status_file}: $!\n";
 		return;
 	};
 
-	# Sync directory for durability
-	$self->_sync_directory($dir);
+	print $fh encode_json( $self->{data} );
+	close $fh;
 
 	return $self;
 }
 
-sub _sync_directory( $self, $dir )
-{
-	if ( open my $dh, '<', $dir ) {
-		$dh->sync;
-		close $dh;
-	}
-}
-
-# VM PID management (using FuguLib::State)
+# VM PID management
 sub set_vm_pid( $self, $pid )
 {
-	return unless $self->{_vm_state}->write_pid($pid);
+	open my $fh, '>', $self->{vm_pid_file} or do {
+		warn "Cannot write $self->{vm_pid_file}: $!";
+		return;
+	};
+	print $fh "$pid\n";
+	close $fh;
+
 	return $self;
 }
 
 sub get_vm_pid($self)
 {
-	return $self->{_vm_state}->read_pid();
+	open my $fh, '<', $self->{vm_pid_file} or return;
+	my $pid = <$fh>;
+	close $fh;
+
+	chomp $pid  if defined $pid;
+	return $pid if $pid && $pid =~ /^\d+$/;
+	return;
 }
 
 sub clear_vm_pid($self)
@@ -185,19 +156,35 @@ sub clear_vm_pid($self)
 
 sub is_vm_running($self)
 {
-	return $self->{_vm_state}->is_running() ? 1 : 0;
+	my $pid = $self->get_vm_pid;
+	return 0 if !defined $pid;
+
+	# Check if process is alive
+	return kill( 0, $pid ) ? 1 : 0;
 }
 
-# Proxy PID management (using FuguLib::State)
+# Proxy PID management
 sub set_proxy_pid( $self, $pid )
 {
-	return unless $self->{_proxy_state}->write_pid($pid);
+	open my $fh, '>', $self->{proxy_pid_file} or do {
+		warn "Cannot write $self->{proxy_pid_file}: $!";
+		return;
+	};
+	print $fh "$pid\n";
+	close $fh;
+
 	return $self;
 }
 
 sub get_proxy_pid($self)
 {
-	return $self->{_proxy_state}->read_pid();
+	open my $fh, '<', $self->{proxy_pid_file} or return;
+	my $pid = <$fh>;
+	close $fh;
+
+	chomp $pid  if defined $pid;
+	return $pid if $pid && $pid =~ /^\d+$/;
+	return;
 }
 
 sub clear_proxy_pid($self)
@@ -320,78 +307,40 @@ sub get_root_password($self)
 }
 
 # SSH key installation state
-# Stores the actual pubkey that was installed
-sub get_installed_ssh_pubkey($self)
+# Tracks both whether an SSH key has been installed and which specific key
+# was installed. This allows the system to detect when the configured SSH
+# key has changed and automatically reinstall the new key.
+sub is_ssh_key_installed($self)
 {
-	return $self->{data}{ssh_pubkey_installed};
+	return $self->{data}{ssh_key_installed} ? 1 : 0;
 }
 
-sub set_installed_ssh_pubkey( $self, $pubkey )
+sub mark_ssh_key_installed( $self, $ssh_pubkey = undef )
 {
-	$self->{data}{ssh_pubkey_installed}    = $pubkey;
-	$self->{data}{ssh_pubkey_installed_at} = time;
+	$self->{data}{ssh_key_installed}    = 1;
+	$self->{data}{ssh_key_installed_at} = time;
+	$self->{data}{installed_ssh_pubkey} = $ssh_pubkey
+	    if defined $ssh_pubkey;
 	$self->save;
 	return $self;
+}
+
+sub get_installed_ssh_pubkey($self)
+{
+	return $self->{data}{installed_ssh_pubkey};
+}
+
+sub ssh_key_matches( $self, $ssh_pubkey )
+{
+	return 0 if !$self->is_ssh_key_installed;
+	my $installed = $self->get_installed_ssh_pubkey;
+	return 0 if !defined $installed;
+	return $installed eq $ssh_pubkey;
 }
 
 sub vm_state_dir($self)
 {
 	return $self->{vm_state_dir};
-}
-
-# P5/P7: Shutdown state tracking
-# Tracks whether VM was shutdown cleanly to detect filesystem corruption risk
-
-sub mark_clean_shutdown($self)
-{
-	$self->{data}{shutdown_clean} = 1;
-	$self->{data}{shutdown_at}    = time;
-	delete $self->{data}{running};
-	$self->save;
-	return $self;
-}
-
-sub mark_unclean_shutdown($self)
-{
-	$self->{data}{shutdown_clean} = 0;
-	$self->{data}{shutdown_at}    = time;
-	delete $self->{data}{running};
-	$self->save;
-	return $self;
-}
-
-sub mark_running($self)
-{
-	$self->{data}{running}    = 1;
-	$self->{data}{started_at} = time;
-	delete $self->{data}{shutdown_clean};
-	$self->save;
-	return $self;
-}
-
-sub was_unclean_shutdown($self)
-{
-	# If explicitly marked as unclean
-	if ( exists $self->{data}{shutdown_clean}
-		&& !$self->{data}{shutdown_clean} )
-	{
-		return 1;
-	}
-
-	# If marked running but VM process is dead = crashed/killed
-	if ( $self->{data}{running} && !$self->is_vm_running ) {
-		return 1;
-	}
-
-	return 0;
-}
-
-sub clear_shutdown_state($self)
-{
-	delete $self->{data}{shutdown_clean};
-	delete $self->{data}{running};
-	$self->save;
-	return $self;
 }
 
 sub data($self)

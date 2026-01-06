@@ -1,2 +1,3 @@
 runtime mosquitto
 develop libssh2
+develop qemu
