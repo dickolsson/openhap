@@ -6,12 +6,13 @@ use Test::More;
 use FindBin qw($RealBin);
 use lib "$RealBin/../lib";
 use File::Temp qw(tempdir);
+use File::Path qw(make_path);
 
 use_ok('OpenHVF::Image');
 
 # Test constants
-is(OpenHVF::Image::BASE_URL(), 'https://cdn.openbsd.org/pub/OpenBSD',
-    'BASE_URL is correct');
+is(OpenHVF::Image::CDN_HOST(), 'cdn.openbsd.org',
+    'CDN_HOST is correct');
 is(OpenHVF::Image::ARCH(), 'arm64',
     'ARCH is correct');
 
@@ -20,19 +21,19 @@ is(OpenHVF::Image::ARCH(), 'arm64',
     my $tmpdir = tempdir(CLEANUP => 1);
     my $image = OpenHVF::Image->new($tmpdir);
     ok(defined $image, 'Image object created');
-    ok(-d $tmpdir, 'Cache directory exists');
 }
 
-# Test cache filename generation
+# Test url generation
 {
     my $tmpdir = tempdir(CLEANUP => 1);
     my $image = OpenHVF::Image->new($tmpdir);
     
-    my $filename = $image->_cache_filename('7.8');
-    is($filename, 'miniroot78.img', 'Cache filename generated correctly');
+    my $url = $image->url('7.8');
+    is($url, 'https://cdn.openbsd.org/pub/OpenBSD/7.8/arm64/miniroot78.img',
+       'URL generated correctly');
 }
 
-# Test image filename generation (as used on OpenBSD CDN)
+# Test image filename generation
 {
     my $tmpdir = tempdir(CLEANUP => 1);
     my $image = OpenHVF::Image->new($tmpdir);
@@ -50,6 +51,23 @@ is(OpenHVF::Image::ARCH(), 'arm64',
     is($path, undef, 'path returns undef for missing image');
 }
 
+# Test path returns path for cached image
+{
+    my $tmpdir = tempdir(CLEANUP => 1);
+    my $image = OpenHVF::Image->new($tmpdir);
+    
+    # Create fake cached image in proxy cache structure
+    my $cache_path = "$tmpdir/proxy/cdn.openbsd.org/pub/OpenBSD/7.8/arm64";
+    make_path($cache_path);
+    open my $fh, '>', "$cache_path/miniroot78.img";
+    print $fh "fake image content";
+    close $fh;
+    
+    my $path = $image->path('7.8');
+    ok(defined $path, 'path returns path for cached image');
+    like($path, qr/miniroot78\.img$/, 'path ends with correct filename');
+}
+
 # Test list returns empty for empty cache
 {
     my $tmpdir = tempdir(CLEANUP => 1);
@@ -60,13 +78,24 @@ is(OpenHVF::Image::ARCH(), 'arm64',
     is(scalar @$list, 0, 'list is empty for empty cache');
 }
 
-# Test remove on non-existent image
+# Test list finds cached images
 {
     my $tmpdir = tempdir(CLEANUP => 1);
     my $image = OpenHVF::Image->new($tmpdir);
     
-    my $result = $image->remove('7.8');
-    ok($result, 'remove returns true for non-existent image');
+    # Create fake cached images in proxy cache structure
+    for my $ver (qw(7.7 7.8)) {
+        (my $shortver = $ver) =~ s/\.//;
+        my $cache_path = "$tmpdir/proxy/cdn.openbsd.org/pub/OpenBSD/$ver/arm64";
+        make_path($cache_path);
+        open my $fh, '>', "$cache_path/miniroot$shortver.img";
+        close $fh;
+    }
+    
+    my $list = $image->list;
+    is(scalar @$list, 2, 'list finds both images');
+    is($list->[0]{version}, '7.8', 'latest version first');
+    is($list->[1]{version}, '7.7', 'older version second');
 }
 
 done_testing();
