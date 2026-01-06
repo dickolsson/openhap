@@ -100,7 +100,7 @@ sub register_service($self)
 	my $mdns_log = '/tmp/mdnsctl.log';
 
 	# Spawn mdnsctl process using FuguLib::Process
-	my $result = FuguLib::Process->spawn(
+	my $result = FuguLib::Process->spawn_command(
 		cmd         => \@cmd,
 		check_alive => 1,
 		stdout      => $mdns_log,

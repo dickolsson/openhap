@@ -12,7 +12,7 @@ ok( 1, 'FuguLib::Process loaded' );
 
 # Test 2: Basic spawn and terminate
 {
-	my $result = FuguLib::Process->spawn(
+	my $result = FuguLib::Process->spawn_command(
 		cmd         => [ 'sleep', '300' ],
 		check_alive => 1,
 	);
@@ -34,7 +34,7 @@ SKIP: {
 	# This test is OS-dependent - sh -c may or may not exit immediately
 	skip 'Process exit timing varies by OS', 3;
 
-	my $result = FuguLib::Process->spawn(
+	my $result = FuguLib::Process->spawn_command(
 		cmd         => [ 'sh', '-c', 'exit 1' ],
 		check_alive => 1,
 	);
@@ -46,7 +46,7 @@ SKIP: {
 
 # Test 4: Invalid command
 {
-	my $result = FuguLib::Process->spawn(
+	my $result = FuguLib::Process->spawn_command(
 		cmd         => [],
 		check_alive => 0,
 	);
@@ -57,7 +57,7 @@ SKIP: {
 # Test 5: Callbacks
 {
 	my $success_called = 0;
-	my $result         = FuguLib::Process->spawn(
+	my $result         = FuguLib::Process->spawn_command(
 		cmd         => [ 'sleep', '1' ],
 		check_alive => 0,
 		on_success  => sub($pid) { $success_called = $pid; },
@@ -75,7 +75,7 @@ SKIP: {
 	skip 'Process exit timing varies by OS', 2;
 
 	my $error_msg = '';
-	my $result    = FuguLib::Process->spawn(
+	my $result    = FuguLib::Process->spawn_command(
 		cmd         => [ 'sh', '-c', 'exit 1' ],
 		check_alive => 1,
 		on_error    => sub($err) { $error_msg = $err; },
@@ -88,7 +88,7 @@ SKIP: {
 # Test 7: Zombie reaping
 {
 	# Spawn and let it exit
-	my $result = FuguLib::Process->spawn(
+	my $result = FuguLib::Process->spawn_command(
 		cmd         => [ 'true' ],
 		check_alive => 0,
 	);
@@ -110,7 +110,7 @@ SKIP: {
 
 # Test 9: wait_exit
 {
-	my $result = FuguLib::Process->spawn(
+	my $result = FuguLib::Process->spawn_command(
 		cmd         => [ 'sleep', '1' ],
 		check_alive => 0,
 	);
@@ -121,7 +121,7 @@ SKIP: {
 
 # Test 10: wait_exit timeout
 {
-	my $result = FuguLib::Process->spawn(
+	my $result = FuguLib::Process->spawn_command(
 		cmd         => [ 'sleep', '10' ],
 		check_alive => 0,
 	);
@@ -135,7 +135,7 @@ SKIP: {
 # Test 11: Graceful vs forced termination
 {
 	# Process that ignores SIGTERM (sleep handles it)
-	my $result = FuguLib::Process->spawn(
+	my $result = FuguLib::Process->spawn_command(
 		cmd         => [ 'sleep', '300' ],
 		check_alive => 0,
 	);
@@ -152,7 +152,7 @@ SKIP: {
 {
 	# Spawn multiple short-lived processes
 	for ( 1 .. 3 ) {
-		FuguLib::Process->spawn( cmd => ['true'], check_alive => 0 );
+		FuguLib::Process->spawn_command( cmd => ['true'], check_alive => 0 );
 	}
 
 	sleep 1;    # Let them all exit
@@ -168,7 +168,7 @@ SKIP: {
 	my $outfile = "/tmp/fugulib-process-test-$$.txt";
 	unlink $outfile if -f $outfile;
 
-	my $result = FuguLib::Process->spawn(
+	my $result = FuguLib::Process->spawn_command(
 		cmd         => [ 'echo', 'test output' ],
 		stdout      => $outfile,
 		check_alive => 0,

@@ -7,7 +7,7 @@ FuguLib::Process - Robust process management for forking and execution
     use FuguLib::Process;
 
     # Spawn a background process
-    my $result = FuguLib::Process->spawn(
+    my $result = FuguLib::Process->spawn_command(
         cmd       => ['/usr/bin/some_daemon', 'arg1', 'arg2'],
         daemonize => 1,
         stdout    => '/var/log/daemon.log',
@@ -69,9 +69,9 @@ Callback-based error handling
 
 =head1 METHODS
 
-=head2 spawn
+=head2 spawn_command
 
-    my $result = FuguLib::Process->spawn(%args);
+    my $result = FuguLib::Process->spawn_command(%args);
 
 Fork and execute a command. Returns a hashref with either:
 
@@ -174,7 +174,7 @@ Wait for a process to exit. Returns 1 if process exited within timeout,
 
 =head2 Long-running Background Process
 
-    my $result = FuguLib::Process->spawn(
+    my $result = FuguLib::Process->spawn_command(
         cmd => ['mdnsctl', 'publish', 'MyService', '_hap', 'tcp', 51827, 'txt=value'],
         check_alive => 2,  # Verify alive after 2 seconds
         on_error => sub($err) { log_error("mdnsctl failed: $err") },
@@ -186,7 +186,7 @@ Wait for a process to exit. Returns 1 if process exited within timeout,
 
 =head2 Daemonization
 
-    my $result = FuguLib::Process->spawn(
+    my $result = FuguLib::Process->spawn_command(
         cmd => ['/path/to/daemon'],
         daemonize => 1,
         stdout => '/var/log/daemon.log',

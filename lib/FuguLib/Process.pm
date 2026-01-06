@@ -26,7 +26,7 @@ use POSIX qw(setsid WNOHANG);
 # Handles forking, exec, PID tracking, signal handling, and zombie reaping
 # with proper error detection and logging integration.
 
-# $class->spawn(%args):
+# $class->spawn_command(%args):
 #	Fork and execute a command, optionally as a daemon
 #	Returns hashref with {pid => $pid, success => 1} on success,
 #	or {success => 0, error => $msg} on failure
@@ -40,7 +40,7 @@ use POSIX qw(setsid WNOHANG);
 #		on_error  => sub($err)  # Optional: error callback
 #		on_success => sub($pid) # Optional: success callback
 #		check_alive => $seconds # Optional: wait and verify process is alive
-sub spawn( $class, %args )
+sub spawn_command( $class, %args )
 {
 	my $cmd = $args{cmd}
 	    or return { success => 0, error => 'No command specified' };
@@ -256,6 +256,62 @@ sub wait_exit( $class, $pid, $timeout = 30 )
 
 	# Final check
 	return $class->is_alive($pid) ? 0 : 1;
+}
+
+# $class->spawn_perl(%args):
+#	Spawn a Perl subprocess with the parent's @INC paths inherited
+#	This is a convenience wrapper around spawn_command() for running Perl code
+#
+#	%args:
+#		code      => $string    # Required: Perl code to execute
+#		args      => \@args     # Optional: arguments passed to the code
+#		All other args are passed to spawn_command()
+#
+#	Example:
+#		FuguLib::Process->spawn_perl(
+#			code => 'use MyModule; MyModule->run(@ARGV)',
+#			args => [$port, $dir],
+#			daemonize => 1,
+#		);
+sub spawn_perl( $class, %args )
+{
+	my $code = delete $args{code}
+	    or return { success => 0, error => 'No code specified' };
+	my $extra_args = delete $args{args} // [];
+
+	# Build -I flags for all non-default @INC paths
+	my @inc_flags = map { "-I$_" } _custom_inc_paths();
+
+	$args{cmd} = [ $^X, @inc_flags, '-e', $code, @$extra_args ];
+
+	return $class->spawn_command(%args);
+}
+
+# _custom_inc_paths:
+#	Get @INC paths that are not part of Perl's default installation
+#	These are typically paths added via -I, use lib, or PERL5LIB
+sub _custom_inc_paths()
+{
+	require Config;
+
+	# Build set of default Perl lib paths
+	my %default_paths;
+	for my $key (qw(privlib archlib sitelib sitearch vendorlib vendorarch))
+	{
+		my $path = $Config::Config{$key};
+		$default_paths{$path} = 1 if defined $path && length $path;
+	}
+
+	# Return @INC paths not in the default set (excluding '.' and CODE refs)
+	my @custom;
+	for my $inc (@INC) {
+		next if ref $inc;               # Skip CODE refs
+		next if $inc eq '.';            # Skip current directory
+		next if $default_paths{$inc};
+		push @custom, $inc;
+	}
+
+	return @custom;
 }
 
 1;
