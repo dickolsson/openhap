@@ -18,6 +18,36 @@ BEGIN {
 
 use_ok('OpenHAP::SRP');
 
+# Test _bigint_to_bytes helper function
+{
+    # Test basic conversion without padding
+    my $n = Math::BigInt->new(5);
+    my $bytes = OpenHAP::SRP::_bigint_to_bytes($n);
+    is(unpack('H*', $bytes), '05', '_bigint_to_bytes converts 5 correctly');
+
+    # Test that 0x prefix is stripped
+    my $n2 = Math::BigInt->new(255);
+    my $bytes2 = OpenHAP::SRP::_bigint_to_bytes($n2);
+    is(unpack('H*', $bytes2), 'ff', '_bigint_to_bytes strips 0x prefix');
+
+    # Test padding to specific length
+    my $n3 = Math::BigInt->new(5);
+    my $bytes3 = OpenHAP::SRP::_bigint_to_bytes($n3, 4);
+    is(unpack('H*', $bytes3), '00000005', '_bigint_to_bytes pads to 4 bytes');
+    is(length($bytes3), 4, 'Padded output is 4 bytes');
+
+    # Test odd-length hex gets padded with leading zero
+    my $n4 = Math::BigInt->new(4095);  # 0xFFF - 3 hex digits
+    my $bytes4 = OpenHAP::SRP::_bigint_to_bytes($n4);
+    is(unpack('H*', $bytes4), '0fff', '_bigint_to_bytes pads odd-length hex');
+
+    # Test large number (3072-bit)
+    my $large = Math::BigInt->from_hex('0x' . ('FF' x 384));
+    my $bytes5 = OpenHAP::SRP::_bigint_to_bytes($large);
+    is(length($bytes5), 384, '_bigint_to_bytes handles 3072-bit numbers');
+    is(unpack('H*', $bytes5), 'ff' x 384, 'Large number converted correctly');
+}
+
 # Test SRP object creation
 {
     my $srp = OpenHAP::SRP->new(
