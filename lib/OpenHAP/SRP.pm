@@ -9,6 +9,26 @@ use OpenHAP::PIN qw(normalize_pin);
 # SRP-6a implementation for HAP
 # Uses 3072-bit group from RFC 5054
 
+# _bigint_to_bytes($bigint, $length = undef) - Convert BigInt to bytes
+# Strips '0x' prefix from as_hex() and optionally pads to fixed length
+sub _bigint_to_bytes( $bigint, $length = undef )
+{
+	my $hex = $bigint->as_hex();
+	$hex =~ s/^0x//;    # Strip 0x prefix
+
+	# Ensure even number of hex digits
+	$hex = '0' . $hex if length($hex) % 2;
+
+	my $bytes = pack( 'H*', $hex );
+
+	# Left-pad with zeros if length specified
+	if ( defined $length && length($bytes) < $length ) {
+		$bytes = ( "\x00" x ( $length - length($bytes) ) ) . $bytes;
+	}
+
+	return $bytes;
+}
+
 sub new( $class, %args )
 {
 
@@ -69,14 +89,11 @@ sub generate_server_public($self)
 
 	# k = H(N | PAD(g))
 	# PAD(g) must be padded to the same length as N (384 bytes for 3072-bit)
-	my $N_bytes = pack( 'H*', $self->{N}->as_hex() );
-	my $g_bytes = pack( 'H*', $self->{g}->as_hex() );
-
-	# Left-pad g with zeros to match N's length
-	my $g_padded =
-	    ( "\x00" x ( length($N_bytes) - length($g_bytes) ) ) . $g_bytes;
-	my $k_bytes = sha512( $N_bytes . $g_padded );
-	my $k       = Math::BigInt->from_hex( unpack( 'H*', $k_bytes ) );
+	my $N_bytes  = _bigint_to_bytes( $self->{N} );
+	my $N_len    = length($N_bytes);
+	my $g_padded = _bigint_to_bytes( $self->{g}, $N_len );
+	my $k_bytes  = sha512( $N_bytes . $g_padded );
+	my $k        = Math::BigInt->from_hex( unpack( 'H*', $k_bytes ) );
 
 	# B = (k*v + g^b) mod N
 	my $B =
@@ -99,10 +116,10 @@ sub compute_session_key( $self, $A_bytes )
 	$self->{A} = $A;
 
 	# u = H(A | B)
-	my $A_packed = pack( 'H*', $self->{A}->as_hex() );
-	my $B_bytes  = pack( 'H*', $self->{B}->as_hex() );
-	my $u_bytes  = sha512( $A_packed . $B_bytes );
-	my $u        = Math::BigInt->from_hex( unpack( 'H*', $u_bytes ) );
+	my $A_bytes = _bigint_to_bytes( $self->{A} );
+	my $B_bytes = _bigint_to_bytes( $self->{B} );
+	my $u_bytes = sha512( $A_bytes . $B_bytes );
+	my $u       = Math::BigInt->from_hex( unpack( 'H*', $u_bytes ) );
 
 	# S = (A * v^u)^b mod N
 	my $S =
@@ -112,7 +129,7 @@ sub compute_session_key( $self, $A_bytes )
 	$self->{S} = $S;
 
 	# K = H(S)
-	my $S_bytes = pack( 'H*', $S->as_hex() );
+	my $S_bytes = _bigint_to_bytes($S);
 	$self->{K} = sha512($S_bytes);
 
 	return $self->{K};
@@ -122,14 +139,14 @@ sub verify_client_proof( $self, $M1_client )
 {
 
 	# M1 = H(H(N) XOR H(g) | H(username) | salt | A | B | K)
-	my $N_hash = sha512( pack( 'H*', $self->{N}->as_hex() ) );
-	my $g_hash = sha512( pack( 'H*', $self->{g}->as_hex() ) );
+	my $N_hash = sha512( _bigint_to_bytes( $self->{N} ) );
+	my $g_hash = sha512( _bigint_to_bytes( $self->{g} ) );
 	my $xor    = $N_hash ^ $g_hash;
 
 	my $user_hash = sha512( $self->{username} );
 
-	my $A_bytes = pack( 'H*', $self->{A}->as_hex() );
-	my $B_bytes = pack( 'H*', $self->{B}->as_hex() );
+	my $A_bytes = _bigint_to_bytes( $self->{A} );
+	my $B_bytes = _bigint_to_bytes( $self->{B} );
 
 	my $M1 =
 	    sha512(   $xor
@@ -152,7 +169,7 @@ sub generate_server_proof($self)
 	    if !defined $self->{K};
 
 	# M2 = H(A | M1 | K)
-	my $A_bytes = pack( 'H*', $self->{A}->as_hex() );
+	my $A_bytes = _bigint_to_bytes( $self->{A} );
 	my $M2      = sha512( $A_bytes . $self->{M1} . $self->{K} );
 
 	$self->{M2} = $M2;

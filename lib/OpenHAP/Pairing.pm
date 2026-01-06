@@ -165,9 +165,12 @@ sub _pair_setup_m1_m2( $self, $session, $method = 0 )
 	$session->{pairing_state}{srp} = $srp;
 
 	# M2: Send salt and public key
+	my $B_hex = $B->as_hex();
+	$B_hex =~ s/^0x//;                              # Strip 0x prefix
+	$B_hex = '0' . $B_hex if length($B_hex) % 2;    # Ensure even length
 	my $response = OpenHAP::TLV::encode(
 		kTLVType_State,     pack( 'C',  2 ),
-		kTLVType_PublicKey, pack( 'H*', $B->as_hex() ),
+		kTLVType_PublicKey, pack( 'H*', $B_hex ),
 		kTLVType_Salt,      $salt,
 	);
 
