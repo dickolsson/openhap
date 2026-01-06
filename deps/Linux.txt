@@ -1,0 +1,3 @@
+runtime mosquitto
+runtime avahi-daemon
+develop libssh2-1-dev
