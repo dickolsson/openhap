@@ -16,20 +16,16 @@ SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLeve
 vm_run() { "${OPENHVF}" ssh "$@"; }
 vm_scp() { scp ${SSH_OPTS} -P "${SSH_PORT}" "$@"; }
 
-echo "==> Copying test files and support modules..."
+echo "==> Copying test files..."
 cd "${PROJECT_ROOT}"
 TARBALL="/tmp/tests-$$.tar.gz"
-tar czf "${TARBALL}" t/openhap/integration/ lib/OpenHAP/Test/
+tar czf "${TARBALL}" t/openhap/integration/
 vm_scp "${TARBALL}" "root@localhost:/tmp/tests.tar.gz"
 rm -f "${TARBALL}"
 
 echo "==> Running integration tests..."
 vm_run <<'EOF'
 cd /tmp && tar xzf tests.tar.gz
-
-# Install test support module
-mkdir -p /usr/local/libdata/perl5/site_perl/OpenHAP/Test
-cp lib/OpenHAP/Test/* /usr/local/libdata/perl5/site_perl/OpenHAP/Test/ 2>/dev/null || true
 
 # Clean up any orphaned processes from previous test runs
 # This ensures a known-good state before running tests
