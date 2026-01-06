@@ -28,10 +28,9 @@ if [ ! -f "${TARBALL}" ]; then
 fi
 echo "Using tarball: ${TARBALL}"
 
-echo "==> Installing OS dependencies..."
+echo "==> Installing cpanm..."
 vm_run <<'EOF'
 pkg_add -u 2>/dev/null || true
-pkg_add mosquitto openmdns 2>/dev/null || true
 
 # Install cpanm if not already present
 if ! command -v cpanm >/dev/null 2>&1; then
@@ -59,7 +58,7 @@ fi
 # Change to extracted directory
 cd /tmp/openhap-*
 
-# Install Perl dependencies
+# Install dependencies
 make deps
 
 # Run make install
