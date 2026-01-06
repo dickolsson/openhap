@@ -8,7 +8,7 @@ runtime cpan CryptX
 runtime cpan Net::MQTT::Simple
 
 test pkg libperl-critic-perl
-test pkg libperl-tidy-perl
+test pkg perltidy
 
 develop pkg libssh2-1-dev
 develop pkg qemu-system-aarch64
