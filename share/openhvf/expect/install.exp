@@ -180,6 +180,6 @@ expect {
 expect "(R)eboot?" { respond "h" }
 
 # Wait for system to halt
-sleep 5
+expect "The operating system has halted"
 expect eof
 exit 0
