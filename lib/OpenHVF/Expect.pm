@@ -75,8 +75,8 @@ sub _find_script( $self, $script_name )
 
 sub run_install( $self, $config )
 {
-	my $script = $self->_find_script('install-openbsd.exp')
-	    // "$RealBin/../scripts/integration/vm-install.exp";
+	my $script = $self->_find_script('install.exp')
+	    // "$RealBin/../share/openhvf/expect/install.exp";
 
 	if ( !-f $script ) {
 		warn "Install script not found: $script\n";

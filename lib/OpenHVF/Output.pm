@@ -35,6 +35,12 @@ sub error( $self, $message )
 	warn "ERROR: $message\n";
 }
 
+sub warn( $self, $message )
+{
+	return if $self->{quiet};
+	say STDERR "WARNING: $message";
+}
+
 sub success( $self, $message )
 {
 	return if $self->{quiet};

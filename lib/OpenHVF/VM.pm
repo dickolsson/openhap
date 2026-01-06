@@ -561,7 +561,7 @@ sub _install_ssh_key( $self, $password )
 	}
 
 	# Store which pubkey was installed for future comparison
-	$state->set_installed_ssh_pubkey($ssh_pubkey);
+	$state->mark_ssh_key_installed($ssh_pubkey);
 	return 1;
 }
 
