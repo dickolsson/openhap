@@ -235,6 +235,52 @@ sub clear_proxy_port($self)
 	return $self;
 }
 
+# Proxy lifecycle management
+# $self->ensure_proxy($cache_dir):
+#	Start proxy if not running, return Proxy object
+#	Returns undef if proxy cannot be started
+sub ensure_proxy( $self, $cache_dir )
+{
+	require OpenHVF::Proxy;
+
+	my $proxy = OpenHVF::Proxy->new( $self, $cache_dir );
+
+	# Already running? Return existing proxy
+	if ( $proxy->is_running ) {
+		return $proxy;
+	}
+
+	# Start the proxy
+	my $port = $proxy->start;
+	return if !defined $port;
+
+	return $proxy;
+}
+
+# $self->get_proxy($cache_dir):
+#	Get Proxy object if running, undef if not
+sub get_proxy( $self, $cache_dir )
+{
+	require OpenHVF::Proxy;
+
+	my $proxy = OpenHVF::Proxy->new( $self, $cache_dir );
+	return $proxy->is_running ? $proxy : undef;
+}
+
+# $self->stop_proxy($cache_dir):
+#	Stop proxy if running
+sub stop_proxy( $self, $cache_dir )
+{
+	require OpenHVF::Proxy;
+
+	my $proxy = OpenHVF::Proxy->new( $self, $cache_dir );
+	if ( $proxy->is_running ) {
+		$proxy->stop;
+	}
+
+	return $self;
+}
+
 # Disk state
 sub disk_path($self)
 {
