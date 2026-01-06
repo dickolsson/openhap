@@ -348,4 +348,59 @@ sub data($self)
 	return $self->{data};
 }
 
+# Shutdown state tracking
+# Tracks whether VM was shutdown cleanly to detect filesystem corruption risk
+
+sub mark_clean_shutdown($self)
+{
+	$self->{data}{shutdown_clean} = 1;
+	$self->{data}{shutdown_at}    = time;
+	delete $self->{data}{running};
+	$self->save;
+	return $self;
+}
+
+sub mark_unclean_shutdown($self)
+{
+	$self->{data}{shutdown_clean} = 0;
+	$self->{data}{shutdown_at}    = time;
+	delete $self->{data}{running};
+	$self->save;
+	return $self;
+}
+
+sub mark_running($self)
+{
+	$self->{data}{running}    = 1;
+	$self->{data}{started_at} = time;
+	delete $self->{data}{shutdown_clean};
+	$self->save;
+	return $self;
+}
+
+sub was_unclean_shutdown($self)
+{
+	# If explicitly marked as unclean
+	if ( exists $self->{data}{shutdown_clean}
+		&& !$self->{data}{shutdown_clean} )
+	{
+		return 1;
+	}
+
+	# If marked running but VM process is dead = crashed/killed
+	if ( $self->{data}{running} && !$self->is_vm_running ) {
+		return 1;
+	}
+
+	return 0;
+}
+
+sub clear_shutdown_state($self)
+{
+	delete $self->{data}{shutdown_clean};
+	delete $self->{data}{running};
+	$self->save;
+	return $self;
+}
+
 1;
