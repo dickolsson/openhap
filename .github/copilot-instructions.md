@@ -232,9 +232,32 @@ sub _transform($self, $data) { ...; return $transformed; }
 
 ## Dependencies and Error Handling
 
-**Dependencies:** Use OpenBSD base packages: `pkg_add p5-*`. Minimize
-dependencies, list in `cpanfile`. All crypto via `CryptX`, `Crypt::Ed25519`,
-`Crypt::Curve25519`. Use `require` for conditional loading.
+**Dependencies:** Perl modules in `cpanfile`, OS packages in `deps/[OS].txt`.
+
+Perl dependencies (cpanfile):
+
+- Core runtime: `Crypt::Ed25519`, `Crypt::Curve25519`, `CryptX`,
+  `Math::BigInt::GMP`, `JSON::XS`, `Net::MQTT::Simple`
+- Test dependencies (on 'test'): `Perl::Critic`, `Perl::Tidy`
+- Develop dependencies (on 'develop'): `HTTP::Daemon`, `LWP::UserAgent`,
+  `Net::SSH2` (for OpenHVF)
+
+OS dependencies (deps/):
+
+- Format: `environment package` (e.g., `runtime mosquitto`, `develop libssh2`)
+- Files: `OpenBSD.txt`, `Darwin.txt`, `Linux.txt` (matches `uname` output)
+- Environments: `runtime`, `test`, `develop`
+
+Makefile targets:
+
+- `make deps` — Install runtime OS packages + Perl modules
+- `make deps-test` — Install runtime + test dependencies
+- `make deps-develop` — Install all dependencies (runtime + test + develop)
+
+Cross-platform package management via `scripts/pkg_add.sh`
+(pkg_add/apt-get/brew) and `scripts/ftp.sh` (ftp/wget/curl).
+
+Use `require` for conditional module loading. Minimize dependencies.
 
 **Error Handling:** Return undef for recoverable errors, die for programming
 errors. Use try/catch for cleanup:
