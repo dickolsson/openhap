@@ -17,27 +17,29 @@ $env->setup;
 my $mdnsctl_available = -x '/usr/sbin/mdnsctl' || -x '/usr/local/bin/mdnsctl';
 ok($mdnsctl_available, 'mdnsctl command available');
 
-die "mdnsctl required for mDNS integration tests\n" unless $mdnsctl_available;
+SKIP: {
+	skip 'mdnsctl required for mDNS integration tests', 9
+		unless $mdnsctl_available;
 
-# Test 2: OpenHAP daemon is running
-my $daemon_running = system('rcctl check openhapd >/dev/null 2>&1') == 0;
-ok($daemon_running, 'OpenHAP daemon is running');
+	# Test 2: OpenHAP daemon is running
+	my $daemon_running = system('rcctl check openhapd >/dev/null 2>&1') == 0;
+	ok($daemon_running, 'OpenHAP daemon is running');
 
-# Test 3: mdnsd daemon is available
-my $mdnsd_available = 0;
+	# Test 3: mdnsd daemon is available
+	my $mdnsd_available = 0;
 
-# Try to enable and start mdnsd if not running
-unless (system('rcctl check mdnsd >/dev/null 2>&1') == 0) {
-	system('rcctl enable mdnsd >/dev/null 2>&1');
-	system('rcctl start mdnsd >/dev/null 2>&1');
-	sleep 1;
-}
+	# Try to enable and start mdnsd if not running
+	unless (system('rcctl check mdnsd >/dev/null 2>&1') == 0) {
+		system('rcctl enable mdnsd >/dev/null 2>&1');
+		system('rcctl start mdnsd >/dev/null 2>&1');
+		sleep 1;
+	}
 
-$mdnsd_available = system('rcctl check mdnsd >/dev/null 2>&1') == 0;
-ok($mdnsd_available, 'mdnsd daemon is running');
+	$mdnsd_available = system('rcctl check mdnsd >/dev/null 2>&1') == 0;
+	ok($mdnsd_available, 'mdnsd daemon is running');
 
-die "mdnsd daemon required for mDNS integration tests\n" 
-	unless $mdnsd_available;
+	skip 'mdnsd daemon required for mDNS integration tests', 7
+		unless $mdnsd_available;
 
 # Test 4: OpenHAP MDNS module loaded (check logs)
 my @logs = $env->get_log_lines('mDNS|mdns|Starting OpenHAP');
@@ -83,12 +85,13 @@ if ($mdns_output =~ /id=([0-9A-Fa-f:]+)/) {
 	ok(1, 'device ID format verification skipped (no TXT access)');
 }
 
-# Test 10: Setup hash present if configured (HAP R2 4.5.2 requirement)
-# This depends on configuration - if setup_id is configured, sh= should be present
-$mdns_output = `timeout 3 mdnsctl lookup _hap._tcp.local 2>&1 || true`;
-# Just verify the daemon can provide TXT records at all
-my $txt_accessible = $mdns_output =~ /pv=|id=|c#=/;
-ok($txt_accessible || $hap_found,
-   'mDNS TXT records accessible or service found');
+	# Test 10: Setup hash present if configured (HAP R2 4.5.2 requirement)
+	# This depends on configuration - if setup_id is configured, sh= should be present
+	$mdns_output = `timeout 3 mdnsctl lookup _hap._tcp.local 2>&1 || true`;
+	# Just verify the daemon can provide TXT records at all
+	my $txt_accessible = $mdns_output =~ /pv=|id=|c#=/;
+	ok($txt_accessible || $hap_found,
+	   'mDNS TXT records accessible or service found');
+}
 
 $env->teardown;
