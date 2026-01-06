@@ -99,10 +99,10 @@ sub register_service($self)
 	# mdnsctl publish outputs status messages to stdout and stays running
 	# It exits immediately if stdout is /dev/null, so redirect to a log file
 	# Use /var/db/openhapd which is owned by _openhap after privilege drop
-	my $log_dir = $self->{log_dir};
+	my $log_dir  = $self->{log_dir};
 	my $mdns_log = "$log_dir/mdnsctl.log";
 
-	# Ensure the log directory exists (defensive: should be created by Storage)
+     # Ensure the log directory exists (defensive: should be created by Storage)
 	if ( !-d $log_dir ) {
 		require File::Path;
 		File::Path::make_path($log_dir)
