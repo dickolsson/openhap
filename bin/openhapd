@@ -111,6 +111,26 @@ my $mdns = OpenHAP::MDNS->new(
 # _openhap must be in wheel group to access /var/run/mdnsd.sock
 # This ensures mdnsctl runs as _openhap and can be killed on shutdown
 if ( $> == 0 ) {
+	# Ensure db_path is owned by _openhap before dropping privileges
+	# This allows mdnsctl log and other runtime files to be written
+	my ( $uid, $gid ) = ( getpwnam('_openhap') )[ 2, 3 ];
+	if ( defined $uid && -d $db_path ) {
+		chown $uid, $gid, $db_path
+		    or $OpenHAP::logger->warning(
+			"Cannot chown $db_path: $!");
+
+		# Also chown any existing files in the directory
+		opendir( my $dh, $db_path ) or next;
+		while ( my $file = readdir($dh) ) {
+			next if $file =~ /^\.\.?$/;
+			my $path = "$db_path/$file";
+			chown $uid, $gid, $path
+			    or $OpenHAP::logger->warning(
+				"Cannot chown $path: $!");
+		}
+		closedir($dh);
+	}
+
 	use FuguLib::Privdrop;
 	FuguLib::Privdrop->drop_privileges( user => '_openhap' );
 

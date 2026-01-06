@@ -73,16 +73,20 @@ use_ok('OpenHAP::MDNS');
 # Test registration state tracking
 {
 	# Create a mock mdnsctl that sleeps
-	use File::Temp qw(tempfile);
+	use File::Temp qw(tempfile tempdir);
 	my ( $fh, $mock_mdnsctl ) = tempfile( UNLINK => 1 );
 	print $fh "#!/bin/sh\n";
 	print $fh "sleep 300\n";
 	close $fh;
 	chmod 0755, $mock_mdnsctl;
 
+	# Create a temporary directory for mdns logs
+	my $temp_dir = tempdir( CLEANUP => 1 );
+
 	my $mdns = OpenHAP::MDNS->new(
 		service_name => 'Test',
 		mdnsctl      => $mock_mdnsctl,
+		log_dir      => $temp_dir,
 	);
 
 	ok( !$mdns->is_registered(), 'Initially not registered' );
@@ -138,6 +142,9 @@ use_ok('OpenHAP::MDNS');
 	close $fh;
 	chmod 0755, $filename;
 
+	use File::Temp qw(tempdir);
+	my $temp_dir = tempdir( CLEANUP => 1 );
+
 	my $mdns = OpenHAP::MDNS->new(
 		service_name => 'Test Service',
 		port         => 8080,
@@ -147,6 +154,7 @@ use_ok('OpenHAP::MDNS');
 			'id' => 'AA:BB:CC:DD:EE:FF',
 		},
 		mdnsctl => $filename,
+		log_dir => $temp_dir,
 	);
 
 	# Register and check command
@@ -194,9 +202,13 @@ use_ok('OpenHAP::MDNS');
 	close $fh;
 	chmod 0755, $filename;
 
+	use File::Temp qw(tempdir);
+	my $temp_dir = tempdir( CLEANUP => 1 );
+
 	my $mdns = OpenHAP::MDNS->new(
 		service_name => 'Fail Test',
 		mdnsctl      => $filename,
+		log_dir      => $temp_dir,
 	);
 
 	# With FuguLib::Process, we properly detect process failure
@@ -208,9 +220,13 @@ use_ok('OpenHAP::MDNS');
 
 # Test exception handling during command execution
 {
+	use File::Temp qw(tempdir);
+	my $temp_dir = tempdir( CLEANUP => 1 );
+
 	my $mdns = OpenHAP::MDNS->new(
 		service_name => 'Exception Test',
 		mdnsctl      => '/dev/null',    # Cannot execute /dev/null
+		log_dir      => $temp_dir,
 	);
 
 	# With FuguLib::Process, exec failure is detected via check_alive
@@ -230,6 +246,9 @@ use_ok('OpenHAP::MDNS');
 	close $fh;
 	chmod 0755, $filename;
 
+	use File::Temp qw(tempdir);
+	my $temp_dir = tempdir( CLEANUP => 1 );
+
 	my $mdns = OpenHAP::MDNS->new(
 		service_name => 'Sort Test',
 		port         => 9999,
@@ -239,6 +258,7 @@ use_ok('OpenHAP::MDNS');
 			'm' => 'middle',
 		},
 		mdnsctl => $filename,
+		log_dir => $temp_dir,
 	);
 
 	$mdns->register_service();
