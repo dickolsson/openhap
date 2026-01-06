@@ -25,6 +25,16 @@ use Time::HiRes qw(usleep);
 
 use OpenHVF::Proxy::Cache;
 
+# $class->run_child($port, $cache_dir):
+#	Entry point for spawned child process
+#	Sets up cache and runs the proxy server
+sub run_child( $class, $port, $cache_dir )
+{
+	my $cache = OpenHVF::Proxy::Cache->new($cache_dir);
+	my $self  = bless { cache => $cache, }, $class;
+	$self->_run_proxy($port);
+}
+
 use constant {
 	PORT_RANGE_START => 8080,
 	PORT_RANGE_END   => 8180,
@@ -62,14 +72,11 @@ sub start($self)
 	}
 
 	# Spawn proxy using FuguLib::Process
-	my $log    = $self->{state}->vm_state_dir . "/proxy.log";
-	my $result = FuguLib::Process->spawn(
-		cmd => [
-			$^X,
-			'-e',
-'require OpenHVF::Proxy; OpenHVF::Proxy->_run_proxy_child($ARGV[0])',
-			$port
-		],
+	my $log       = $self->{state}->vm_state_dir . "/proxy.log";
+	my $cache_dir = $self->{cache_dir};
+	my $result    = FuguLib::Process->spawn_perl(
+		code => 'use OpenHVF::Proxy; OpenHVF::Proxy->run_child(@ARGV)',
+		args => [ $port, $cache_dir ],
 		daemonize   => 1,
 		stdout      => $log,
 		stderr      => $log,
@@ -142,14 +149,24 @@ sub port($self)
 	return $self->{state}->get_proxy_port;
 }
 
-# $self->url:
-#	Get proxy URL for use from VM
-sub url($self)
+# $self->guest_url:
+#	Get proxy URL for use from VM guest (via QEMU gateway)
+sub guest_url($self)
 {
 	my $port = $self->port;
 	return if !defined $port;
 
 	return "http://" . HOST_GATEWAY . ":$port";
+}
+
+# $self->host_url:
+#	Get proxy URL for use from host (localhost)
+sub host_url($self)
+{
+	my $port = $self->port;
+	return if !defined $port;
+
+	return "http://127.0.0.1:$port";
 }
 
 # $self->wait_ready($timeout):

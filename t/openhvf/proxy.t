@@ -157,7 +157,7 @@ use_ok('OpenHVF::Proxy::Cache');
 	ok(defined $proxy, 'Proxy object created');
 	ok(!$proxy->is_running, 'Proxy not running initially');
 	is($proxy->port, undef, 'No port initially');
-	is($proxy->url, undef, 'No URL initially');
+	is($proxy->guest_url, undef, 'No guest_url initially');
 }
 
 # Test Proxy port finding
@@ -183,9 +183,9 @@ use_ok('OpenHVF::Proxy::Cache');
 	$state->set_proxy_port(8080);
 
 	my $proxy = OpenHVF::Proxy->new($state, $cache_dir);
-	my $url = $proxy->url;
+	my $url = $proxy->guest_url;
 
-	is($url, 'http://10.0.2.2:8080', 'Proxy URL correct');
+	is($url, 'http://10.0.2.2:8080', 'Proxy guest_url correct');
 }
 
 # Test Proxy start/stop (integration test - may be slow)
