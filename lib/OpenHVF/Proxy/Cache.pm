@@ -29,6 +29,9 @@ my @CACHEABLE_PATTERNS = (
 	qr{/pub/OpenBSD/\d+\.\d+/packages/\w+/.*\.tgz$},    # Packages
 	qr{/pub/OpenBSD/\d+\.\d+/\w+/SHA256(\.sig)?$},      # Checksums
 	qr{/pub/OpenBSD/\d+\.\d+/\w+/miniroot\d+\.img$},    # Miniroot images
+	qr{/pub/OpenBSD/\d+\.\d+/\w+/bsd(\.mp|\.rd)?$},     # Kernel files
+	qr{/pub/OpenBSD/\d+\.\d+/\w+/BUILDINFO$},           # Build info
+	qr{/pub/OpenBSD/\d+\.\d+/\w+/.*\.txt$},    # Text files (index, etc)
 );
 
 sub new( $class, $cache_dir )

@@ -21,18 +21,39 @@ package OpenHVF::Proxy;
 
 use POSIX qw(setsid);
 use IO::Socket::INET;
-use Time::HiRes qw(usleep);
+use Socket      qw(IPPROTO_TCP TCP_NODELAY SOL_SOCKET SO_SNDBUF);
+use Time::HiRes qw(usleep time);
 
+use FuguLib::Log;
 use FuguLib::Process;
 use OpenHVF::Proxy::Cache;
+use OpenHVF::Proxy::MetaCache;
 
 # $class->run_child($port, $cache_dir):
 #	Entry point for spawned child process
 #	Sets up cache and runs the proxy server
 sub run_child( $class, $port, $cache_dir )
 {
-	my $cache = OpenHVF::Proxy::Cache->new($cache_dir);
-	my $self  = bless { cache => $cache, }, $class;
+	my $log       = FuguLib::Log->new( mode => 'stderr', level => 'debug' );
+	my $cache     = OpenHVF::Proxy::Cache->new($cache_dir);
+	my $metacache = OpenHVF::Proxy::MetaCache->new;
+	my $self      = bless {
+		cache     => $cache,
+		metacache => $metacache,
+		log       => $log,
+	}, $class;
+
+	$log->info( 'Proxy starting on port %d', $port );
+	$log->info( 'Cache directory: %s',       $cache_dir );
+
+	# Pre-warm metadata cache
+	my $start_time = time;
+	$metacache->warm($cache);
+	my $warm_time = time - $start_time;
+	my $entries   = scalar keys %{ $metacache->{entries} };
+	$log->info( 'Metadata cache warmed: %d entries in %.3f seconds',
+		$entries, $warm_time );
+
 	$self->_run_proxy($port);
 }
 
@@ -49,6 +70,7 @@ sub new( $class, $state, $cache_dir )
 		state     => $state,
 		cache_dir => $cache_dir,
 		cache     => OpenHVF::Proxy::Cache->new($cache_dir),
+		metacache => OpenHVF::Proxy::MetaCache->new,
 	}, $class;
 
 	return $self;
@@ -239,6 +261,8 @@ sub _run_proxy( $self, $port )
 		Listen    => 20,
 	) or die "Cannot create daemon: $!";
 
+	$self->{log}->info( 'Proxy listening on 0.0.0.0:%d', $port );
+
 	# Self-pipe trick for reliable signal handling
 	pipe( my $sig_read, my $sig_write ) or die "pipe: $!";
 	$sig_read->blocking(0);
@@ -250,6 +274,7 @@ sub _run_proxy( $self, $port )
 	# Handle SIGTERM gracefully by writing to self-pipe
 	my $running = 1;
 	local $SIG{TERM} = sub {
+		$self->{log}->info('Received SIGTERM, shutting down');
 		$running = 0;
 		syswrite $sig_write, "x", 1;
 	};
@@ -285,8 +310,44 @@ sub _run_proxy( $self, $port )
 sub _handle_client( $self, $client )
 {
 	while ( my $request = $client->get_request ) {
-		my $response = $self->_process_request($request);
-		$client->send_response($response);
+
+		# Check if we can stream directly from cache
+		my $method      = $request->method;
+		my $url         = $request->uri->as_string;
+		my $client_addr = $client->peerhost;
+
+		$self->{log}
+		    ->debug( '%s %s from %s', $method, $url, $client_addr );
+
+		if ( ( $method eq 'GET' || $method eq 'HEAD' )
+			&& defined( my $meta =
+				    $self->{metacache}->lookup($url) ) )
+		{
+			$self->{log}
+			    ->info( 'CACHE HIT (metacache): %s [%d bytes]',
+				$url, $meta->{size} );
+			my $start = time;
+			$self->_serve_cached_streaming( $client, $meta,
+				$request );
+			my $elapsed = time - $start;
+			my $rate =
+			    $meta->{size} / $elapsed / 1024 / 1024;    # MB/s
+			$self->{log}->info(
+				'Streamed %d bytes in %.3f seconds (%.2f MB/s)',
+				$meta->{size}, $elapsed, $rate );
+		}
+		else {
+			my $start    = time;
+			my $response = $self->_process_request($request);
+			my $elapsed  = time - $start;
+			$client->send_response($response);
+			my $size = length( $response->content // '' );
+			my $rate =
+			    $size > 0 ? $size / $elapsed / 1024 / 1024 : 0;
+			$self->{log}->info(
+				'Served %d bytes in %.3f seconds (%.2f MB/s)',
+				$size, $elapsed, $rate );
+		}
 	}
 }
 
@@ -306,17 +367,45 @@ sub _process_request( $self, $request )
 	# Check cache first
 	my $cached = $self->{cache}->lookup($url);
 	if ( defined $cached ) {
+		$self->{log}->info( 'CACHE HIT (disk): %s', $url );
 		return $self->_serve_cached( $cached, $request );
 	}
 
 	# Fetch from upstream
-	my $response = $self->_forward_request($request);
+	$self->{log}->info( 'CACHE MISS: Fetching from upstream: %s', $url );
+	my $fetch_start   = time;
+	my $response      = $self->_forward_request($request);
+	my $fetch_elapsed = time - $fetch_start;
+	my $content_size  = length( $response->content // '' );
+	my $fetch_rate =
+	      $content_size > 0
+	    ? $content_size / $fetch_elapsed / 1024 / 1024
+	    : 0;
+	$self->{log}
+	    ->info( 'Fetched %d bytes in %.3f seconds (%.2f MB/s) - Status: %d',
+		$content_size, $fetch_elapsed, $fetch_rate, $response->code );
 
 	# Cache if appropriate
 	if (       $response->is_success
 		&& $self->{cache}->is_cacheable( $url, $response->code ) )
 	{
-		$self->{cache}->store( $url, $response->content );
+		$self->{log}->debug( 'Caching response: %s', $url );
+		my $path = $self->{cache}->store( $url, $response->content );
+		if ( defined $path ) {
+			$self->{metacache}->store( $url, $path );
+			$self->{log}->info( 'Cached to: %s', $path );
+		}
+		else {
+			$self->{log}->warn( 'Failed to cache: %s', $url );
+		}
+	}
+	elsif ( !$response->is_success ) {
+		$self->{log}
+		    ->warn( 'Not caching failed response: %s (status %d)',
+			$url, $response->code );
+	}
+	elsif ( !$self->{cache}->is_cacheable( $url, $response->code ) ) {
+		$self->{log}->debug( 'URL not cacheable: %s', $url );
 	}
 
 	return $response;
@@ -346,6 +435,7 @@ sub _forward_request( $self, $request )
 	return $response;
 }
 
+# Old _serve_cached for non-streaming fallback
 sub _serve_cached( $self, $path, $request )
 {
 	require HTTP::Response;
@@ -382,6 +472,142 @@ sub _serve_cached( $self, $path, $request )
 	}
 
 	return $response;
+}
+
+# New optimized streaming implementation
+sub _serve_cached_streaming( $self, $socket, $meta, $request )
+{
+	# Optimize socket for large transfers
+	# Disable Nagle's algorithm for immediate sends
+	setsockopt( $socket, IPPROTO_TCP, TCP_NODELAY, 1 );
+
+	# Increase send buffer to 1MB to reduce syscall overhead
+	setsockopt( $socket, SOL_SOCKET, SO_SNDBUF, pack( 'I', 1048576 ) );
+
+	$self->{log}->debug('Applied TCP_NODELAY and 1MB send buffer');
+
+	my $method = $request->method;
+	my $path   = $meta->{path};
+	my $size   = $meta->{size};
+	my $etag   = $meta->{etag};
+
+	# Handle If-None-Match for 304 responses
+	my $if_none_match = $request->header('If-None-Match');
+	if ( defined $if_none_match && $if_none_match eq $etag ) {
+		$self->{log}->info('Sending 304 Not Modified (ETag match)');
+		$self->_send_response_headers( $socket, 304, 'Not Modified',
+			{ 'ETag' => $etag, } );
+		return;
+	}
+
+	# Send headers
+	my $headers = {
+		'Content-Type'   => $meta->{content_type},
+		'Content-Length' => $size,
+		'X-Cache'        => 'HIT',
+		'ETag'           => $etag,
+	};
+	$self->{log}->debug(
+		'Sending headers: %d %s, Content-Length: %d, Content-Type: %s',
+		200, 'OK', $size, $meta->{content_type} );
+	$self->_send_response_headers( $socket, 200, 'OK', $headers );
+
+	# Stream file body for GET requests
+	if ( $method eq 'GET' ) {
+		$self->{log}
+		    ->debug( 'Starting stream: %s (%d bytes)', $path, $size );
+		my $stream_start = time;
+		my $bytes_sent =
+		    $self->_stream_file_to_socket( $socket, $path, $size );
+		my $stream_elapsed = time - $stream_start;
+		if ( defined $bytes_sent ) {
+			my $rate =
+			      $bytes_sent > 0
+			    ? $bytes_sent / $stream_elapsed / 1024 / 1024
+			    : 0;
+			$self->{log}->debug(
+'Stream completed: %d bytes in %.3f seconds (%.2f MB/s)',
+				$bytes_sent, $stream_elapsed, $rate );
+		}
+		else {
+			$self->{log}->error( 'Stream failed for: %s', $path );
+		}
+	}
+	else {
+		$self->{log}->debug('HEAD request, no body sent');
+	}
+}
+
+# Send HTTP response headers to socket
+sub _send_response_headers( $self, $socket, $code, $message, $headers )
+{
+	my $response = "HTTP/1.1 $code $message\r\n";
+	for my $name ( keys %$headers ) {
+		$response .= "$name: $headers->{$name}\r\n";
+	}
+	$response .= "\r\n";
+
+	# Use syswrite to ensure all bytes are sent
+	my $len    = length $response;
+	my $offset = 0;
+	while ( $offset < $len ) {
+		my $written =
+		    syswrite( $socket, $response, $len - $offset, $offset );
+		return unless defined $written;
+		$offset += $written;
+	}
+}
+
+# Stream file to socket using large buffers (256KB)
+sub _stream_file_to_socket( $self, $socket, $path, $size )
+{
+	open my $fh, '<', $path or do {
+		$self->{log}->error( 'Cannot open file for streaming: %s: %s',
+			$path, $! );
+		return;
+	};
+	binmode $fh;
+
+	# Use 256KB chunks for optimal throughput
+	use constant CHUNK_SIZE => 262144;    # 256KB
+
+	my $bytes_sent = 0;
+	my $remaining  = $size;
+	my $chunks     = 0;
+	while ( $remaining > 0 ) {
+		my $to_read = $remaining < CHUNK_SIZE ? $remaining : CHUNK_SIZE;
+		my $n       = sysread( $fh, my $buffer, $to_read );
+		if ( !$n ) {
+			$self->{log}->error( 'Read error after %d bytes: %s',
+				$bytes_sent, $! )
+			    if $remaining > 0;
+			last;
+		}
+
+		# Handle partial writes
+		my $offset = 0;
+		while ( $offset < $n ) {
+			my $written =
+			    syswrite( $socket, $buffer, $n - $offset, $offset );
+			if ( !defined $written ) {
+				$self->{log}
+				    ->error( 'Write error after %d bytes: %s',
+					$bytes_sent, $! );
+				close $fh;
+				return;
+			}
+			$offset += $written;
+		}
+
+		$bytes_sent += $n;
+		$remaining  -= $n;
+		$chunks++;
+	}
+
+	close $fh;
+	$self->{log}->debug( 'Streamed %d chunks (%d bytes total)',
+		$chunks, $bytes_sent );
+	return $bytes_sent;
 }
 
 1;
