@@ -32,7 +32,7 @@ use OpenHVF::Proxy::MetaCache;
 # $class->run_child($port, $cache_dir):
 #	Entry point for spawned child process
 #	Sets up cache and runs the proxy server
-sub run_child( $class, $port, $cache_dir )
+sub run_child ( $class, $port, $cache_dir )
 {
 	my $log       = FuguLib::Log->new( mode => 'stderr', level => 'debug' );
 	my $cache     = OpenHVF::Proxy::Cache->new($cache_dir);
@@ -64,7 +64,7 @@ use constant {
 	HOST_GATEWAY     => '10.0.2.2',    # QEMU user-mode networking gateway
 };
 
-sub new( $class, $state, $cache_dir )
+sub new ( $class, $state, $cache_dir )
 {
 	my $self = bless {
 		state     => $state,
@@ -79,7 +79,7 @@ sub new( $class, $state, $cache_dir )
 # $self->start:
 #	Start the proxy server
 #	Returns port number on success, undef on failure
-sub start($self)
+sub start ($self)
 {
 	# Check if already running
 	if ( $self->is_running ) {
@@ -104,13 +104,13 @@ sub start($self)
 		stdout      => $log,
 		stderr      => $log,
 		check_alive => 1,
-		on_success  => sub($pid) {
+		on_success  => sub ($pid) {
 
 			# Record state in callback
 			$self->{state}->set_proxy_pid($pid);
 			$self->{state}->set_proxy_port($port);
 		},
-		on_error => sub($err) {
+		on_error => sub ($err) {
 			warn "Proxy failed to start: $err\n";
 		},
 	);
@@ -129,7 +129,7 @@ sub start($self)
 
 # $self->stop:
 #	Stop the proxy server gracefully
-sub stop($self)
+sub stop ($self)
 {
 	my $pid = $self->{state}->get_proxy_pid;
 	return 1 if !defined $pid;
@@ -160,21 +160,21 @@ sub stop($self)
 
 # $self->is_running:
 #	Check if proxy is running
-sub is_running($self)
+sub is_running ($self)
 {
 	return $self->{state}->is_proxy_running;
 }
 
 # $self->port:
 #	Get current proxy port
-sub port($self)
+sub port ($self)
 {
 	return $self->{state}->get_proxy_port;
 }
 
 # $self->guest_url:
 #	Get proxy URL for use from VM guest (via QEMU gateway)
-sub guest_url($self)
+sub guest_url ($self)
 {
 	my $port = $self->port;
 	return if !defined $port;
@@ -184,7 +184,7 @@ sub guest_url($self)
 
 # $self->host_url:
 #	Get proxy URL for use from host (localhost)
-sub host_url($self)
+sub host_url ($self)
 {
 	my $port = $self->port;
 	return if !defined $port;
@@ -194,7 +194,7 @@ sub host_url($self)
 
 # $self->wait_ready($timeout):
 #	Wait for proxy to accept connections
-sub wait_ready( $self, $timeout = CONNECT_TIMEOUT )
+sub wait_ready ( $self, $timeout = CONNECT_TIMEOUT )
 {
 	my $port = $self->{state}->get_proxy_port;
 	return 0 if !defined $port;
@@ -219,12 +219,12 @@ sub wait_ready( $self, $timeout = CONNECT_TIMEOUT )
 
 # $self->cache:
 #	Get the cache object
-sub cache($self)
+sub cache ($self)
 {
 	return $self->{cache};
 }
 
-sub _find_available_port($self)
+sub _find_available_port ($self)
 {
 	for my $port ( PORT_RANGE_START .. PORT_RANGE_END ) {
 		my $sock = IO::Socket::INET->new(
@@ -244,7 +244,7 @@ sub _find_available_port($self)
 
 # $self->_run_proxy($port):
 #	Run the proxy server (called in child process)
-sub _run_proxy( $self, $port )
+sub _run_proxy ( $self, $port )
 {
 	require HTTP::Daemon;
 	require LWP::UserAgent;
@@ -307,7 +307,7 @@ sub _run_proxy( $self, $port )
 	$daemon->close;
 }
 
-sub _handle_client( $self, $client )
+sub _handle_client ( $self, $client )
 {
 	while ( my $request = $client->get_request ) {
 
@@ -351,7 +351,7 @@ sub _handle_client( $self, $client )
 	}
 }
 
-sub _process_request( $self, $request )
+sub _process_request ( $self, $request )
 {
 	require HTTP::Response;
 	require LWP::UserAgent;
@@ -411,7 +411,7 @@ sub _process_request( $self, $request )
 	return $response;
 }
 
-sub _forward_request( $self, $request )
+sub _forward_request ( $self, $request )
 {
 	require LWP::UserAgent;
 
@@ -436,7 +436,7 @@ sub _forward_request( $self, $request )
 }
 
 # Old _serve_cached for non-streaming fallback
-sub _serve_cached( $self, $path, $request )
+sub _serve_cached ( $self, $path, $request )
 {
 	require HTTP::Response;
 
@@ -475,7 +475,7 @@ sub _serve_cached( $self, $path, $request )
 }
 
 # New optimized streaming implementation
-sub _serve_cached_streaming( $self, $socket, $meta, $request )
+sub _serve_cached_streaming ( $self, $socket, $meta, $request )
 {
 	# Optimize socket for large transfers
 	# Disable Nagle's algorithm for immediate sends
@@ -539,7 +539,7 @@ sub _serve_cached_streaming( $self, $socket, $meta, $request )
 }
 
 # Send HTTP response headers to socket
-sub _send_response_headers( $self, $socket, $code, $message, $headers )
+sub _send_response_headers ( $self, $socket, $code, $message, $headers )
 {
 	my $response = "HTTP/1.1 $code $message\r\n";
 	for my $name ( keys %$headers ) {
@@ -559,7 +559,7 @@ sub _send_response_headers( $self, $socket, $code, $message, $headers )
 }
 
 # Stream file to socket using large buffers (256KB)
-sub _stream_file_to_socket( $self, $socket, $path, $size )
+sub _stream_file_to_socket ( $self, $socket, $path, $size )
 {
 	open my $fh, '<', $path or do {
 		$self->{log}->error( 'Cannot open file for streaming: %s: %s',

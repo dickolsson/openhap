@@ -34,7 +34,7 @@ my @CACHEABLE_PATTERNS = (
 	qr{/pub/OpenBSD/\d+\.\d+/\w+/.*\.txt$},    # Text files (index, etc)
 );
 
-sub new( $class, $cache_dir )
+sub new ( $class, $cache_dir )
 {
 	my $self = bless { cache_dir => $cache_dir, }, $class;
 
@@ -43,7 +43,7 @@ sub new( $class, $cache_dir )
 	return $self;
 }
 
-sub _ensure_dir($self)
+sub _ensure_dir ($self)
 {
 	my $proxy_dir = "$self->{cache_dir}/proxy";
 	if ( !-d $proxy_dir ) {
@@ -54,7 +54,7 @@ sub _ensure_dir($self)
 # $self->cache_path($url):
 #	Convert URL to filesystem cache path
 #	Returns undef if URL cannot be converted safely
-sub cache_path( $self, $url )
+sub cache_path ( $self, $url )
 {
 	require URI;
 	my $uri = URI->new($url);
@@ -74,7 +74,7 @@ sub cache_path( $self, $url )
 
 # $self->is_cacheable($url, $status_code):
 #	Determine if a URL response should be cached
-sub is_cacheable( $self, $url, $status_code = 200 )
+sub is_cacheable ( $self, $url, $status_code = 200 )
 {
 	# Only cache successful responses
 	return 0 if $status_code != 200;
@@ -90,7 +90,7 @@ sub is_cacheable( $self, $url, $status_code = 200 )
 # $self->lookup($url):
 #	Check if URL is in cache
 #	Returns cache file path if found, undef otherwise
-sub lookup( $self, $url )
+sub lookup ( $self, $url )
 {
 	my $path = $self->cache_path($url);
 	return if !defined $path;
@@ -101,7 +101,7 @@ sub lookup( $self, $url )
 # $self->store($url, $content):
 #	Store content in cache
 #	Returns cache file path on success, undef on failure
-sub store( $self, $url, $content )
+sub store ( $self, $url, $content )
 {
 	my $path = $self->cache_path($url);
 	return if !defined $path;
@@ -138,7 +138,7 @@ sub store( $self, $url, $content )
 # $self->store_from_file($url, $source_path):
 #	Store content from a file into cache
 #	Returns cache file path on success, undef on failure
-sub store_from_file( $self, $url, $source_path )
+sub store_from_file ( $self, $url, $source_path )
 {
 	my $path = $self->cache_path($url);
 	return if !defined $path;
@@ -164,7 +164,7 @@ sub store_from_file( $self, $url, $source_path )
 
 # $self->size:
 #	Calculate total cache size in bytes
-sub size($self)
+sub size ($self)
 {
 	my $proxy_dir = "$self->{cache_dir}/proxy";
 	return 0 if !-d $proxy_dir;
@@ -172,7 +172,7 @@ sub size($self)
 	my $total = 0;
 	$self->_walk_dir(
 		$proxy_dir,
-		sub($file) {
+		sub ($file) {
 			$total += -s $file if -f $file;
 		} );
 
@@ -181,7 +181,7 @@ sub size($self)
 
 # $self->clear:
 #	Remove all cached files
-sub clear($self)
+sub clear ($self)
 {
 	my $proxy_dir = "$self->{cache_dir}/proxy";
 	return 1 if !-d $proxy_dir;
@@ -196,7 +196,7 @@ sub clear($self)
 # $self->list:
 #	List all cached files
 #	Returns arrayref of {url => $url, path => $path, size => $size}
-sub list($self)
+sub list ($self)
 {
 	my $proxy_dir = "$self->{cache_dir}/proxy";
 	my @files;
@@ -205,7 +205,7 @@ sub list($self)
 
 	$self->_walk_dir(
 		$proxy_dir,
-		sub($path) {
+		sub ($path) {
 			return if !-f $path;
 
 			# Reconstruct URL from path
@@ -227,7 +227,7 @@ sub list($self)
 	return \@files;
 }
 
-sub _walk_dir( $self, $dir, $callback )
+sub _walk_dir ( $self, $dir, $callback )
 {
 	opendir my $dh, $dir or return;
 

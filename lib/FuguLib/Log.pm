@@ -33,7 +33,7 @@ use constant {
 	MODE_QUIET  => 'quiet',
 };
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $mode  = $args{mode}  // MODE_STDERR;
 	my $level = $args{level} // 'info';
@@ -66,7 +66,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub DESTROY($self)
+sub DESTROY ($self)
 {
 	if ( $self->{opened} && $self->{mode} eq MODE_SYSLOG ) {
 		closelog();
@@ -74,18 +74,18 @@ sub DESTROY($self)
 }
 
 # Logging methods
-sub debug( $self, $fmt, @args )   { $self->_log( 'debug',   $fmt, @args ); }
-sub info( $self, $fmt, @args )    { $self->_log( 'info',    $fmt, @args ); }
-sub notice( $self, $fmt, @args )  { $self->_log( 'notice',  $fmt, @args ); }
-sub warning( $self, $fmt, @args ) { $self->_log( 'warning', $fmt, @args ); }
-sub warn( $self, $fmt, @args )    { $self->_log( 'warning', $fmt, @args ); }
-sub error( $self, $fmt, @args )   { $self->_log( 'error',   $fmt, @args ); }
-sub err( $self, $fmt, @args )     { $self->_log( 'error',   $fmt, @args ); }
-sub crit( $self, $fmt, @args )    { $self->_log( 'crit',    $fmt, @args ); }
+sub debug   ( $self, $fmt, @args ) { $self->_log( 'debug',   $fmt, @args ); }
+sub info    ( $self, $fmt, @args ) { $self->_log( 'info',    $fmt, @args ); }
+sub notice  ( $self, $fmt, @args ) { $self->_log( 'notice',  $fmt, @args ); }
+sub warning ( $self, $fmt, @args ) { $self->_log( 'warning', $fmt, @args ); }
+sub warn    ( $self, $fmt, @args ) { $self->_log( 'warning', $fmt, @args ); }
+sub error   ( $self, $fmt, @args ) { $self->_log( 'error',   $fmt, @args ); }
+sub err     ( $self, $fmt, @args ) { $self->_log( 'error',   $fmt, @args ); }
+sub crit    ( $self, $fmt, @args ) { $self->_log( 'crit',    $fmt, @args ); }
 
 # $self->_log($level, $fmt, @args):
 #	Internal logging method
-sub _log( $self, $level, $fmt, @args )
+sub _log ( $self, $level, $fmt, @args )
 {
 	return if $self->{mode} eq MODE_QUIET;
 
@@ -107,7 +107,7 @@ sub _log( $self, $level, $fmt, @args )
 
 # $self->set_level($level):
 #	Change minimum log level
-sub set_level( $self, $level )
+sub set_level ( $self, $level )
 {
 	$self->{level} = _parse_level($level);
 }
@@ -146,19 +146,19 @@ my %facility_map = (
 	local7 => LOG_LOCAL7,
 );
 
-sub _parse_level($level)
+sub _parse_level ($level)
 {
 	$level = lc($level);
 	return $level_map{$level} // 1;    # Default to info
 }
 
-sub _level_to_priority($level)
+sub _level_to_priority ($level)
 {
 	$level = lc($level);
 	return $priority_map{$level} // LOG_INFO;
 }
 
-sub _parse_facility($facility)
+sub _parse_facility ($facility)
 {
 	$facility = lc($facility);
 	return $facility_map{$facility} // LOG_DAEMON;

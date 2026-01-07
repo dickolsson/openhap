@@ -16,7 +16,7 @@ our %SERVICE_TYPES = (
 
 # _uuid_to_short($uuid) - Convert full UUID to short form for JSON
 # Returns short hex string for Apple UUIDs, full UUID for custom ones
-sub _uuid_to_short($uuid)
+sub _uuid_to_short ($uuid)
 {
 	my $base = HAP_BASE_UUID;
 	if ( $uuid =~ /^0*([0-9A-Fa-f]+)\Q$base\E$/i ) {
@@ -25,7 +25,7 @@ sub _uuid_to_short($uuid)
 	return $uuid;
 }
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 
 	my $type = $args{type}           // die "Service type required";
@@ -42,12 +42,12 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub add_characteristic( $self, $characteristic )
+sub add_characteristic ( $self, $characteristic )
 {
 	push @{ $self->{characteristics} }, $characteristic;
 }
 
-sub get_characteristic( $self, $iid )
+sub get_characteristic ( $self, $iid )
 {
 
 	for my $char ( @{ $self->{characteristics} } ) {
@@ -57,7 +57,7 @@ sub get_characteristic( $self, $iid )
 	return;
 }
 
-sub get_characteristic_by_type( $self, $type )
+sub get_characteristic_by_type ( $self, $type )
 {
 	require OpenHAP::Characteristic;
 	my $target_uuid = $OpenHAP::Characteristic::CHAR_TYPES{$type} // $type;
@@ -69,12 +69,12 @@ sub get_characteristic_by_type( $self, $type )
 	return;
 }
 
-sub get_characteristics($self)
+sub get_characteristics ($self)
 {
 	return @{ $self->{characteristics} };
 }
 
-sub to_json($self)
+sub to_json ($self)
 {
 
 	my @chars;

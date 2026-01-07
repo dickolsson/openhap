@@ -40,7 +40,7 @@ use POSIX qw(setsid WNOHANG);
 #		on_error  => sub($err)  # Optional: error callback
 #		on_success => sub($pid) # Optional: success callback
 #		check_alive => $seconds # Optional: wait and verify process is alive
-sub spawn_command( $class, %args )
+sub spawn_command ( $class, %args )
 {
 	my $cmd = $args{cmd}
 	    or return { success => 0, error => 'No command specified' };
@@ -141,7 +141,7 @@ sub spawn_command( $class, %args )
 # $class->is_alive($pid):
 #	Check if process is alive (not dead, not zombie)
 #	Returns 1 if alive, 0 if dead or doesn't exist or zombie
-sub is_alive( $class, $pid )
+sub is_alive ( $class, $pid )
 {
 	return 0 unless defined $pid;
 	return 0 unless $pid =~ /^\d+$/;
@@ -172,7 +172,7 @@ sub is_alive( $class, $pid )
 #	%args:
 #		grace_period => $seconds # Time to wait after TERM before KILL (default: 5)
 #		on_kill      => sub()    # Called after successful kill
-sub terminate( $class, $pid, %args )
+sub terminate ( $class, $pid, %args )
 {
 	return 1 unless defined $pid;
 	return 1 unless $class->is_alive($pid);
@@ -218,7 +218,7 @@ sub terminate( $class, $pid, %args )
 # $class->reap($pid):
 #	Attempt to reap a zombie process
 #	Returns 1 if process was reaped or doesn't exist, 0 if still running
-sub reap( $class, $pid )
+sub reap ( $class, $pid )
 {
 	return 1 unless defined $pid;
 	return 1 unless $pid =~ /^\d+$/;
@@ -234,7 +234,7 @@ sub reap( $class, $pid )
 # $class->reap_all():
 #	Reap all zombie children (non-blocking)
 #	Returns count of children reaped
-sub reap_all($class)
+sub reap_all ($class)
 {
 	my $count = 0;
 	while ( waitpid( -1, WNOHANG ) > 0 ) {
@@ -246,7 +246,7 @@ sub reap_all($class)
 # $class->wait_exit($pid, $timeout):
 #	Wait for process to exit
 #	Returns 1 if process exited, 0 if timeout
-sub wait_exit( $class, $pid, $timeout = 30 )
+sub wait_exit ( $class, $pid, $timeout = 30 )
 {
 	my $start = time;
 	while ( time - $start < $timeout ) {
@@ -273,7 +273,7 @@ sub wait_exit( $class, $pid, $timeout = 30 )
 #			args => [$port, $dir],
 #			daemonize => 1,
 #		);
-sub spawn_perl( $class, %args )
+sub spawn_perl ( $class, %args )
 {
 	my $code = delete $args{code}
 	    or return { success => 0, error => 'No code specified' };

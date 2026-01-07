@@ -26,7 +26,7 @@ use OpenHAP::Tasmota::Lightbulb;
 
 # $class->new():
 #	Create new device loader instance.
-sub new($class)
+sub new ($class)
 {
 	bless {
 		next_aid => 2,    # AID 1 is the bridge
@@ -37,7 +37,7 @@ sub new($class)
 # $self->load_devices($config, $hap, $mqtt):
 #	Load devices from configuration and add them to HAP bridge.
 #	Returns number of successfully loaded devices.
-sub load_devices( $self, $config, $hap, $mqtt )
+sub load_devices ( $self, $config, $hap, $mqtt )
 {
 	my @devices = $config->get_devices();
 	$OpenHAP::logger->debug( 'Loading %d device(s) from configuration',
@@ -69,7 +69,7 @@ sub load_devices( $self, $config, $hap, $mqtt )
 
 # $self->get_devices():
 #	Return list of loaded device accessory objects.
-sub get_devices($self)
+sub get_devices ($self)
 {
 	return @{ $self->{devices} };
 }
@@ -77,7 +77,7 @@ sub get_devices($self)
 # $self->_create_device($device, $mqtt, $mqtt_connected):
 #	Create accessory from device configuration.
 #	Returns accessory object or undef on error.
-sub _create_device( $self, $device, $mqtt, $mqtt_connected )
+sub _create_device ( $self, $device, $mqtt, $mqtt_connected )
 {
 	my $dev_type    = $device->{type}    // 'unknown';
 	my $dev_subtype = $device->{subtype} // 'unknown';
@@ -128,7 +128,7 @@ sub _create_device( $self, $device, $mqtt, $mqtt_connected )
 
 # $self->_is_supported_device($type, $subtype):
 #	Check if device type is supported.
-sub _is_supported_device( $self, $type, $subtype )
+sub _is_supported_device ( $self, $type, $subtype )
 {
 	return 1 if $type eq 'tasmota' && $subtype eq 'thermostat';
 	return 1 if $type eq 'tasmota' && $subtype eq 'heater';
@@ -143,7 +143,7 @@ sub _is_supported_device( $self, $type, $subtype )
 
 # $self->_validate_device($device):
 #	Validate required device fields. Returns true if valid.
-sub _validate_device( $self, $device )
+sub _validate_device ( $self, $device )
 {
 	unless ( defined $device->{name} && $device->{name} ne '' ) {
 		$OpenHAP::logger->error('Device missing required field: name');
@@ -169,7 +169,7 @@ sub _validate_device( $self, $device )
 
 # $self->_instantiate_device($device, $mqtt, $type, $subtype):
 #	Instantiate device object based on type.
-sub _instantiate_device( $self, $device, $mqtt, $type, $subtype )
+sub _instantiate_device ( $self, $device, $mqtt, $type, $subtype )
 {
 	my %common_args = (
 		aid         => $self->{next_aid}++,
@@ -228,7 +228,7 @@ sub _instantiate_device( $self, $device, $mqtt, $type, $subtype )
 
 # $self->_subscribe_mqtt($accessory, $device):
 #	Subscribe device to MQTT topics.
-sub _subscribe_mqtt( $self, $accessory, $device )
+sub _subscribe_mqtt ( $self, $accessory, $device )
 {
 	eval { $accessory->subscribe_mqtt(); };
 	if ($@) {
@@ -244,7 +244,7 @@ sub _subscribe_mqtt( $self, $accessory, $device )
 
 # $self->_device_type_name($device):
 #	Return human-readable device type name.
-sub _device_type_name( $self, $device )
+sub _device_type_name ( $self, $device )
 {
 	my $type    = $device->{type}    // 'unknown';
 	my $subtype = $device->{subtype} // 'unknown';

@@ -5,7 +5,7 @@ package OpenHAP::Bridge;
 require OpenHAP::Accessory;
 our @ISA = qw(OpenHAP::Accessory);
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = $class->SUPER::new(
 		aid               => 1,    # Bridge is always accessory 1
@@ -21,7 +21,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub add_bridged_accessory( $self, $accessory )
+sub add_bridged_accessory ( $self, $accessory )
 {
 	$OpenHAP::logger->debug( 'Adding bridged accessory: AID=%d, name=%s',
 		$accessory->{aid}, $accessory->{name} );
@@ -29,22 +29,22 @@ sub add_bridged_accessory( $self, $accessory )
 
 	# Forward event callbacks
 	$accessory->add_event_callback(
-		sub( $aid, $iid ) {
+		sub ( $aid, $iid ) {
 			$self->notify_change($iid);
 		} );
 }
 
-sub get_bridged_accessories($self)
+sub get_bridged_accessories ($self)
 {
 	return @{ $self->{bridged_accessories} };
 }
 
-sub get_all_accessories($self)
+sub get_all_accessories ($self)
 {
 	return ( $self, @{ $self->{bridged_accessories} } );
 }
 
-sub get_accessory( $self, $aid )
+sub get_accessory ( $self, $aid )
 {
 	return $self if $self->{aid} == $aid;
 
@@ -55,7 +55,7 @@ sub get_accessory( $self, $aid )
 	return;
 }
 
-sub to_json($self)
+sub to_json ($self)
 {
 	my @accessories;
 

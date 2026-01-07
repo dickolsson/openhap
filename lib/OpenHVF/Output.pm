@@ -21,7 +21,7 @@ package OpenHVF::Output;
 
 use FuguLib::Log;
 
-sub new( $class, $quiet = 0 )
+sub new ( $class, $quiet = 0 )
 {
 	my $mode =
 	    $quiet ? FuguLib::Log::MODE_QUIET : FuguLib::Log::MODE_STDERR;
@@ -34,32 +34,32 @@ sub new( $class, $quiet = 0 )
 	bless { log => $log }, $class;
 }
 
-sub info( $self, $message )
+sub info ( $self, $message )
 {
 	$self->{log}->info($message);
 }
 
-sub error( $self, $message )
+sub error ( $self, $message )
 {
 	$self->{log}->error($message);
 }
 
-sub warn( $self, $message )
+sub warn ( $self, $message )
 {
 	$self->{log}->warning($message);
 }
 
-sub success( $self, $message )
+sub success ( $self, $message )
 {
 	$self->{log}->info($message);
 }
 
-sub data( $self, $hashref )
+sub data ( $self, $hashref )
 {
 	$self->_format_data($hashref);
 }
 
-sub _format_data( $self, $data, $indent = 0 )
+sub _format_data ( $self, $data, $indent = 0 )
 {
 	my $prefix = '  ' x $indent;
 	my @lines;
@@ -105,7 +105,7 @@ sub _format_data( $self, $data, $indent = 0 )
 	}
 }
 
-sub _format_data_lines( $self, $data, $indent = 0 )
+sub _format_data_lines ( $self, $data, $indent = 0 )
 {
 	my $prefix = '  ' x $indent;
 	my @lines;
@@ -140,7 +140,7 @@ sub _format_data_lines( $self, $data, $indent = 0 )
 	return @lines;
 }
 
-sub pid( $self, $name, $pid )
+sub pid ( $self, $name, $pid )
 {
 	$self->{log}->info("Started $name (PID: $pid)");
 }

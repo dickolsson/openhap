@@ -33,7 +33,7 @@ use constant {
 	PROJECT_CONFIG       => '.openhvfrc',
 };
 
-sub new( $class, $project_root )
+sub new ( $class, $project_root )
 {
 	my $self = bless {
 		project_root => $project_root,
@@ -45,7 +45,7 @@ sub new( $class, $project_root )
 }
 
 # Walk up directory tree looking for .openhvfrc
-sub find_project_root($class)
+sub find_project_root ($class)
 {
 	my $dir = File::Spec->rel2abs('.');
 
@@ -61,7 +61,7 @@ sub find_project_root($class)
 	return;
 }
 
-sub _load_configs($self)
+sub _load_configs ($self)
 {
 	# Load global config from home directory
 	my $home          = $ENV{HOME} // '/root';
@@ -84,7 +84,7 @@ sub _load_configs($self)
 #   vm "name" { ... }
 #   vm name { ... }
 #
-sub _parse_config( $self, $path )
+sub _parse_config ( $self, $path )
 {
 	my %config;
 
@@ -144,7 +144,7 @@ sub _parse_config( $self, $path )
 	return \%config;
 }
 
-sub load_vm( $self, $name )
+sub load_vm ( $self, $name )
 {
 	# First check for VM block in project config, then global config
 	my $vm = $self->{project}{vm}{$name} // $self->{global}{vm}{$name};
@@ -171,7 +171,7 @@ sub load_vm( $self, $name )
 	return $vm;
 }
 
-sub cache_dir($self)
+sub cache_dir ($self)
 {
 	my $dir = $self->{project}{cache_dir} // $self->{global}{cache_dir}
 	    // '~/.cache/openhvf';
@@ -182,7 +182,7 @@ sub cache_dir($self)
 	return $dir;
 }
 
-sub state_dir($self)
+sub state_dir ($self)
 {
 	my $dir = $self->{project}{state_dir} // "$self->{data_dir}/state";
 
@@ -194,18 +194,18 @@ sub state_dir($self)
 	return $dir;
 }
 
-sub default_vm($self)
+sub default_vm ($self)
 {
 	return $self->{project}{default_vm} // $self->{global}{default_vm}
 	    // 'default';
 }
 
-sub ssh_pubkey($self)
+sub ssh_pubkey ($self)
 {
 	return $self->{project}{ssh_pubkey} // $self->{global}{ssh_pubkey};
 }
 
-sub project_root($self)
+sub project_root ($self)
 {
 	return $self->{project_root};
 }

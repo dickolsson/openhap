@@ -12,7 +12,7 @@ use JSON::XS;
 use constant SENSOR_TYPES =>
     qw(DS18B20 DHT11 DHT22 AM2301 BME280 BMP280 SHT3X SI7021);
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = $class->SUPER::new(
 		aid          => $args{aid},
@@ -79,7 +79,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub subscribe_mqtt($self)
+sub subscribe_mqtt ($self)
 {
 	# Call base class to set up standard subscriptions (C1, C2, C3)
 	$self->SUPER::subscribe_mqtt();
@@ -93,26 +93,26 @@ sub subscribe_mqtt($self)
 	# Subscribe to STATUS8 for sensor data (when actively queried)
 	$self->{mqtt_client}->subscribe(
 		$self->_build_topic( 'stat', 'STATUS8' ),
-		sub( $recv_topic, $payload ) {
+		sub ( $recv_topic, $payload ) {
 			$self->_handle_status8($payload);
 		} );
 
 	# Subscribe to STATUS10 for sensor data (recommended per spec)
 	$self->{mqtt_client}->subscribe(
 		$self->_build_topic( 'stat', 'STATUS10' ),
-		sub( $recv_topic, $payload ) {
+		sub ( $recv_topic, $payload ) {
 			$self->_handle_status10($payload);
 		} );
 }
 
 # Override to process sensor data from SENSOR messages
-sub _process_sensor_data( $self, $data )
+sub _process_sensor_data ( $self, $data )
 {
 	$self->_extract_sensor_values($data);
 }
 
 # Override to process sensor data from STATUS8 responses
-sub _handle_status8( $self, $payload )
+sub _handle_status8 ( $self, $payload )
 {
 	eval {
 		my $data = decode_json($payload);
@@ -137,7 +137,7 @@ sub _handle_status8( $self, $payload )
 }
 
 # Override to handle STATUS10 responses (recommended sensor query)
-sub _handle_status10( $self, $payload )
+sub _handle_status10 ( $self, $payload )
 {
 	eval {
 		my $data = decode_json($payload);
@@ -160,7 +160,7 @@ sub _handle_status10( $self, $payload )
 
 # $self->_extract_sensor_values($data):
 #	Extract temperature and humidity from sensor data (H5).
-sub _extract_sensor_values( $self, $data )
+sub _extract_sensor_values ( $self, $data )
 {
 	my ( $temp, $humidity, $sensor_id ) = $self->_find_sensor_values($data);
 
@@ -192,7 +192,7 @@ sub _extract_sensor_values( $self, $data )
 # $self->_find_sensor_values($data):
 #	Find temperature, humidity, and sensor ID in sensor data (H5, L3).
 #	Handles multiple sensor types and indexed sensors.
-sub _find_sensor_values( $self, $data )
+sub _find_sensor_values ( $self, $data )
 {
 	my ( $temp, $humidity, $sensor_id );
 

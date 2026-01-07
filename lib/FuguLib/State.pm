@@ -26,7 +26,7 @@ use FuguLib::Process;
 #
 # Provides safe PID file reading/writing with locking and stale PID detection.
 
-sub new( $class, $pidfile )
+sub new ( $class, $pidfile )
 {
 	return unless defined $pidfile;
 
@@ -39,7 +39,7 @@ sub new( $class, $pidfile )
 # $self->write_pid($pid):
 #	Write PID to file with exclusive lock
 #	Returns 1 on success, 0 on failure
-sub write_pid( $self, $pid = $$ )
+sub write_pid ( $self, $pid = $$ )
 {
 	my $pidfile = $self->{pidfile};
 
@@ -57,7 +57,7 @@ sub write_pid( $self, $pid = $$ )
 # $self->read_pid():
 #	Read PID from file
 #	Returns PID or undef if not found or invalid
-sub read_pid($self)
+sub read_pid ($self)
 {
 	my $pidfile = $self->{pidfile};
 	return unless -f $pidfile;
@@ -74,7 +74,7 @@ sub read_pid($self)
 
 # $self->remove():
 #	Remove PID file
-sub remove($self)
+sub remove ($self)
 {
 	my $pidfile = $self->{pidfile};
 	return 1 unless -f $pidfile;
@@ -84,7 +84,7 @@ sub remove($self)
 # $self->is_running():
 #	Check if process from PID file is running
 #	Returns PID if running, undef otherwise
-sub is_running($self)
+sub is_running ($self)
 {
 	my $pid = $self->read_pid;
 	return unless defined $pid;
@@ -94,7 +94,7 @@ sub is_running($self)
 
 # $self->is_stale():
 #	Check if PID file is stale (process not running)
-sub is_stale($self)
+sub is_stale ($self)
 {
 	my $pid = $self->read_pid;
 	return 0 unless defined $pid;

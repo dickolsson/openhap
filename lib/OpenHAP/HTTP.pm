@@ -5,7 +5,7 @@ package OpenHAP::HTTP;
 # Simple HTTP/1.1 parser for HAP protocol
 # HAP uses a variant of HTTP/1.1 with some differences
 
-sub parse($data)
+sub parse ($data)
 {
 	my $request = {
 		method  => '',
@@ -44,7 +44,7 @@ sub parse($data)
 	return $request;
 }
 
-sub build_response(%args)
+sub build_response (%args)
 {
 	my $status      = $args{status}      // 200;
 	my $status_text = $args{status_text} // _status_text($status);
@@ -74,7 +74,7 @@ sub build_response(%args)
 	return $response;
 }
 
-sub _status_text($code)
+sub _status_text ($code)
 {
 	my %codes = (
 		200 => 'OK',

@@ -31,7 +31,7 @@ use constant {
 	AVAILABILITY_OFFLINE => 2,
 };
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = $class->SUPER::new(%args);
 
@@ -54,7 +54,7 @@ sub new( $class, %args )
 # $self->subscribe_mqtt():
 #	Subscribe to all standard Tasmota topics.
 #	Subclasses should call SUPER::subscribe_mqtt() first.
-sub subscribe_mqtt($self)
+sub subscribe_mqtt ($self)
 {
 	my $topic = $self->{mqtt_topic};
 
@@ -66,35 +66,35 @@ sub subscribe_mqtt($self)
 	# C1: Subscribe to LWT for device availability
 	$self->{mqtt_client}->subscribe(
 		$self->_build_topic( 'tele', 'LWT' ),
-		sub( $recv_topic, $payload ) {
+		sub ( $recv_topic, $payload ) {
 			$self->_handle_lwt($payload);
 		} );
 
 	# C2: Subscribe to tele/STATE for periodic state updates
 	$self->{mqtt_client}->subscribe(
 		$self->_build_topic( 'tele', 'STATE' ),
-		sub( $recv_topic, $payload ) {
+		sub ( $recv_topic, $payload ) {
 			$self->_handle_state($payload);
 		} );
 
 	# C3: Subscribe to stat/RESULT for command responses
 	$self->{mqtt_client}->subscribe(
 		$self->_build_topic( 'stat', 'RESULT' ),
-		sub( $recv_topic, $payload ) {
+		sub ( $recv_topic, $payload ) {
 			$self->_handle_result($payload);
 		} );
 
 	# Subscribe to tele/SENSOR for sensor data
 	$self->{mqtt_client}->subscribe(
 		$self->_build_topic( 'tele', 'SENSOR' ),
-		sub( $recv_topic, $payload ) {
+		sub ( $recv_topic, $payload ) {
 			$self->_handle_sensor($payload);
 		} );
 
 	# C1/H1: Subscribe to STATUS11 for full state reconciliation
 	$self->{mqtt_client}->subscribe(
 		$self->_build_topic( 'stat', 'STATUS11' ),
-		sub( $recv_topic, $payload ) {
+		sub ( $recv_topic, $payload ) {
 			$self->_handle_status11($payload);
 		} );
 }
@@ -102,7 +102,7 @@ sub subscribe_mqtt($self)
 # $self->query_initial_state():
 #	Query device for current state after connect or LWT Online.
 #	Uses Status 11 for full state reconciliation (C1/H1).
-sub query_initial_state($self)
+sub query_initial_state ($self)
 {
 	return unless $self->{mqtt_client}->is_connected();
 
@@ -116,21 +116,21 @@ sub query_initial_state($self)
 
 # $self->is_online():
 #	Check if device is online.
-sub is_online($self)
+sub is_online ($self)
 {
 	return $self->{availability} == AVAILABILITY_ONLINE;
 }
 
 # $self->get_availability():
 #	Get device availability state.
-sub get_availability($self)
+sub get_availability ($self)
 {
 	return $self->{availability};
 }
 
 # $self->_handle_lwt($payload):
 #	Handle LWT (Last Will and Testament) message (C1).
-sub _handle_lwt( $self, $payload )
+sub _handle_lwt ( $self, $payload )
 {
 	my $prev = $self->{availability};
 
@@ -159,7 +159,7 @@ sub _handle_lwt( $self, $payload )
 
 # $self->_handle_state($payload):
 #	Handle periodic STATE message from tele/ topic (C2).
-sub _handle_state( $self, $payload )
+sub _handle_state ( $self, $payload )
 {
 	eval {
 		my $data = decode_json($payload);
@@ -174,7 +174,7 @@ sub _handle_state( $self, $payload )
 
 # $self->_handle_result($payload):
 #	Handle RESULT message from stat/ topic (C3).
-sub _handle_result( $self, $payload )
+sub _handle_result ( $self, $payload )
 {
 	eval {
 		my $data = decode_json($payload);
@@ -189,7 +189,7 @@ sub _handle_result( $self, $payload )
 
 # $self->_handle_sensor($payload):
 #	Handle SENSOR message from tele/ topic.
-sub _handle_sensor( $self, $payload )
+sub _handle_sensor ( $self, $payload )
 {
 	eval {
 		my $data = decode_json($payload);
@@ -210,7 +210,7 @@ sub _handle_sensor( $self, $payload )
 
 # $self->_handle_status11($payload):
 #	Handle STATUS11 response for state reconciliation (C1/H1).
-sub _handle_status11( $self, $payload )
+sub _handle_status11 ( $self, $payload )
 {
 	eval {
 		my $data = decode_json($payload);
@@ -239,7 +239,7 @@ sub _handle_status11( $self, $payload )
 
 # $self->_process_state_data($data):
 #	Process parsed STATE data. Override in subclasses.
-sub _process_state_data( $self, $data )
+sub _process_state_data ( $self, $data )
 {
 	# Cache state data
 	$self->{last_state} = { %{ $self->{last_state} }, %$data };
@@ -250,7 +250,7 @@ sub _process_state_data( $self, $data )
 
 # $self->_process_result_data($data):
 #	Process parsed RESULT data. Override in subclasses.
-sub _process_result_data( $self, $data )
+sub _process_result_data ( $self, $data )
 {
 	# Default implementation: check for POWER state
 	$self->_extract_power_state($data);
@@ -258,14 +258,14 @@ sub _process_result_data( $self, $data )
 
 # $self->_process_sensor_data($data):
 #	Process parsed SENSOR data. Override in subclasses.
-sub _process_sensor_data( $self, $data )
+sub _process_sensor_data ( $self, $data )
 {
 	# Default: no-op, subclasses should override
 }
 
 # $self->_extract_power_state($data):
 #	Extract power state from JSON data, handling multi-relay (H1).
-sub _extract_power_state( $self, $data )
+sub _extract_power_state ( $self, $data )
 {
 	my $power_key = $self->_get_power_key();
 
@@ -278,7 +278,7 @@ sub _extract_power_state( $self, $data )
 # $self->_get_power_key():
 #	Get the power key name for this device.
 #	Handles multi-relay (H1) and SetOption26 (M1) support.
-sub _get_power_key($self)
+sub _get_power_key ($self)
 {
 	if ( $self->{relay_index} && $self->{relay_index} > 0 ) {
 		return 'POWER' . $self->{relay_index};
@@ -294,7 +294,7 @@ sub _get_power_key($self)
 
 # $self->_get_power_topic():
 #	Get the power topic for commands (H1 multi-relay support).
-sub _get_power_topic($self)
+sub _get_power_topic ($self)
 {
 	if ( $self->{relay_index} && $self->{relay_index} > 0 ) {
 		return $self->_build_topic( 'cmnd',
@@ -313,7 +313,7 @@ sub _get_power_topic($self)
 #	Build a topic using the FullTopic pattern (H2).
 #	$prefix: 'cmnd', 'stat', or 'tele'
 #	$command: The command/topic suffix
-sub _build_topic( $self, $prefix, $command )
+sub _build_topic ( $self, $prefix, $command )
 {
 	my $fulltopic = $self->{fulltopic};
 	my $topic     = $self->{mqtt_topic};
@@ -330,21 +330,21 @@ sub _build_topic( $self, $prefix, $command )
 
 # $self->_on_power_update($state):
 #	Called when power state updates. Override in subclasses.
-sub _on_power_update( $self, $state )
+sub _on_power_update ( $self, $state )
 {
 	# Default: no-op
 }
 
 # $self->_on_availability_changed($old, $new):
 #	Called when device availability changes. Override in subclasses.
-sub _on_availability_changed( $self, $old, $new )
+sub _on_availability_changed ( $self, $old, $new )
 {
 	# Default: no-op
 }
 
 # $self->convert_temperature($temp):
 #	Convert temperature to Celsius if needed (H4).
-sub convert_temperature( $self, $temp )
+sub convert_temperature ( $self, $temp )
 {
 	return $temp unless defined $temp;
 
@@ -359,7 +359,7 @@ sub convert_temperature( $self, $temp )
 
 # $self->set_power($state):
 #	Set power state (0=OFF, 1=ON).
-sub set_power( $self, $state )
+sub set_power ( $self, $state )
 {
 	my $command = $state ? 'ON' : 'OFF';
 	my $topic   = $self->_get_power_topic();
@@ -371,7 +371,7 @@ sub set_power( $self, $state )
 
 # $self->toggle_power():
 #	Toggle power state (L1).
-sub toggle_power($self)
+sub toggle_power ($self)
 {
 	my $topic = $self->_get_power_topic();
 
@@ -381,7 +381,7 @@ sub toggle_power($self)
 
 # $self->blink($on):
 #	Start or stop blinking (L2).
-sub blink( $self, $on = 1 )
+sub blink ( $self, $on = 1 )
 {
 	my $topic   = $self->_get_power_topic();
 	my $command = $on ? 'BLINK' : 'BLINKOFF';
@@ -393,7 +393,7 @@ sub blink( $self, $on = 1 )
 # $self->query_status($type):
 #	Query device status.
 #	$type: 0 = all, 8 = sensors, 11 = full state, etc.
-sub query_status( $self, $type = 11 )
+sub query_status ( $self, $type = 11 )
 {
 	$self->{mqtt_client}
 	    ->publish( $self->_build_topic( 'cmnd', 'Status' ), "$type" );
@@ -402,7 +402,7 @@ sub query_status( $self, $type = 11 )
 # $self->force_telemetry():
 #	Force immediate telemetry update (L1).
 #	Triggers STATE and SENSOR messages from the device.
-sub force_telemetry($self)
+sub force_telemetry ($self)
 {
 	$OpenHAP::logger->debug( 'Forcing telemetry for %s', $self->{name} );
 	$self->{mqtt_client}

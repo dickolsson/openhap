@@ -31,7 +31,7 @@ use constant {
 	ARCH     => 'arm64',
 };
 
-sub new( $class, $cache_dir, $proxy = undef )
+sub new ( $class, $cache_dir, $proxy = undef )
 {
 	# Expand ~ in path
 	$cache_dir =~ s/^~/$ENV{HOME}/;
@@ -47,7 +47,7 @@ sub new( $class, $cache_dir, $proxy = undef )
 # $self->path($version):
 #	Return path to cached miniroot image for given version
 #	Returns undef if not cached
-sub path( $self, $version )
+sub path ( $self, $version )
 {
 	my $path = $self->_image_path($version);
 	return -f $path ? $path : undef;
@@ -56,7 +56,7 @@ sub path( $self, $version )
 # $self->ensure($version):
 #	Ensure image is available, downloading if necessary
 #	Returns path on success, undef on failure
-sub ensure( $self, $version )
+sub ensure ( $self, $version )
 {
 	# Check if already cached
 	my $path = $self->path($version);
@@ -69,7 +69,7 @@ sub ensure( $self, $version )
 # $self->download($version):
 #	Download miniroot image for version via proxy cache
 #	Returns path on success, undef on failure
-sub download( $self, $version )
+sub download ( $self, $version )
 {
 	if ( !defined $self->{proxy} ) {
 		warn "No proxy available for download\n";
@@ -126,7 +126,7 @@ sub download( $self, $version )
 
 # $self->url($version):
 #	Return the CDN URL for a miniroot image
-sub url( $self, $version )
+sub url ( $self, $version )
 {
 	my $filename = $self->_image_filename($version);
 	return
@@ -140,7 +140,7 @@ sub url( $self, $version )
 # $self->list:
 #	List all cached miniroot images
 #	Returns arrayref of { version, filename, path }
-sub list($self)
+sub list ($self)
 {
 	my @images;
 	my $base_path = $self->_proxy_cache_path;
@@ -180,7 +180,7 @@ sub list($self)
 
 # $self->_image_filename($version):
 #	Generate miniroot filename for version (e.g., "miniroot78.img")
-sub _image_filename( $self, $version )
+sub _image_filename ( $self, $version )
 {
 	( my $ver = $version ) =~ s/\.//g;
 	return "miniroot$ver.img";
@@ -188,7 +188,7 @@ sub _image_filename( $self, $version )
 
 # $self->_image_path($version):
 #	Return expected cache path for miniroot image
-sub _image_path( $self, $version )
+sub _image_path ( $self, $version )
 {
 	my $filename = $self->_image_filename($version);
 	return $self->_proxy_cache_path . "/$version/" . ARCH . "/$filename";
@@ -196,7 +196,7 @@ sub _image_path( $self, $version )
 
 # $self->_proxy_cache_path:
 #	Return base path for proxy-cached OpenBSD files
-sub _proxy_cache_path($self)
+sub _proxy_cache_path ($self)
 {
 	return "$self->{cache_dir}/proxy/" . CDN_HOST . "/pub/OpenBSD";
 }

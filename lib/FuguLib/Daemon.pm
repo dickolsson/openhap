@@ -29,7 +29,7 @@ use POSIX qw(setsid);
 #	%args:
 #		logfile => $path  # Where to redirect stdout/stderr (default: /dev/null)
 #		on_fork => sub($) # Callback after fork, receives PID in parent
-sub daemonize( $class, %args )
+sub daemonize ( $class, %args )
 {
 	my $logfile = $args{logfile} // '/dev/null';
 	my $on_fork = $args{on_fork};

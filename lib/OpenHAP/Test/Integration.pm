@@ -41,7 +41,7 @@ use constant {
 	PIDFILE           => '/var/run/openhapd.pid',
 };
 
-sub new( $class, %options )
+sub new ( $class, %options )
 {
 	my $self = bless {
 		config_file  => $options{config_file} // DEFAULT_CONFIG,
@@ -56,7 +56,7 @@ sub new( $class, %options )
 	return $self;
 }
 
-sub setup($self)
+sub setup ($self)
 {
 	# Verify we're in integration test mode
 	die "OPENHAP_INTEGRATION_TEST not set\n"
@@ -77,7 +77,7 @@ sub setup($self)
 	return 1;
 }
 
-sub teardown($self)
+sub teardown ($self)
 {
 	# Close any open sockets
 	for my $socket ( @{ $self->{sockets} } ) {
@@ -93,7 +93,7 @@ sub teardown($self)
 	return 1;
 }
 
-sub http_request( $self, $method, $path, $body = undef, $headers = {} )
+sub http_request ( $self, $method, $path, $body = undef, $headers = {} )
 {
 	my $socket = IO::Socket::INET->new(
 		PeerAddr => '127.0.0.1',
@@ -139,7 +139,7 @@ sub http_request( $self, $method, $path, $body = undef, $headers = {} )
 	return $response;
 }
 
-sub parse_http_response($response)
+sub parse_http_response ($response)
 {
 	return unless defined $response;
 
@@ -159,17 +159,17 @@ sub parse_http_response($response)
 	return ( $status, \%headers, $body // '' );
 }
 
-sub get_config_value( $self, $key )
+sub get_config_value ( $self, $key )
 {
 	return $self->{config}{$key};
 }
 
-sub get_device_topics($self)
+sub get_device_topics ($self)
 {
 	return @{ $self->{device_topics} // [] };
 }
 
-sub ensure_daemon_running($self)
+sub ensure_daemon_running ($self)
 {
 	# Check if already running
 	return 1 if system('rcctl check openhapd >/dev/null 2>&1') == 0;
@@ -182,7 +182,7 @@ sub ensure_daemon_running($self)
 	return system('rcctl check openhapd >/dev/null 2>&1') == 0;
 }
 
-sub ensure_daemon_stopped($self)
+sub ensure_daemon_stopped ($self)
 {
 	return 1 if system('rcctl check openhapd >/dev/null 2>&1') != 0;
 
@@ -192,7 +192,7 @@ sub ensure_daemon_stopped($self)
 	return system('rcctl check openhapd >/dev/null 2>&1') != 0;
 }
 
-sub ensure_mqtt_running($self)
+sub ensure_mqtt_running ($self)
 {
 	# Check if already running
 	return 1 if system('rcctl check mosquitto >/dev/null 2>&1') == 0;
@@ -205,7 +205,7 @@ sub ensure_mqtt_running($self)
 	return system('rcctl check mosquitto >/dev/null 2>&1') == 0;
 }
 
-sub clear_logs($self)
+sub clear_logs ($self)
 {
 	return unless -w SYSLOG_FILE;
 
@@ -215,7 +215,7 @@ sub clear_logs($self)
 	return 1;
 }
 
-sub get_log_lines( $self, $pattern = undef )
+sub get_log_lines ( $self, $pattern = undef )
 {
 	return () unless -r SYSLOG_FILE;
 
@@ -235,7 +235,7 @@ sub get_log_lines( $self, $pattern = undef )
 	return @lines;
 }
 
-sub get_mqtt($self)
+sub get_mqtt ($self)
 {
 	return $self->{mqtt} if defined $self->{mqtt};
 
@@ -255,7 +255,7 @@ sub get_mqtt($self)
 	return $self->{mqtt};
 }
 
-sub _verify_system($self)
+sub _verify_system ($self)
 {
 	# Check required binaries
 	return unless -x '/usr/sbin/rcctl';
@@ -275,7 +275,7 @@ sub _verify_system($self)
 	return 1;
 }
 
-sub _parse_config($self)
+sub _parse_config ($self)
 {
 	open my $fh, '<', $self->{config_file} or return;
 
@@ -317,7 +317,7 @@ sub _parse_config($self)
 	return 1;
 }
 
-sub _count_log_lines($self)
+sub _count_log_lines ($self)
 {
 	return 0 unless -r SYSLOG_FILE;
 

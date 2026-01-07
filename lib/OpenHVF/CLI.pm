@@ -62,7 +62,7 @@ my %commands = (
 	'help'    => \&cmd_help,
 );
 
-sub new( $class, %opts )
+sub new ( $class, %opts )
 {
 	my $mode =
 	    $opts{quiet} ? FuguLib::Log::MODE_QUIET : FuguLib::Log::MODE_STDERR;
@@ -82,7 +82,7 @@ sub new( $class, %opts )
 	return $self;
 }
 
-sub run( $class, @argv )
+sub run ( $class, @argv )
 {
 	my %opts;
 	my $parser = Getopt::Long::Parser->new;
@@ -143,7 +143,7 @@ sub run( $class, @argv )
 	return $commands{$command}->( $self, @argv );
 }
 
-sub _load_vm($self)
+sub _load_vm ($self)
 {
 	my $vm_config = $self->{config}->load_vm( $self->{vm_name} );
 	if ( !defined $vm_config ) {
@@ -159,28 +159,28 @@ sub _load_vm($self)
 }
 
 # Idempotent: ensure VM is running
-sub cmd_up( $self, @args )
+sub cmd_up ( $self, @args )
 {
 	my $vm = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 	return $vm->up;
 }
 
 # Stop VM gracefully
-sub cmd_down( $self, @args )
+sub cmd_down ( $self, @args )
 {
 	my $vm = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 	return $vm->down;
 }
 
 # Stop VM and delete disk image
-sub cmd_destroy( $self, @args )
+sub cmd_destroy ( $self, @args )
 {
 	my $vm = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 	return $vm->destroy;
 }
 
 # Show VM status
-sub cmd_status( $self, @args )
+sub cmd_status ( $self, @args )
 {
 	my $vm     = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 	my $status = $vm->status;
@@ -195,14 +195,14 @@ sub cmd_status( $self, @args )
 }
 
 # Start VM in background
-sub cmd_start( $self, @args )
+sub cmd_start ( $self, @args )
 {
 	my $vm = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 	return $vm->start;
 }
 
 # Stop VM
-sub cmd_stop( $self, @args )
+sub cmd_stop ( $self, @args )
 {
 	my $force  = 0;
 	my $parser = Getopt::Long::Parser->new;
@@ -215,7 +215,7 @@ sub cmd_stop( $self, @args )
 }
 
 # SSH into VM or run command
-sub cmd_ssh( $self, @args )
+sub cmd_ssh ( $self, @args )
 {
 	my $vm = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 
@@ -238,7 +238,7 @@ sub cmd_ssh( $self, @args )
 }
 
 # Show console connection info
-sub cmd_console( $self, @args )
+sub cmd_console ( $self, @args )
 {
 	my $vm   = $self->_load_vm or return EXIT_VM_NOT_FOUND;
 	my $port = $vm->console_port;
@@ -250,7 +250,7 @@ sub cmd_console( $self, @args )
 }
 
 # Run expect script
-sub cmd_expect( $self, @args )
+sub cmd_expect ( $self, @args )
 {
 	my $script = shift @args;
 	if ( !defined $script ) {
@@ -269,7 +269,7 @@ sub cmd_expect( $self, @args )
 }
 
 # Wait for SSH to become available
-sub cmd_wait( $self, @args )
+sub cmd_wait ( $self, @args )
 {
 	my $timeout = 120;
 	my $parser  = Getopt::Long::Parser->new;
@@ -300,7 +300,7 @@ sub cmd_wait( $self, @args )
 }
 
 # Image management
-sub cmd_image( $self, @args )
+sub cmd_image ( $self, @args )
 {
 	my $action = shift @args;
 	if ( !defined $action || $action !~ /^(download|list)$/ ) {
@@ -342,7 +342,7 @@ sub cmd_image( $self, @args )
 }
 
 # Disk management
-sub cmd_disk( $self, @args )
+sub cmd_disk ( $self, @args )
 {
 	my $action = shift @args;
 	if ( !defined $action || $action !~ /^(check|repair|info)$/ ) {
@@ -412,7 +412,7 @@ sub cmd_disk( $self, @args )
 }
 
 # Initialize project
-sub cmd_init( $self, @args )
+sub cmd_init ( $self, @args )
 {
 	my $dir         = shift @args // '.';
 	my $openhvf_dir = "$dir/.openhvf";
@@ -477,7 +477,7 @@ EOF
 	return EXIT_SUCCESS;
 }
 
-sub cmd_help( $, @ )
+sub cmd_help ( $, @ )
 {
 	print <<'EOF';
 Usage: openhvf [--vm <name>] <command> [options]
@@ -515,7 +515,7 @@ EOF
 	return EXIT_SUCCESS;
 }
 
-sub _write_file( $path, $content )
+sub _write_file ( $path, $content )
 {
 	open my $fh, '>', $path or die "Cannot write $path: $!";
 	print $fh $content;

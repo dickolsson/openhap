@@ -32,7 +32,7 @@ use constant {
 	READ_TIMEOUT    => 10,
 };
 
-sub new( $class, $socket_path )
+sub new ( $class, $socket_path )
 {
 	bless {
 		socket_path => $socket_path,
@@ -41,7 +41,7 @@ sub new( $class, $socket_path )
 	}, $class;
 }
 
-sub open_connection($self)
+sub open_connection ($self)
 {
 	return 1 if $self->{connected};
 
@@ -73,7 +73,7 @@ sub open_connection($self)
 	return 1;
 }
 
-sub disconnect($self)
+sub disconnect ($self)
 {
 	if ( $self->{sock} ) {
 		close $self->{sock};
@@ -85,7 +85,7 @@ sub disconnect($self)
 
 # $self->run_command($command, $arguments):
 #	Execute a QMP command and return the result
-sub run_command( $self, $command, $arguments = undef )
+sub run_command ( $self, $command, $arguments = undef )
 {
 	return if !$self->{sock};
 
@@ -100,7 +100,7 @@ sub run_command( $self, $command, $arguments = undef )
 	return $self->_read_response;
 }
 
-sub _read_response($self)
+sub _read_response ($self)
 {
 	my $sock = $self->{sock};
 	return if !$sock;
@@ -129,7 +129,7 @@ sub _read_response($self)
 # $self->query_status:
 #	Query VM running status
 #	Returns hashref with 'running' and 'status' keys
-sub query_status($self)
+sub query_status ($self)
 {
 	my $result = $self->run_command('query-status');
 	return if !defined $result || exists $result->{error};
@@ -138,7 +138,7 @@ sub query_status($self)
 
 # $self->is_running:
 #	Check if VM is currently running
-sub is_running($self)
+sub is_running ($self)
 {
 	my $status = $self->query_status;
 	return 0 if !defined $status;
@@ -147,7 +147,7 @@ sub is_running($self)
 
 # $self->powerdown:
 #	Request graceful guest shutdown via ACPI
-sub powerdown($self)
+sub powerdown ($self)
 {
 	my $result = $self->run_command('system_powerdown');
 	return defined $result && !exists $result->{error};
@@ -155,7 +155,7 @@ sub powerdown($self)
 
 # $self->quit:
 #	Immediately terminate QEMU process
-sub quit($self)
+sub quit ($self)
 {
 	my $result = $self->run_command('quit');
 	$self->disconnect;

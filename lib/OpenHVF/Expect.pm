@@ -22,7 +22,7 @@ package OpenHVF::Expect;
 use File::Basename;
 use FindBin qw($RealBin);
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = bless {
 		host    => $args{host} // 'localhost',
@@ -33,7 +33,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub run_script( $self, $script, @args )
+sub run_script ( $self, $script, @args )
 {
 	if ( !-f $script ) {
 
@@ -59,7 +59,7 @@ sub run_script( $self, $script, @args )
 	return $result == 0;
 }
 
-sub _find_script( $self, $script_name )
+sub _find_script ( $self, $script_name )
 {
 	my @search_paths = (
 		"$RealBin/../share/openhvf/expect/$script_name",
@@ -73,7 +73,7 @@ sub _find_script( $self, $script_name )
 	return;
 }
 
-sub run_install( $self, $config )
+sub run_install ( $self, $config )
 {
 	my $script = $self->_find_script('install.exp')
 	    // "$RealBin/../share/openhvf/expect/install.exp";
@@ -96,7 +96,7 @@ sub run_install( $self, $config )
 	return $result == 0;
 }
 
-sub install_ssh_key( $self, $password, $ssh_pubkey )
+sub install_ssh_key ( $self, $password, $ssh_pubkey )
 {
 	if ( !defined $ssh_pubkey || $ssh_pubkey eq '' ) {
 		warn "No SSH public key provided\n";
@@ -121,7 +121,7 @@ sub install_ssh_key( $self, $password, $ssh_pubkey )
 	return $result == 0;
 }
 
-sub halt_system( $self, $password )
+sub halt_system ( $self, $password )
 {
 	my $script = $self->_find_script('command.exp');
 	if ( !defined $script ) {

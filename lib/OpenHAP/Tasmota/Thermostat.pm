@@ -12,7 +12,7 @@ use JSON::XS;
 use constant SENSOR_TYPES =>
     qw(DS18B20 DHT11 DHT22 AM2301 BME280 BMP280 SHT3X SI7021);
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 
 	my $self = $class->SUPER::new(
@@ -103,7 +103,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub subscribe_mqtt($self)
+sub subscribe_mqtt ($self)
 {
 	# Call base class to set up standard subscriptions (C1, C2, C3)
 	$self->SUPER::subscribe_mqtt();
@@ -117,7 +117,7 @@ sub subscribe_mqtt($self)
 	# M2: Subscribe to plain-text POWER response (SetOption4 support)
 	$self->{mqtt_client}->subscribe(
 		$self->_build_topic( 'stat', $self->_get_power_key() ),
-		sub( $recv_topic, $payload ) {
+		sub ( $recv_topic, $payload ) {
 			my $new_state = ( $payload eq 'ON' ) ? 1 : 0;
 			if ( $self->{heating_state} != $new_state ) {
 				$self->{heating_state} = $new_state;
@@ -131,14 +131,14 @@ sub subscribe_mqtt($self)
 	# Subscribe to STATUS8 for sensor data
 	$self->{mqtt_client}->subscribe(
 		$self->_build_topic( 'stat', 'STATUS8' ),
-		sub( $recv_topic, $payload ) {
+		sub ( $recv_topic, $payload ) {
 			$self->_handle_status8($payload);
 		} );
 
 	# Subscribe to STATUS10 for sensor data (recommended per spec)
 	$self->{mqtt_client}->subscribe(
 		$self->_build_topic( 'stat', 'STATUS10' ),
-		sub( $recv_topic, $payload ) {
+		sub ( $recv_topic, $payload ) {
 			$self->_handle_status10($payload);
 		} );
 
@@ -147,13 +147,13 @@ sub subscribe_mqtt($self)
 }
 
 # Override to process sensor data from SENSOR messages
-sub _process_sensor_data( $self, $data )
+sub _process_sensor_data ( $self, $data )
 {
 	$self->_extract_temperature($data);
 }
 
 # Override to handle power state updates
-sub _on_power_update( $self, $state )
+sub _on_power_update ( $self, $state )
 {
 	if ( $self->{heating_state} != $state ) {
 		$self->{heating_state} = $state;
@@ -164,7 +164,7 @@ sub _on_power_update( $self, $state )
 }
 
 # Handle STATUS8 response
-sub _handle_status8( $self, $payload )
+sub _handle_status8 ( $self, $payload )
 {
 	eval {
 		my $data = decode_json($payload);
@@ -188,7 +188,7 @@ sub _handle_status8( $self, $payload )
 }
 
 # Handle STATUS10 response (recommended sensor query)
-sub _handle_status10( $self, $payload )
+sub _handle_status10 ( $self, $payload )
 {
 	eval {
 		my $data = decode_json($payload);
@@ -210,7 +210,7 @@ sub _handle_status10( $self, $payload )
 
 # $self->_extract_temperature($data):
 #	Extract temperature from sensor data (H4, H5).
-sub _extract_temperature( $self, $data )
+sub _extract_temperature ( $self, $data )
 {
 	my $temp = $self->_find_temperature($data);
 
@@ -230,7 +230,7 @@ sub _extract_temperature( $self, $data )
 
 # $self->_find_temperature($data):
 #	Find temperature value in sensor data (H5).
-sub _find_temperature( $self, $data )
+sub _find_temperature ( $self, $data )
 {
 	# If sensor type is specified, look for that specific sensor
 	if ( defined $self->{sensor_type} ) {
@@ -267,7 +267,7 @@ sub _find_temperature( $self, $data )
 	return;
 }
 
-sub _set_target_temp( $self, $temp )
+sub _set_target_temp ( $self, $temp )
 {
 	$OpenHAP::logger->debug(
 		'Thermostat %s target temperature set to %.1f°C',
@@ -276,7 +276,7 @@ sub _set_target_temp( $self, $temp )
 	$self->_check_thermostat_logic();
 }
 
-sub _set_target_state( $self, $state )
+sub _set_target_state ( $self, $state )
 {
 	$OpenHAP::logger->debug( 'Thermostat %s target heating state set to %d',
 		$self->{name}, $state );
@@ -284,7 +284,7 @@ sub _set_target_state( $self, $state )
 	$self->_check_thermostat_logic();
 }
 
-sub _check_thermostat_logic($self)
+sub _check_thermostat_logic ($self)
 {
 	# Simple bang-bang controller with 0.5°C hysteresis
 	my $hysteresis = 0.5;
