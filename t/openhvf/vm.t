@@ -6,6 +6,12 @@ use Test::More;
 use FindBin qw($RealBin);
 use lib "$RealBin/../../lib";
 
+# Check if module can be loaded (may fail if Net::SSH2 not available)
+BEGIN {
+	eval { require OpenHVF::VM; 1 }
+	    or plan skip_all => 'OpenHVF::VM dependencies not available';
+}
+
 use_ok('OpenHVF::VM');
 
 # Memory and CPU constants
