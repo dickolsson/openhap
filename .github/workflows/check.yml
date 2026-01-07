@@ -20,7 +20,7 @@ jobs:
           perl-version: "5.38"
 
       - name: Install test dependencies
-        run: make deps-test
+        run: sudo make deps-test
 
       - name: Check formatting
         run: make tidy
@@ -38,7 +38,7 @@ jobs:
           perl-version: "5.38"
 
       - name: Install test dependencies
-        run: make deps-test
+        run: sudo make deps-test
 
       - name: Check lint
         run: make lint
@@ -65,7 +65,7 @@ jobs:
           perl-version: ${{ matrix.perl-version }}
 
       - name: Install test dependencies
-        run: make deps-test
+        run: sudo make deps-test
 
       - name: Run tests
         run: make test
