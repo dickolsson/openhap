@@ -9,6 +9,9 @@ use OpenHAP::PIN qw(normalize_pin);
 # SRP-6a implementation for HAP
 # Uses 3072-bit group from RFC 5054
 
+# N_len: Length of N in bytes (3072 bits / 8 = 384 bytes)
+use constant N_LEN => 384;
+
 # _bigint_to_bytes($bigint, $length = undef) - Convert BigInt to bytes
 # Strips '0x' prefix from as_hex() and optionally pads to fixed length
 sub _bigint_to_bytes( $bigint, $length = undef )
@@ -115,9 +118,10 @@ sub compute_session_key( $self, $A_bytes )
 
 	$self->{A} = $A;
 
-	# u = H(A | B)
-	my $A_bytes = _bigint_to_bytes( $self->{A} );
-	my $B_bytes = _bigint_to_bytes( $self->{B} );
+	# u = H(PAD(A) | PAD(B)) - Both A and B must be padded to N_LEN
+	# per HAP-Pairing.md and SRP-6a spec (see HAP-python hsrp.py)
+	my $A_bytes = _bigint_to_bytes( $self->{A}, N_LEN );
+	my $B_bytes = _bigint_to_bytes( $self->{B}, N_LEN );
 	my $u_bytes = sha512( $A_bytes . $B_bytes );
 	my $u       = Math::BigInt->from_hex( unpack( 'H*', $u_bytes ) );
 
@@ -145,8 +149,10 @@ sub verify_client_proof( $self, $M1_client )
 
 	my $user_hash = sha512( $self->{username} );
 
-	my $A_bytes = _bigint_to_bytes( $self->{A} );
-	my $B_bytes = _bigint_to_bytes( $self->{B} );
+	# M1 = H(H(N) XOR H(g) | H(I) | s | PAD(A) | PAD(B) | K)
+	# A and B must be padded to N_LEN per HAP-Pairing.md §2.5
+	my $A_bytes = _bigint_to_bytes( $self->{A}, N_LEN );
+	my $B_bytes = _bigint_to_bytes( $self->{B}, N_LEN );
 
 	my $M1 =
 	    sha512(   $xor
@@ -168,8 +174,8 @@ sub generate_server_proof($self)
 	die "SRP: K not set (compute_session_key not called)"
 	    if !defined $self->{K};
 
-	# M2 = H(A | M1 | K)
-	my $A_bytes = _bigint_to_bytes( $self->{A} );
+	# M2 = H(PAD(A) | M1 | K) - A must be padded to N_LEN per HAP-Pairing.md §2.6
+	my $A_bytes = _bigint_to_bytes( $self->{A}, N_LEN );
 	my $M2      = sha512( $A_bytes . $self->{M1} . $self->{K} );
 
 	$self->{M2} = $M2;
