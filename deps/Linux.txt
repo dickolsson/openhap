@@ -7,11 +7,11 @@ runtime cpan Crypt::Curve25519
 runtime cpan CryptX
 runtime cpan Net::MQTT::Simple
 
+test pkg libssh2-1-dev
 test cpan Perl::Critic
 test cpan Perl::Tidy
 test cpan Net::SSH2
 
-develop pkg libssh2-1-dev
 develop pkg qemu-system-aarch64
 develop pkg qemu-efi-aarch64
 develop cpan HTTP::Daemon
