@@ -1,13 +1,15 @@
 #!/bin/sh
 # Cross-platform dependency installer
 # Handles both OS packages and CPAN modules from deps/*.txt
-# Usage: deps.sh <environment>
+# Usage: deps.sh <environment> [type]
 #   environment: runtime, test, or develop
+#   type: pkg, cpan, or omit for both
 
 set -e
 
 ENV="$1"
-[ -z "$ENV" ] && { echo "Usage: $0 <runtime|test|develop>" >&2; exit 1; }
+TYPE_FILTER="${2:-all}"
+[ -z "$ENV" ] && { echo "Usage: $0 <runtime|test|develop> [pkg|cpan]" >&2; exit 1; }
 
 OS=$(uname)
 DEPS_FILE="deps/${OS}.txt"
@@ -49,7 +51,7 @@ while read -r env type name; do
 done < "$DEPS_FILE"
 
 # Install OS packages
-if [ -n "$PKG_PACKAGES" ]; then
+if [ -n "$PKG_PACKAGES" ] && [ "$TYPE_FILTER" = "all" -o "$TYPE_FILTER" = "pkg" ]; then
 	echo "Installing OS packages:$PKG_PACKAGES"
 	case "$OS" in
 		OpenBSD)
@@ -69,7 +71,7 @@ if [ -n "$PKG_PACKAGES" ]; then
 fi
 
 # Install CPAN modules
-if [ -n "$CPAN_MODULES" ]; then
+if [ -n "$CPAN_MODULES" ] && [ "$TYPE_FILTER" = "all" -o "$TYPE_FILTER" = "cpan" ]; then
 	echo "Installing CPAN modules:$CPAN_MODULES"
 	
 	# Install cpanm if not available
@@ -78,7 +80,25 @@ if [ -n "$CPAN_MODULES" ]; then
 		curl -L https://cpanmin.us | perl - App::cpanminus
 	fi
 	
-	cpanm --notest $CPAN_MODULES
+	# Determine installation target
+	# If PERL5LIB is set and points to a local directory, install there
+	# Otherwise, install system-wide (default behavior)
+	CPANM_OPTS="--notest"
+	if [ -n "$PERL5LIB" ]; then
+		# Extract the first directory from PERL5LIB (may contain multiple paths)
+		LOCAL_LIB=$(echo "$PERL5LIB" | cut -d: -f1)
+		# Check if it's a local directory (contains 'local')
+		case "$LOCAL_LIB" in
+			*/local/*)
+				# Extract the local directory root (e.g., /path/to/local)
+				LOCAL_ROOT=$(echo "$LOCAL_LIB" | sed 's|\(.*\)/local/.*|\1/local|')
+				echo "Installing to local directory: $LOCAL_ROOT"
+				CPANM_OPTS="$CPANM_OPTS -l $LOCAL_ROOT"
+				;;
+		esac
+	fi
+	
+	cpanm $CPANM_OPTS $CPAN_MODULES
 fi
 
 echo "Dependencies for $ENV installed successfully"
