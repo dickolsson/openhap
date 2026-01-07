@@ -56,7 +56,7 @@ if [ -n "$PKG_PACKAGES" ]; then
 			pkg_add $PKG_PACKAGES
 			;;
 		Linux)
-			sudo apt-get install -y $PKG_PACKAGES
+			apt-get install -y $PKG_PACKAGES
 			;;
 		Darwin)
 			brew install $PKG_PACKAGES
