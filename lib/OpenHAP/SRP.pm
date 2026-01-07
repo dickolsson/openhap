@@ -174,7 +174,7 @@ sub generate_server_proof($self)
 	die "SRP: K not set (compute_session_key not called)"
 	    if !defined $self->{K};
 
-	# M2 = H(PAD(A) | M1 | K) - A must be padded to N_LEN per HAP-Pairing.md §2.6
+   # M2 = H(PAD(A) | M1 | K) - A must be padded to N_LEN per HAP-Pairing.md §2.6
 	my $A_bytes = _bigint_to_bytes( $self->{A}, N_LEN );
 	my $M2      = sha512( $A_bytes . $self->{M1} . $self->{K} );
 
