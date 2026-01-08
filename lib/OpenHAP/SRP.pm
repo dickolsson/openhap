@@ -14,7 +14,7 @@ use constant N_LEN => 384;
 
 # _bigint_to_bytes($bigint, $length = undef) - Convert BigInt to bytes
 # Strips '0x' prefix from as_hex() and optionally pads to fixed length
-sub _bigint_to_bytes( $bigint, $length = undef )
+sub _bigint_to_bytes ( $bigint, $length = undef )
 {
 	my $hex = $bigint->as_hex();
 	$hex =~ s/^0x//;    # Strip 0x prefix
@@ -32,7 +32,7 @@ sub _bigint_to_bytes( $bigint, $length = undef )
 	return $bytes;
 }
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 
 	my $self = bless {
@@ -60,13 +60,13 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub generate_salt($self)
+sub generate_salt ($self)
 {
 	$self->{salt} = OpenHAP::Crypto::generate_random_bytes(16);
 	return $self->{salt};
 }
 
-sub compute_verifier( $self, $salt = undef, $password = undef )
+sub compute_verifier ( $self, $salt = undef, $password = undef )
 {
 	$salt     //= $self->{salt};
 	$password //= $self->{password};
@@ -83,7 +83,7 @@ sub compute_verifier( $self, $salt = undef, $password = undef )
 	return $v;
 }
 
-sub generate_server_public($self)
+sub generate_server_public ($self)
 {
 
 	# Generate random b (256 bits)
@@ -107,7 +107,7 @@ sub generate_server_public($self)
 	return $B;
 }
 
-sub compute_session_key( $self, $A_bytes )
+sub compute_session_key ( $self, $A_bytes )
 {
 	my $A = Math::BigInt->from_hex( unpack( 'H*', $A_bytes ) );
 
@@ -139,7 +139,7 @@ sub compute_session_key( $self, $A_bytes )
 	return $self->{K};
 }
 
-sub verify_client_proof( $self, $M1_client )
+sub verify_client_proof ( $self, $M1_client )
 {
 
 	# M1 = H(H(N) XOR H(g) | H(username) | salt | A | B | K)
@@ -167,7 +167,7 @@ sub verify_client_proof( $self, $M1_client )
 	return $M1 eq $M1_client;
 }
 
-sub generate_server_proof($self)
+sub generate_server_proof ($self)
 {
 	die "SRP: M1 not set (verify_client_proof not called)"
 	    if !defined $self->{M1};
@@ -183,7 +183,7 @@ sub generate_server_proof($self)
 	return $M2;
 }
 
-sub get_session_key($self)
+sub get_session_key ($self)
 {
 	return $self->{K};
 }

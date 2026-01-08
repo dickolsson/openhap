@@ -27,7 +27,7 @@ use FuguLib::State;
 #	Fork into background, detach from terminal, and redirect
 #	standard file descriptors. Returns in child process only.
 #	Parent process exits successfully.
-sub daemonize( $class, $logfile = '/var/log/openhapd.log' )
+sub daemonize ( $class, $logfile = '/var/log/openhapd.log' )
 {
 	FuguLib::Daemon->daemonize( logfile => $logfile );
 	$OpenHAP::logger->debug( 'Daemonized successfully, PID: %d', $$ )
@@ -37,7 +37,7 @@ sub daemonize( $class, $logfile = '/var/log/openhapd.log' )
 
 # $class->write_pidfile($path):
 #	Write current PID to file. Returns true on success.
-sub write_pidfile( $class, $path )
+sub write_pidfile ( $class, $path )
 {
 	my $state = FuguLib::State->new( pidfile => $path );
 	unless ( $state->write_pid($$) ) {
@@ -53,7 +53,7 @@ sub write_pidfile( $class, $path )
 # $class->read_pidfile($path):
 #	Read PID from file. Returns PID or undef if file doesn't exist
 #	or cannot be read.
-sub read_pidfile( $class, $path )
+sub read_pidfile ( $class, $path )
 {
 	my $state = FuguLib::State->new( pidfile => $path );
 	my $pid   = $state->read_pid();
@@ -63,7 +63,7 @@ sub read_pidfile( $class, $path )
 # $class->check_running($pidfile):
 #	Check if daemon is running based on PID file.
 #	Returns PID if running, undef otherwise.
-sub check_running( $class, $pidfile )
+sub check_running ( $class, $pidfile )
 {
 	my $state = FuguLib::State->new($pidfile);
 	return $state->is_running() ? $state->read_pid() : undef;

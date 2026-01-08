@@ -6,7 +6,7 @@ our @ISA = qw(OpenHAP::Tasmota::Base);
 use OpenHAP::Service;
 use OpenHAP::Characteristic;
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = $class->SUPER::new(
 		aid          => $args{aid},
@@ -45,7 +45,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub subscribe_mqtt($self)
+sub subscribe_mqtt ($self)
 {
 	# Call base class to set up standard subscriptions (C1, C2, C3)
 	$self->SUPER::subscribe_mqtt();
@@ -59,7 +59,7 @@ sub subscribe_mqtt($self)
 	# M2: Subscribe to plain-text POWER response (SetOption4 support)
 	$self->{mqtt_client}->subscribe(
 		$self->_build_topic( 'stat', $self->_get_power_key() ),
-		sub( $recv_topic, $payload ) {
+		sub ( $recv_topic, $payload ) {
 			$self->{power_state} = ( $payload eq 'ON' ) ? 1 : 0;
 			$OpenHAP::logger->debug( 'Heater %s power state: %s',
 				$self->{name}, $payload );
@@ -68,7 +68,7 @@ sub subscribe_mqtt($self)
 }
 
 # Override _on_power_update to update our power state
-sub _on_power_update( $self, $state )
+sub _on_power_update ( $self, $state )
 {
 	if ( $self->{power_state} != $state ) {
 		$self->{power_state} = $state;

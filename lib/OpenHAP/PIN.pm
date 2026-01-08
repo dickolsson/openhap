@@ -32,7 +32,7 @@ use constant INVALID_PINS => qw(
 # normalize_pin($pin):
 #	Strip dashes and spaces from PIN for internal use
 #	Returns: 8-digit numeric string or undef if invalid format
-sub normalize_pin($pin)
+sub normalize_pin ($pin)
 {
 	return unless defined $pin;
 
@@ -48,7 +48,7 @@ sub normalize_pin($pin)
 # validate_pin($pin):
 #	Validate PIN meets HAP requirements
 #	Returns: 1 if valid, undef if invalid
-sub validate_pin($pin)
+sub validate_pin ($pin)
 {
 	# Normalize first
 	my $normalized = normalize_pin($pin);

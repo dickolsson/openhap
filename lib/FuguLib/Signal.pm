@@ -31,7 +31,7 @@ our $interrupted = 0;
 # Stack of cleanup handlers
 my @cleanup_handlers;
 
-sub new($class)
+sub new ($class)
 {
 	bless {
 		handlers => {},
@@ -42,7 +42,7 @@ sub new($class)
 # $self->setup_graceful_exit(@signals):
 #	Setup handlers for graceful exit on specified signals
 #	Calls all registered cleanup handlers and exits
-sub setup_graceful_exit( $self, @signals )
+sub setup_graceful_exit ( $self, @signals )
 {
 	for my $sig (@signals) {
 		$self->{original}{$sig} = $SIG{$sig} // 'DEFAULT';
@@ -59,7 +59,7 @@ sub setup_graceful_exit( $self, @signals )
 # $self->setup_interrupt_flag(@signals):
 #	Setup handlers that set interrupt flag without exiting
 #	Allows long-running operations to check and exit cleanly
-sub setup_interrupt_flag( $self, @signals )
+sub setup_interrupt_flag ( $self, @signals )
 {
 	for my $sig (@signals) {
 		$self->{original}{$sig} = $SIG{$sig} // 'DEFAULT';
@@ -72,7 +72,7 @@ sub setup_interrupt_flag( $self, @signals )
 # $self->add_cleanup($handler):
 #	Add cleanup handler to be called on signal
 #	Handler receives signal name as argument
-sub add_cleanup( $self, $handler )
+sub add_cleanup ( $self, $handler )
 {
 	push @cleanup_handlers, $handler;
 	return $self;
@@ -80,7 +80,7 @@ sub add_cleanup( $self, $handler )
 
 # $self->restore():
 #	Restore original signal handlers
-sub restore($self)
+sub restore ($self)
 {
 	for my $sig ( keys %{ $self->{handlers} } ) {
 		$SIG{$sig} = $self->{original}{$sig};
@@ -104,7 +104,7 @@ sub reset_interrupted()
 	$interrupted = 0;
 }
 
-sub _run_cleanup_handlers( $self, $signal )
+sub _run_cleanup_handlers ( $self, $signal )
 {
 	for my $handler (@cleanup_handlers) {
 		eval { $handler->($signal); };
@@ -113,7 +113,7 @@ sub _run_cleanup_handlers( $self, $signal )
 }
 
 # DESTROY runs when object goes out of scope
-sub DESTROY($self)
+sub DESTROY ($self)
 {
 	$self->restore;
 }

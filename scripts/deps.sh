@@ -78,7 +78,26 @@ if [ -n "$CPAN_MODULES" ]; then
 		curl -L https://cpanmin.us | perl - App::cpanminus
 	fi
 	
-	cpanm --notest $CPAN_MODULES
+	# Determine installation target
+	# If PERL5LIB is set, use --local-lib to install to that location
+	# This allows running with sudo while still installing to user's local lib
+	CPANM_OPTS="--notest"
+	if [ -n "$PERL5LIB" ]; then
+		# Extract the first directory from PERL5LIB (may contain multiple paths)
+		LOCAL_LIB=$(echo "$PERL5LIB" | cut -d: -f1)
+		# Derive the local::lib root from PERL5LIB path
+		# PERL5LIB typically contains paths like /path/to/local/lib/perl5
+		# We need to pass /path/to/local to cpanm --local-lib
+		case "$LOCAL_LIB" in
+			*/local/lib/perl5*)
+				LOCAL_ROOT=$(echo "$LOCAL_LIB" | sed 's|/lib/perl5.*||')
+				echo "Installing to local directory: $LOCAL_ROOT"
+				CPANM_OPTS="$CPANM_OPTS --local-lib=$LOCAL_ROOT"
+				;;
+		esac
+	fi
+	
+	cpanm $CPANM_OPTS $CPAN_MODULES
 fi
 
 echo "Dependencies for $ENV installed successfully"

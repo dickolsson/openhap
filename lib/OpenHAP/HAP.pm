@@ -16,7 +16,7 @@ use OpenHAP::Crypto;
 use OpenHAP::Bridge;
 use OpenHAP::PIN qw(normalize_pin);
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = bless {
 		port => $args{port}                               // 51827,
@@ -47,7 +47,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub _initialize($self)
+sub _initialize ($self)
 {
 	# Initialize storage
 	$self->{storage} =
@@ -75,14 +75,14 @@ sub _initialize($self)
 	$self->{bridge} = OpenHAP::Bridge->new( name => $self->{name}, );
 }
 
-sub add_accessory( $self, $accessory )
+sub add_accessory ( $self, $accessory )
 {
 	$self->{bridge}->add_bridged_accessory($accessory);
 }
 
 # $self->_mqtt_resubscribe_accessories():
 #	resubscribe all accessories to their MQTT topics
-sub _mqtt_resubscribe_accessories($self)
+sub _mqtt_resubscribe_accessories ($self)
 {
 	my @accessories = $self->{bridge}->get_bridged_accessories();
 	for my $acc (@accessories) {
@@ -97,12 +97,12 @@ sub _mqtt_resubscribe_accessories($self)
 
 # $self->set_mqtt_client($mqtt):
 #	set the MQTT client for event loop integration
-sub set_mqtt_client( $self, $mqtt )
+sub set_mqtt_client ( $self, $mqtt )
 {
 	$self->{mqtt_client} = $mqtt;
 }
 
-sub run($self)
+sub run ($self)
 {
 	my $server = IO::Socket::INET->new(
 		LocalPort => $self->{port},
@@ -183,14 +183,14 @@ sub run($self)
 	}
 }
 
-sub _init_session( $self, $socket )
+sub _init_session ( $self, $socket )
 {
 	$OpenHAP::logger->info( 'Client connected from %s', $socket->peerhost );
 	$self->{sessions}{$socket} =
 	    OpenHAP::Session->new( socket => $socket, );
 }
 
-sub _handle_client( $self, $sock, $select )
+sub _handle_client ( $self, $sock, $select )
 {
 	my $session = $self->{sessions}{$sock};
 	my $data    = '';
@@ -241,7 +241,7 @@ sub _handle_client( $self, $sock, $select )
 	$sock->syswrite($response);
 }
 
-sub _dispatch( $self, $request, $session )
+sub _dispatch ( $self, $request, $session )
 {
 	my $path   = $request->{path};
 	my $method = $request->{method};
@@ -305,7 +305,7 @@ sub _dispatch( $self, $request, $session )
 	);
 }
 
-sub _handle_pair_setup( $self, $request, $session )
+sub _handle_pair_setup ( $self, $request, $session )
 {
 	$OpenHAP::logger->debug('Handling pair-setup request');
 	my $response_body =
@@ -318,7 +318,7 @@ sub _handle_pair_setup( $self, $request, $session )
 	);
 }
 
-sub _handle_pair_verify( $self, $request, $session )
+sub _handle_pair_verify ( $self, $request, $session )
 {
 	$OpenHAP::logger->debug('Handling pair-verify request');
 	my $response_body =
@@ -331,7 +331,7 @@ sub _handle_pair_verify( $self, $request, $session )
 	);
 }
 
-sub _handle_accessories( $self, $request, $session )
+sub _handle_accessories ( $self, $request, $session )
 {
 	my $json = encode_json( $self->{bridge}->to_json() );
 
@@ -342,7 +342,7 @@ sub _handle_accessories( $self, $request, $session )
 	);
 }
 
-sub _handle_characteristics_get( $self, $request, $session )
+sub _handle_characteristics_get ( $self, $request, $session )
 {
 	# Parse query string: ?id=1.11,1.13&meta=1&perms=1&type=1&ev=1
 	my $query = $request->{path};
@@ -437,7 +437,7 @@ sub _handle_characteristics_get( $self, $request, $session )
 	);
 }
 
-sub _handle_characteristics_put( $self, $request, $session )
+sub _handle_characteristics_put ( $self, $request, $session )
 {
 	$OpenHAP::logger->debug('Writing characteristics');
 	my $data = eval { decode_json( $request->{body} ) };
@@ -548,7 +548,7 @@ sub _handle_characteristics_put( $self, $request, $session )
 	);
 }
 
-sub _handle_identify( $self, $request, $session )
+sub _handle_identify ( $self, $request, $session )
 {
 	# Identify is only allowed for unpaired accessories
 	if ( $self->is_paired() ) {
@@ -578,7 +578,7 @@ sub _handle_identify( $self, $request, $session )
 	return OpenHAP::HTTP::build_response( status => 204 );
 }
 
-sub _handle_pairings( $self, $request, $session )
+sub _handle_pairings ( $self, $request, $session )
 {
 	my %tlv = OpenHAP::TLV::decode( $request->{body} );
 
@@ -612,7 +612,7 @@ sub _handle_pairings( $self, $request, $session )
 	);
 }
 
-sub _handle_add_pairing( $self, $tlv, $session )
+sub _handle_add_pairing ( $self, $tlv, $session )
 {
 	my $identifier = $tlv->{ OpenHAP::Pairing::kTLVType_Identifier() };
 	my $ltpk       = $tlv->{ OpenHAP::Pairing::kTLVType_PublicKey() };
@@ -658,7 +658,7 @@ sub _handle_add_pairing( $self, $tlv, $session )
 	);
 }
 
-sub _handle_remove_pairing( $self, $tlv, $session )
+sub _handle_remove_pairing ( $self, $tlv, $session )
 {
 	my $identifier = $tlv->{ OpenHAP::Pairing::kTLVType_Identifier() };
 
@@ -713,7 +713,7 @@ sub _handle_remove_pairing( $self, $tlv, $session )
 	);
 }
 
-sub _handle_list_pairings( $self, $tlv, $session )
+sub _handle_list_pairings ( $self, $tlv, $session )
 {
 	$OpenHAP::logger->debug('List pairings request');
 
@@ -767,7 +767,7 @@ sub _handle_list_pairings( $self, $tlv, $session )
 	);
 }
 
-sub _handle_prepare( $self, $request, $session )
+sub _handle_prepare ( $self, $request, $session )
 {
 	$OpenHAP::logger->debug('Timed write prepare request');
 	my $data = eval { decode_json( $request->{body} ) };
@@ -804,14 +804,14 @@ sub _handle_prepare( $self, $request, $session )
 }
 
 # Event subscription tracking
-sub _register_event_subscription( $self, $session, $aid, $iid )
+sub _register_event_subscription ( $self, $session, $aid, $iid )
 {
 	my $key = "$aid.$iid";
 	$self->{event_subscriptions}{$key}{$session} = $session;
 	$OpenHAP::logger->debug( 'Registered event subscription for %s', $key );
 }
 
-sub _unregister_event_subscription( $self, $session, $aid, $iid )
+sub _unregister_event_subscription ( $self, $session, $aid, $iid )
 {
 	my $key = "$aid.$iid";
 	delete $self->{event_subscriptions}{$key}{$session};
@@ -830,7 +830,7 @@ use constant IMMEDIATE_EVENT_TYPES => {
 use constant EVENT_COALESCE_DELAY => 0.250;
 
 # Queue an event for delivery, with coalescing for non-button events
-sub queue_event( $self, $aid, $iid, $value )
+sub queue_event ( $self, $aid, $iid, $value )
 {
 	my $accessory = $self->{bridge}->get_accessory($aid);
 	return unless $accessory;
@@ -862,7 +862,7 @@ sub queue_event( $self, $aid, $iid, $value )
 }
 
 # Flush queued events (called from event loop)
-sub flush_events($self)
+sub flush_events ($self)
 {
 	return unless $self->{event_flush_scheduled};
 
@@ -884,7 +884,7 @@ sub flush_events($self)
 }
 
 # Send EVENT/1.0 notification to subscribed sessions
-sub send_event( $self, $aid, $iid, $value )
+sub send_event ( $self, $aid, $iid, $value )
 {
 	my $key  = "$aid.$iid";
 	my $subs = $self->{event_subscriptions}{$key} // {};
@@ -917,25 +917,25 @@ sub send_event( $self, $aid, $iid, $value )
 	}
 }
 
-sub is_paired($self)
+sub is_paired ($self)
 {
 	my $pairings = $self->{storage}->load_pairings();
 	return scalar( keys %$pairings ) > 0;
 }
 
-sub get_config_number($self)
+sub get_config_number ($self)
 {
 	return $self->{storage}->get_config_number();
 }
 
-sub get_device_id($self)
+sub get_device_id ($self)
 {
 	# Generate a device ID from the public key (uppercase MAC format)
 	my $id = uc( unpack( 'H*', substr( $self->{accessory_ltpk}, 0, 6 ) ) );
 	return join( ':', $id =~ /../g );
 }
 
-sub get_mdns_txt_records($self)
+sub get_mdns_txt_records ($self)
 {
 	# Note: pv=1 instead of 1.1 because mdnsd uses '.' as TXT record
 	# delimiter and doesn't support escaping. HomeKit accepts pv=1.
@@ -960,7 +960,7 @@ sub get_mdns_txt_records($self)
 
 # _get_setup_hash() - Calculate setup hash for mDNS
 # Hash is Base64 of first 4 bytes of SHA-512(setupID + deviceID.toUpperCase())
-sub _get_setup_hash($self)
+sub _get_setup_hash ($self)
 {
 	my $setup_id  = $self->{setup_id};
 	my $device_id = $self->get_device_id();    # Already uppercase
@@ -975,7 +975,7 @@ sub _get_setup_hash($self)
 
 # _regenerate_identity() - Generate new accessory keys after factory reset
 # Called when last admin pairing is removed (HAP-Pairing.md §7.2)
-sub _regenerate_identity($self)
+sub _regenerate_identity ($self)
 {
 	my ( $ltsk, $ltpk ) = OpenHAP::Crypto::generate_keypair_ed25519();
 	$self->{storage}->save_accessory_keys( $ltsk, $ltpk );

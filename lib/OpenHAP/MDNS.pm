@@ -26,7 +26,7 @@ use FuguLib::Process;
 # This module wraps OpenBSD's mdnsctl(8) command to register HAP services
 # with mdnsd(8) for Bonjour/mDNS service discovery.
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = bless {
 		service_name => $args{service_name} // 'OpenHAP Bridge',
@@ -63,7 +63,7 @@ sub _find_mdnsctl()
 #	Register the HAP service with mdnsd via mdnsctl
 #	Forks a background process to keep the service registered
 #	Returns 1 on success, undef on failure (logs warning)
-sub register_service($self)
+sub register_service ($self)
 {
 	return if $self->{registered};
 
@@ -119,12 +119,12 @@ sub register_service($self)
 		check_alive => 1,
 		stdout      => $mdns_log,
 		stderr      => $mdns_log,
-		on_success  => sub($pid) {
+		on_success  => sub ($pid) {
 			$OpenHAP::logger->info(
 'Registered mDNS service: %s._hap._tcp port %d (PID: %d)',
 				$self->{service_name}, $self->{port}, $pid );
 		},
-		on_error => sub($err) {
+		on_error => sub ($err) {
 			$OpenHAP::logger->warning(
 				'mDNS registration failed: %s', $err );
 		},
@@ -143,7 +143,7 @@ sub register_service($self)
 # $self->unregister_service():
 #	Unregister the HAP service by killing the mdnsctl process
 #	Returns 1 on success
-sub unregister_service($self)
+sub unregister_service ($self)
 {
 	return if !$self->{registered};
 
@@ -173,7 +173,7 @@ sub unregister_service($self)
 
 # $self->is_registered():
 #	Check if service is currently registered
-sub is_registered($self)
+sub is_registered ($self)
 {
 	return $self->{registered};
 }

@@ -32,7 +32,7 @@ our %CHAR_TYPES = (
 
 # _uuid_to_short($uuid) - Convert full UUID to short form for JSON
 # Returns short hex string for Apple UUIDs, full UUID for custom ones
-sub _uuid_to_short($uuid)
+sub _uuid_to_short ($uuid)
 {
 	my $base = HAP_BASE_UUID;
 	if ( $uuid =~ /^0*([0-9A-Fa-f]+)\Q$base\E$/i ) {
@@ -65,7 +65,7 @@ our %PERMISSIONS = (
 	'hd' => 1,    # Hidden
 );
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 
 	my $type = $args{type}        // die "Characteristic type required";
@@ -98,7 +98,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub get_value($self)
+sub get_value ($self)
 {
 
 	# If there's a custom getter, use it
@@ -114,7 +114,7 @@ sub get_value($self)
 	return $self->{value};
 }
 
-sub set_value( $self, $value )
+sub set_value ( $self, $value )
 {
 	$OpenHAP::logger->debug( 'Setting characteristic IID=%d to value: %s',
 		$self->{iid}, defined $value ? $value : 'undef' );
@@ -133,7 +133,7 @@ sub set_value( $self, $value )
 	}
 }
 
-sub enable_events( $self, $enabled )
+sub enable_events ( $self, $enabled )
 {
 	$OpenHAP::logger->debug(
 		'Events %s for characteristic IID=%d',
@@ -142,12 +142,12 @@ sub enable_events( $self, $enabled )
 	$self->{event_enabled} = $enabled;
 }
 
-sub events_enabled($self)
+sub events_enabled ($self)
 {
 	return $self->{event_enabled};
 }
 
-sub to_json( $self, $include_value = 1 )
+sub to_json ( $self, $include_value = 1 )
 {
 
 	my $json = {

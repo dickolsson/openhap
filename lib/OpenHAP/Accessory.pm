@@ -2,7 +2,7 @@ use v5.36;
 
 package OpenHAP::Accessory;
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = bless {
 		aid               => $args{aid},
@@ -21,7 +21,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub _add_accessory_info_service($self)
+sub _add_accessory_info_service ($self)
 {
 
 	require OpenHAP::Service;
@@ -89,17 +89,17 @@ sub _add_accessory_info_service($self)
 	push @{ $self->{services} }, $info;
 }
 
-sub add_service( $self, $service )
+sub add_service ( $self, $service )
 {
 	push @{ $self->{services} }, $service;
 }
 
-sub get_services($self)
+sub get_services ($self)
 {
 	return @{ $self->{services} };
 }
 
-sub get_service( $self, $type )
+sub get_service ( $self, $type )
 {
 	# Look up the full UUID if a short name is given
 	require OpenHAP::Service;
@@ -112,7 +112,7 @@ sub get_service( $self, $type )
 	return;
 }
 
-sub get_characteristic( $self, $iid )
+sub get_characteristic ( $self, $iid )
 {
 	for my $service ( @{ $self->{services} } ) {
 		my $char = $service->get_characteristic($iid);
@@ -122,7 +122,7 @@ sub get_characteristic( $self, $iid )
 	return;
 }
 
-sub to_json($self)
+sub to_json ($self)
 {
 	my @services;
 	for my $service ( @{ $self->{services} } ) {
@@ -135,18 +135,18 @@ sub to_json($self)
 	};
 }
 
-sub identify($self)
+sub identify ($self)
 {
 	# Override in subclasses to implement identify functionality
 	# (e.g., blink LED, beep, etc.)
 }
 
-sub add_event_callback( $self, $callback )
+sub add_event_callback ( $self, $callback )
 {
 	push @{ $self->{event_callbacks} }, $callback;
 }
 
-sub notify_change( $self, $iid )
+sub notify_change ( $self, $iid )
 {
 	# Notify all registered callbacks about characteristic change
 	for my $callback ( @{ $self->{event_callbacks} } ) {

@@ -32,7 +32,7 @@ use constant {
 	CAP_CT     => 4,    # Color temperature control
 };
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = $class->SUPER::new(
 		aid          => $args{aid},
@@ -150,7 +150,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub subscribe_mqtt($self)
+sub subscribe_mqtt ($self)
 {
 	# Call base class to set up standard subscriptions (C1, C2, C3)
 	$self->SUPER::subscribe_mqtt();
@@ -164,7 +164,7 @@ sub subscribe_mqtt($self)
 	# M2: Subscribe to plain-text POWER response (SetOption4 support)
 	$self->{mqtt_client}->subscribe(
 		$self->_build_topic( 'stat', $self->_get_power_key() ),
-		sub( $recv_topic, $payload ) {
+		sub ( $recv_topic, $payload ) {
 			$self->{power_state} = ( $payload eq 'ON' ) ? 1 : 0;
 			$OpenHAP::logger->debug( 'Lightbulb %s power state: %s',
 				$self->{name}, $payload );
@@ -175,7 +175,7 @@ sub subscribe_mqtt($self)
 	if ( $self->{has_dimmer} ) {
 		$self->{mqtt_client}->subscribe(
 			$self->_build_topic( 'stat', 'DIMMER' ),
-			sub( $recv_topic, $payload ) {
+			sub ( $recv_topic, $payload ) {
 				if ( $payload =~ /^\d+$/ ) {
 					$self->{brightness} = int($payload);
 					$OpenHAP::logger->debug(
@@ -190,7 +190,7 @@ sub subscribe_mqtt($self)
 	if ( $self->{has_color} ) {
 		$self->{mqtt_client}->subscribe(
 			$self->_build_topic( 'stat', 'HSBCOLOR' ),
-			sub( $recv_topic, $payload ) {
+			sub ( $recv_topic, $payload ) {
 				$self->_parse_hsbcolor($payload);
 			} );
 	}
@@ -199,7 +199,7 @@ sub subscribe_mqtt($self)
 	if ( $self->{has_ct} ) {
 		$self->{mqtt_client}->subscribe(
 			$self->_build_topic( 'stat', 'CT' ),
-			sub( $recv_topic, $payload ) {
+			sub ( $recv_topic, $payload ) {
 				if ( $payload =~ /^\d+$/ ) {
 					my $ct = int($payload);
 					$ct         = 153 if $ct < 153;
@@ -215,7 +215,7 @@ sub subscribe_mqtt($self)
 }
 
 # Override to process state data from periodic STATE messages
-sub _process_state_data( $self, $data )
+sub _process_state_data ( $self, $data )
 {
 	$self->SUPER::_process_state_data($data);
 
@@ -224,7 +224,7 @@ sub _process_state_data( $self, $data )
 }
 
 # Override to process command results
-sub _process_result_data( $self, $data )
+sub _process_result_data ( $self, $data )
 {
 	$self->SUPER::_process_result_data($data);
 
@@ -233,7 +233,7 @@ sub _process_result_data( $self, $data )
 }
 
 # Override _on_power_update to update our power state
-sub _on_power_update( $self, $state )
+sub _on_power_update ( $self, $state )
 {
 	if ( $self->{power_state} != $state ) {
 		$self->{power_state} = $state;
@@ -245,7 +245,7 @@ sub _on_power_update( $self, $state )
 
 # $self->_extract_light_state($data):
 #	Extract light state from JSON data.
-sub _extract_light_state( $self, $data )
+sub _extract_light_state ( $self, $data )
 {
 	my $changed = 0;
 
@@ -290,7 +290,7 @@ sub _extract_light_state( $self, $data )
 
 # $self->_set_brightness($value):
 #	Set brightness level (0-100).
-sub _set_brightness( $self, $value )
+sub _set_brightness ( $self, $value )
 {
 	$OpenHAP::logger->debug( 'Lightbulb %s brightness set to %d%%',
 		$self->{name}, $value );
@@ -301,7 +301,7 @@ sub _set_brightness( $self, $value )
 
 # $self->_set_hue($value):
 #	Set hue (0-360).
-sub _set_hue( $self, $value )
+sub _set_hue ( $self, $value )
 {
 	# Tasmota accepts 0-360 for hue (360 wraps to 0)
 	$value = int($value) % 360;
@@ -315,7 +315,7 @@ sub _set_hue( $self, $value )
 
 # $self->_set_saturation($value):
 #	Set saturation (0-100).
-sub _set_saturation( $self, $value )
+sub _set_saturation ( $self, $value )
 {
 	$OpenHAP::logger->debug( 'Lightbulb %s saturation set to %d%%',
 		$self->{name}, $value );
@@ -326,7 +326,7 @@ sub _set_saturation( $self, $value )
 
 # $self->_set_ct($value):
 #	Set color temperature in mireds (153-500).
-sub _set_ct( $self, $value )
+sub _set_ct ( $self, $value )
 {
 	# Tasmota CT range is 153-500, clamp to that
 	$value = 153 if $value < 153;
@@ -341,7 +341,7 @@ sub _set_ct( $self, $value )
 
 # $self->set_color($hue, $saturation, $brightness):
 #	Set color using HSB values.
-sub set_color( $self, $hue, $saturation, $brightness )
+sub set_color ( $self, $hue, $saturation, $brightness )
 {
 	$hue = int($hue) % 360;
 
@@ -356,7 +356,7 @@ sub set_color( $self, $hue, $saturation, $brightness )
 # $self->dimmer_step($direction):
 #	Increase or decrease dimmer by step (L3).
 #	$direction: '+' to increase, '-' to decrease
-sub dimmer_step( $self, $direction = '+' )
+sub dimmer_step ( $self, $direction = '+' )
 {
 	$OpenHAP::logger->debug( 'Lightbulb %s dimmer step %s',
 		$self->{name}, $direction );
@@ -367,7 +367,7 @@ sub dimmer_step( $self, $direction = '+' )
 
 # $self->dimmer_min():
 #	Set dimmer to minimum (L3).
-sub dimmer_min($self)
+sub dimmer_min ($self)
 {
 	$OpenHAP::logger->debug( 'Lightbulb %s dimmer to minimum',
 		$self->{name} );
@@ -378,7 +378,7 @@ sub dimmer_min($self)
 
 # $self->dimmer_max():
 #	Set dimmer to maximum (L3).
-sub dimmer_max($self)
+sub dimmer_max ($self)
 {
 	$OpenHAP::logger->debug( 'Lightbulb %s dimmer to maximum',
 		$self->{name} );
@@ -389,7 +389,7 @@ sub dimmer_max($self)
 
 # $self->_parse_hsbcolor($value):
 #	Parse HSBColor string "h,s,b" and update state.
-sub _parse_hsbcolor( $self, $value )
+sub _parse_hsbcolor ( $self, $value )
 {
 	return unless $self->{has_color};
 
@@ -418,7 +418,7 @@ sub _parse_hsbcolor( $self, $value )
 # $self->_parse_color($value):
 #	Parse Color field (M3: SetOption17 support).
 #	Handles both hex (FF5500) and decimal (255,85,0) formats.
-sub _parse_color( $self, $value )
+sub _parse_color ( $self, $value )
 {
 	return unless $self->{has_color};
 
@@ -454,7 +454,7 @@ sub _parse_color( $self, $value )
 
 # $self->_rgb_to_hsb($r, $g, $b):
 #	Convert RGB (0-255) to HSB (h: 0-360, s: 0-100, b: 0-100).
-sub _rgb_to_hsb( $self, $r, $g, $b )
+sub _rgb_to_hsb ( $self, $r, $g, $b )
 {
 	# Normalize to 0-1
 	my ( $rn, $gn, $bn ) = ( $r / 255, $g / 255, $b / 255 );

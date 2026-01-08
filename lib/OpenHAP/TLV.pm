@@ -12,7 +12,7 @@ use constant kTLVType_Separator => 0xFF;
 # encode(@items) - Encode type-value pairs in order
 # Takes a list of type, value pairs preserving insertion order
 # Example: encode(0x06, $state, 0x03, $pubkey)
-sub encode(@items)
+sub encode (@items)
 {
 	my $out = '';
 
@@ -45,7 +45,7 @@ sub encode_separator()
 	return pack( 'CC', kTLVType_Separator, 0 );
 }
 
-sub decode($data)
+sub decode ($data)
 {
 	my %items;
 	my $pos = 0;

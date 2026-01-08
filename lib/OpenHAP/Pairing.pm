@@ -48,7 +48,7 @@ our $pairing_in_progress  = 0;
 our $pairing_session_id   = undef;
 our $failed_auth_attempts = 0;
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $pin = normalize_pin( $args{pin} ) // die "PIN required";
 
@@ -64,7 +64,7 @@ sub new( $class, %args )
 
 # clear_pairing_state() - Reset global pairing state
 # Called after successful pairing or on connection close
-sub clear_pairing_state( $class_or_self, $session = undef )
+sub clear_pairing_state ( $class_or_self, $session = undef )
 {
 	# Only clear if this session owns the lock or no session specified
 	if (       !defined $session
@@ -78,25 +78,25 @@ sub clear_pairing_state( $class_or_self, $session = undef )
 
 # reset_auth_attempts() - Reset failed authentication counter
 # Called after successful pairing or administratively
-sub reset_auth_attempts($class_or_self)
+sub reset_auth_attempts ($class_or_self)
 {
 	$failed_auth_attempts = 0;
 }
 
 # get_failed_attempts() - Get current failed attempt count (for testing)
-sub get_failed_attempts($class_or_self)
+sub get_failed_attempts ($class_or_self)
 {
 	return $failed_auth_attempts;
 }
 
 # _get_accessory_pairing_id() - Generate MAC-like pairing ID from public key
-sub _get_accessory_pairing_id($self)
+sub _get_accessory_pairing_id ($self)
 {
 	my $id = uc( unpack( 'H*', substr( $self->{accessory_ltpk}, 0, 6 ) ) );
 	return join( ':', $id =~ /../g );
 }
 
-sub handle_pair_setup( $self, $body, $session )
+sub handle_pair_setup ( $self, $body, $session )
 {
 
 	my %request = OpenHAP::TLV::decode($body);
@@ -123,7 +123,7 @@ sub handle_pair_setup( $self, $body, $session )
 	return $self->_error_response( kTLVError_Unknown, 2 );
 }
 
-sub _pair_setup_m1_m2( $self, $session, $method = 0 )
+sub _pair_setup_m1_m2 ( $self, $session, $method = 0 )
 {
 	# Check if max authentication attempts exceeded (HAP-Pairing.md §8)
 	if ( $failed_auth_attempts >= MAX_AUTH_ATTEMPTS ) {
@@ -177,7 +177,7 @@ sub _pair_setup_m1_m2( $self, $session, $method = 0 )
 	return $response;
 }
 
-sub _pair_setup_m3_m4( $self, $request, $session )
+sub _pair_setup_m3_m4 ( $self, $request, $session )
 {
 
 	my $srp = $session->{pairing_state}{srp};
@@ -221,7 +221,7 @@ sub _pair_setup_m3_m4( $self, $request, $session )
 	return $response;
 }
 
-sub _pair_setup_m5_m6( $self, $request, $session )
+sub _pair_setup_m5_m6 ( $self, $request, $session )
 {
 
 	my $srp = $session->{pairing_state}{srp};
@@ -315,7 +315,7 @@ sub _pair_setup_m5_m6( $self, $request, $session )
 	return $response;
 }
 
-sub handle_pair_verify( $self, $body, $session )
+sub handle_pair_verify ( $self, $body, $session )
 {
 
 	my %request = OpenHAP::TLV::decode($body);
@@ -332,7 +332,7 @@ sub handle_pair_verify( $self, $body, $session )
 	return $self->_error_response( kTLVError_Unknown, 2 );
 }
 
-sub _pair_verify_m1_m2( $self, $request, $session )
+sub _pair_verify_m1_m2 ( $self, $request, $session )
 {
 
 	my $ios_public_key = $request->{ kTLVType_PublicKey() };
@@ -387,7 +387,7 @@ sub _pair_verify_m1_m2( $self, $request, $session )
 	return $response;
 }
 
-sub _pair_verify_m3_m4( $self, $request, $session )
+sub _pair_verify_m3_m4 ( $self, $request, $session )
 {
 
 	my $encrypted_data = $request->{ kTLVType_EncryptedData() };
@@ -454,7 +454,7 @@ sub _pair_verify_m3_m4( $self, $request, $session )
 	return $response;
 }
 
-sub _error_response( $self, $error_code, $state )
+sub _error_response ( $self, $error_code, $state )
 {
 
 	return OpenHAP::TLV::encode(

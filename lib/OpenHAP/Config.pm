@@ -3,7 +3,7 @@ use v5.36;
 package OpenHAP::Config;
 use Carp qw(croak);
 
-sub new( $class, %args )
+sub new ( $class, %args )
 {
 	my $self = bless {
 		file   => $args{file} // '/etc/openhapd.conf',
@@ -13,7 +13,7 @@ sub new( $class, %args )
 	return $self;
 }
 
-sub load($self)
+sub load ($self)
 {
 	my $file = $self->{file};
 	return unless -f $file;
@@ -79,12 +79,12 @@ m/\A \s* device \s+ (\w+) \s+ (\w+) \s+ (\w+) \s* [{] /xms
 	return $self->{config};
 }
 
-sub get( $self, $key, $default = undef )
+sub get ( $self, $key, $default = undef )
 {
 	return $self->{config}{$key} // $default;
 }
 
-sub get_devices($self)
+sub get_devices ($self)
 {
 	return @{ $self->{config}{devices} // [] };
 }

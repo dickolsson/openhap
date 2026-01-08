@@ -42,7 +42,7 @@ use POSIX qw(setuid setgid);
 #
 #		# Now running as _openhap
 #		$server->run();
-sub drop_privileges( $class, %args )
+sub drop_privileges ( $class, %args )
 {
 	my $user = $args{user}
 	    or die "user parameter required for drop_privileges";

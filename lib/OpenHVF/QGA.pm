@@ -32,7 +32,7 @@ use constant {
 	READ_TIMEOUT    => 30,
 };
 
-sub new( $class, $socket_path )
+sub new ( $class, $socket_path )
 {
 	bless {
 		socket_path => $socket_path,
@@ -42,9 +42,9 @@ sub new( $class, $socket_path )
 	}, $class;
 }
 
-sub socket_path($self) { $self->{socket_path} }
+sub socket_path ($self) { $self->{socket_path} }
 
-sub open_connection($self)
+sub open_connection ($self)
 {
 	return 1 if $self->{connected};
 
@@ -64,7 +64,7 @@ sub open_connection($self)
 	return 1;
 }
 
-sub disconnect($self)
+sub disconnect ($self)
 {
 	if ( $self->{sock} ) {
 		close $self->{sock};
@@ -74,14 +74,14 @@ sub disconnect($self)
 	return $self;
 }
 
-sub is_available($self)
+sub is_available ($self)
 {
 	return -S $self->{socket_path};
 }
 
 # $self->run_command($command, $arguments):
 #	Execute a QGA command and return the result
-sub run_command( $self, $command, $arguments = undef )
+sub run_command ( $self, $command, $arguments = undef )
 {
 	return if !$self->{sock};
 
@@ -96,7 +96,7 @@ sub run_command( $self, $command, $arguments = undef )
 	return $self->_read_response;
 }
 
-sub _read_response($self)
+sub _read_response ($self)
 {
 	my $sock = $self->{sock};
 	return if !$sock;
@@ -125,14 +125,14 @@ sub _read_response($self)
 # $self->sync:
 #	Sync guest filesystems (flush all buffers to disk)
 #	Returns true on success
-sub sync($self)
+sub sync ($self)
 {
 	# guest-sync is used to synchronize the protocol, not filesystems
 	# We use guest-exec to run sync command for actual filesystem sync
 	return $self->_exec_sync_command;
 }
 
-sub _exec_sync_command($self)
+sub _exec_sync_command ($self)
 {
 	# Execute 'sync' command in guest
 	my $result = $self->run_command(
@@ -166,7 +166,7 @@ sub _exec_sync_command($self)
 # $self->freeze_filesystems:
 #	Freeze all mounted filesystems (quiesce for snapshot)
 #	Returns number of frozen filesystems on success, undef on failure
-sub freeze_filesystems($self)
+sub freeze_filesystems ($self)
 {
 	my $result = $self->run_command('guest-fsfreeze-freeze');
 	return if !defined $result || exists $result->{error};
@@ -176,7 +176,7 @@ sub freeze_filesystems($self)
 # $self->thaw_filesystems:
 #	Thaw all frozen filesystems
 #	Returns number of thawed filesystems on success, undef on failure
-sub thaw_filesystems($self)
+sub thaw_filesystems ($self)
 {
 	my $result = $self->run_command('guest-fsfreeze-thaw');
 	return if !defined $result || exists $result->{error};
@@ -186,7 +186,7 @@ sub thaw_filesystems($self)
 # $self->fsfreeze_status:
 #	Get current filesystem freeze status
 #	Returns 'thawed', 'frozen', or undef on error
-sub fsfreeze_status($self)
+sub fsfreeze_status ($self)
 {
 	my $result = $self->run_command('guest-fsfreeze-status');
 	return if !defined $result || exists $result->{error};
@@ -195,7 +195,7 @@ sub fsfreeze_status($self)
 
 # $self->ping:
 #	Check if guest agent is responsive
-sub ping($self)
+sub ping ($self)
 {
 	my $result = $self->run_command('guest-ping');
 	return defined $result && !exists $result->{error};
@@ -204,7 +204,7 @@ sub ping($self)
 # $self->shutdown($mode):
 #	Request guest to shutdown
 #	$mode: 'powerdown' (default), 'halt', or 'reboot'
-sub shutdown( $self, $mode = 'powerdown' )
+sub shutdown ( $self, $mode = 'powerdown' )
 {
 	my $result = $self->run_command( 'guest-shutdown', { mode => $mode } );
 
