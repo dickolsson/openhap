@@ -57,18 +57,6 @@ deps-develop: deps deps-test
 deps-test: deps
 	$(DEPS) test
 
-deps-test-pkg: deps-runtime-pkg
-	$(DEPS) test pkg
-
-deps-test-cpan: deps-runtime-cpan
-	$(DEPS) test cpan
-
-deps-runtime-pkg:
-	$(DEPS) runtime pkg
-
-deps-runtime-cpan:
-	$(DEPS) runtime cpan
-
 install: install-man
 	# Install binaries
 	install -d $(DESTDIR)$(BINDIR)

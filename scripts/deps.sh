@@ -1,15 +1,13 @@
 #!/bin/sh
 # Cross-platform dependency installer
 # Handles both OS packages and CPAN modules from deps/*.txt
-# Usage: deps.sh <environment> [type]
+# Usage: deps.sh <environment>
 #   environment: runtime, test, or develop
-#   type: pkg, cpan, or omit for both
 
 set -e
 
 ENV="$1"
-TYPE_FILTER="${2:-all}"
-[ -z "$ENV" ] && { echo "Usage: $0 <runtime|test|develop> [pkg|cpan]" >&2; exit 1; }
+[ -z "$ENV" ] && { echo "Usage: $0 <runtime|test|develop>" >&2; exit 1; }
 
 OS=$(uname)
 DEPS_FILE="deps/${OS}.txt"
@@ -51,7 +49,7 @@ while read -r env type name; do
 done < "$DEPS_FILE"
 
 # Install OS packages
-if [ -n "$PKG_PACKAGES" ] && [ "$TYPE_FILTER" = "all" -o "$TYPE_FILTER" = "pkg" ]; then
+if [ -n "$PKG_PACKAGES" ]; then
 	echo "Installing OS packages:$PKG_PACKAGES"
 	case "$OS" in
 		OpenBSD)
@@ -71,7 +69,7 @@ if [ -n "$PKG_PACKAGES" ] && [ "$TYPE_FILTER" = "all" -o "$TYPE_FILTER" = "pkg" 
 fi
 
 # Install CPAN modules
-if [ -n "$CPAN_MODULES" ] && [ "$TYPE_FILTER" = "all" -o "$TYPE_FILTER" = "cpan" ]; then
+if [ -n "$CPAN_MODULES" ]; then
 	echo "Installing CPAN modules:$CPAN_MODULES"
 	
 	# Install cpanm if not available
@@ -81,19 +79,20 @@ if [ -n "$CPAN_MODULES" ] && [ "$TYPE_FILTER" = "all" -o "$TYPE_FILTER" = "cpan"
 	fi
 	
 	# Determine installation target
-	# If PERL5LIB is set and points to a local directory, install there
-	# Otherwise, install system-wide (default behavior)
+	# If PERL5LIB is set, use --local-lib to install to that location
+	# This allows running with sudo while still installing to user's local lib
 	CPANM_OPTS="--notest"
 	if [ -n "$PERL5LIB" ]; then
 		# Extract the first directory from PERL5LIB (may contain multiple paths)
 		LOCAL_LIB=$(echo "$PERL5LIB" | cut -d: -f1)
-		# Check if it's a local directory (contains 'local')
+		# Derive the local::lib root from PERL5LIB path
+		# PERL5LIB typically contains paths like /path/to/local/lib/perl5
+		# We need to pass /path/to/local to cpanm --local-lib
 		case "$LOCAL_LIB" in
-			*/local/*)
-				# Extract the local directory root (e.g., /path/to/local)
-				LOCAL_ROOT=$(echo "$LOCAL_LIB" | sed 's|\(.*\)/local/.*|\1/local|')
+			*/local/lib/perl5*)
+				LOCAL_ROOT=$(echo "$LOCAL_LIB" | sed 's|/lib/perl5.*||')
 				echo "Installing to local directory: $LOCAL_ROOT"
-				CPANM_OPTS="$CPANM_OPTS -l $LOCAL_ROOT"
+				CPANM_OPTS="$CPANM_OPTS --local-lib=$LOCAL_ROOT"
 				;;
 		esac
 	fi
