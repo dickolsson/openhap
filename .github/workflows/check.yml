@@ -16,11 +16,9 @@ jobs:
 
       - name: Setup Perl
         uses: ./.github/actions/setup-perl
-        with:
-          perl-version: "5.38"
 
       - name: Install test dependencies
-        run: sudo make deps-test
+        run: make deps-test
 
       - name: Check formatting
         run: make tidy
@@ -34,11 +32,9 @@ jobs:
 
       - name: Setup Perl
         uses: ./.github/actions/setup-perl
-        with:
-          perl-version: "5.38"
 
       - name: Install test dependencies
-        run: sudo make deps-test
+        run: make deps-test
 
       - name: Check lint
         run: make lint
@@ -52,20 +48,14 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        perl-version: ["5.36", "5.38"]
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Perl
         uses: ./.github/actions/setup-perl
-        with:
-          perl-version: ${{ matrix.perl-version }}
 
       - name: Install test dependencies
-        run: sudo make deps-test
+        run: make deps-test
 
       - name: Run tests
         run: make test
