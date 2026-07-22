@@ -11,8 +11,8 @@ options, see `openhapd(8)` and `hapctl(8)`.
 
 ## Dependencies
 
-OpenHAP manages dependencies through `deps/*.txt` files (one per platform).
-Each line specifies an environment, package type, and package name:
+OpenHAP manages dependencies through `deps/*.txt` files (one per platform). Each
+line specifies an environment, package type, and package name:
 
 ```
 <environment> <type> <package-name>
@@ -23,6 +23,7 @@ Each line specifies an environment, package type, and package name:
 - **package-name**: Name in the respective package system
 
 Example (`deps/OpenBSD.txt`):
+
 ```
 runtime pkg mosquitto
 runtime pkg p5-JSON-XS
@@ -32,7 +33,9 @@ develop pkg p5-Net-SSH2
 ```
 
 **Why this format?**
-- OS packages are preferred for production (better integration, security updates)
+
+- OS packages are preferred for production (better integration, security
+  updates)
 - CPAN modules used as fallback when OS packages unavailable
 - Platform-specific: Different availability on OpenBSD/Darwin/Linux
 
