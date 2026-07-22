@@ -1,3 +1,11 @@
+---
+name: compliance-mqtt
+description:
+  Audit the OpenHAP MQTT/Tasmota integration for compliance with spec/MQTT.md,
+  writing findings to SCRATCHPAD-<N>.md. Use when asked to review, audit, or
+  verify Tasmota MQTT protocol handling.
+---
+
 # Tasmota MQTT Protocol Compliance Review
 
 Review the OpenHAP codebase for strict compliance with the Tasmota MQTT protocol

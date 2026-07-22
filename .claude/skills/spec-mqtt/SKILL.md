@@ -1,10 +1,23 @@
-# Prompt: Extract Tasmota MQTT Protocol
+---
+name: spec-mqtt
+description:
+  Extract the Tasmota MQTT protocol from external/Tasmota-Docs into
+  spec/MQTT.md. Use when asked to generate, regenerate, or update the MQTT spec
+  document. Requires external/ to be populated.
+---
+
+# Extract Tasmota MQTT Protocol
 
 ## Objective
 
 Produce `spec/MQTT.md` documenting how Tasmota devices communicate over MQTT.
 OpenHAP bridges Tasmota to HomeKit, so this document should enable accurate
 translation between the two protocols.
+
+## Precondition
+
+`external/` is gitignored and not committed. If `external/Tasmota-Docs` is
+absent, stop and tell the user it must be fetched first (see `spec/README.md`).
 
 ## Primary Source
 

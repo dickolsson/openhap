@@ -41,8 +41,7 @@ make lint          # Check code style
 make man           # Build man pages
 ```
 
-See [.github/copilot-instructions.md](.github/copilot-instructions.md) for
-coding style.
+See [CLAUDE.md](CLAUDE.md) for coding style and development conventions.
 
 ## Architecture
 

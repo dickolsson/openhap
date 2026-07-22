@@ -1,10 +1,24 @@
-# Prompt: Extract HAP Protocol Specification
+---
+name: spec-hap
+description:
+  Extract the HAP protocol specification from the sources in external/ into
+  spec/HAP.md plus topic files spec/HAP-*.md. Use when asked to generate,
+  regenerate, or update the HAP spec documents. Requires external/ to be
+  populated.
+---
+
+# Extract HAP Protocol Specification
 
 ## Objective
 
 Produce `spec/HAP.md` — a protocol reference that documents _what_ HAP requires,
 independent of any particular implementation. This should be the authoritative
 reference for building a HAP server.
+
+## Precondition
+
+`external/` is gitignored and not committed. If it is absent or empty, stop and
+tell the user it must be fetched first (see `spec/README.md` for the sources).
 
 ## Background
 
@@ -21,8 +35,8 @@ accuracy:
    protocol explanations, especially `ServiceList.md`, `TLV8.md`,
    `Categories.md`
 
-2. **HAP-python resources** (`external/HAP-python/pyhap/resources/`) — Machine-
-   readable JSON with service/characteristic definitions
+2. **HAP-python resources** (`external/HAP-python/pyhap/resources/`) —
+   Machine-readable JSON with service/characteristic definitions
 
 3. **HAP-NodeJS definitions** (`external/HAP-NodeJS/src/lib/definitions/`) —
    Complete TypeScript type definitions

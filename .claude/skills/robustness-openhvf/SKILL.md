@@ -1,11 +1,20 @@
+---
+name: robustness-openhvf
+description:
+  Adversarial robustness testing of the openhvf VM harness CLI across 12 areas
+  (CLI parsing, config, filesystem, VM lifecycle, signals, concurrency, and
+  more), writing findings to SCRATCHPAD-<N>.md. Use when asked to stress-test,
+  fuzz, or try to break openhvf.
+---
+
 # Robustness Testing for openhvf
 
 Exercise the `openhvf` utility to find weaknesses in error handling, edge cases,
 and failure modes. Be creative and adversarial—try to break things in unexpected
 ways.
 
-Document all your findings in `SCRATCHPADN.md` (with N being the next available
-number).
+Document all your findings in `SCRATCHPAD-<N>.md` (with N being the next
+available number).
 
 ## Philosophy
 
