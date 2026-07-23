@@ -250,7 +250,7 @@ When modifying integration tests:
 3. Maintain proper setup/teardown in all tests
 4. Never add SKIP blocks - fix environment instead
 5. Run full test suite before committing: `make integration`
-6. Follow project coding standards (see .github/copilot-instructions.md)
+6. Follow project coding standards (see CLAUDE.md)
 
 ## See Also
 

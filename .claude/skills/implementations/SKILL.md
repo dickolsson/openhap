@@ -1,4 +1,13 @@
-# Prompt: Analyze HAP Implementations
+---
+name: implementations
+description:
+  Analyze the reference HAP implementations in external/ (HAP-python,
+  HAP-NodeJS, HomeSpan, HomeKitADK) and document practical patterns in
+  spec/IMPLEMENTATIONS.md. Use when asked to study or document how real HAP
+  implementations work. Requires external/ to be populated.
+---
+
+# Analyze HAP Implementations
 
 ## Objective
 
@@ -6,6 +15,11 @@ Study how mature open source HAP implementations work and document the practical
 patterns in `spec/IMPLEMENTATIONS.md`. The goal is to help AI coding agents
 understand _how_ real projects solve HAP problems, not just _what_ the protocol
 requires.
+
+## Precondition
+
+`external/` is gitignored and not committed. If it is absent or empty, stop and
+tell the user it must be fetched first (see `spec/README.md` for the sources).
 
 ## Background
 

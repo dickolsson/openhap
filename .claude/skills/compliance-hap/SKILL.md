@@ -1,3 +1,11 @@
+---
+name: compliance-hap
+description:
+  Audit the OpenHAP codebase for HomeKit Accessory Protocol compliance against
+  spec/HAP.md and spec/HAP-*.md, writing findings to SCRATCHPAD-<N>.md. Use when
+  asked to review, audit, or verify HAP protocol correctness or spec compliance.
+---
+
 # HomeKit Accessory Protocol Compliance Review
 
 Review the OpenHAP codebase for strict compliance with the HomeKit Accessory
