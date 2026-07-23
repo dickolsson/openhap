@@ -970,7 +970,7 @@ if (numAuthAttempts >= 100) {
 
 ## References
 
-- [spec/README.md](README.md) - Source material overview
+- [spec/CLAUDE.md](CLAUDE.md) - How the spec/ documents are generated
 - [HAP-python pyhap/](../external/HAP-python/pyhap/) - Python implementation
 - [HAP-NodeJS src/lib/](../external/HAP-NodeJS/src/lib/) - TypeScript
   implementation

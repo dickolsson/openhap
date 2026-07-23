@@ -2,22 +2,21 @@
 name: compliance-hap
 description:
   Audit the OpenHAP codebase for HomeKit Accessory Protocol compliance against
-  spec/HAP.md and spec/HAP-*.md, writing findings to SCRATCHPAD-<N>.md. Use when
+  spec/HAP.md and spec/HAP-*.md, writing findings to a scratchpad file. Use when
   asked to review, audit, or verify HAP protocol correctness or spec compliance.
 ---
 
 # HomeKit Accessory Protocol Compliance Review
 
+## Objective
+
 Review the OpenHAP codebase for strict compliance with the HomeKit Accessory
 Protocol specification.
 
-Document all findings in `SCRATCHPAD-<N>.md` (with N being the next available
-number).
+## Preconditions
 
-## Background
-
-Read `spec/README.md` to understand the available reference implementations and
-documentation sources for HAP.
+`spec/HAP.md` and `spec/HAP-*.md` must exist — regenerate them with the
+`spec-hap` skill if missing.
 
 ## Specification
 
@@ -79,5 +78,6 @@ unless it directly affects HAP protocol compliance.
 
 ## Output
 
-Produce a compliance report that can guide remediation. Prioritize findings by
-impact on HomeKit interoperability.
+A compliance report that can guide remediation, recorded per the scratchpad
+convention in the root CLAUDE.md. Prioritize findings by impact on HomeKit
+interoperability.

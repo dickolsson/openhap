@@ -2,22 +2,20 @@
 name: compliance-mqtt
 description:
   Audit the OpenHAP MQTT/Tasmota integration for compliance with spec/MQTT.md,
-  writing findings to SCRATCHPAD-<N>.md. Use when asked to review, audit, or
+  writing findings to a scratchpad file. Use when asked to review, audit, or
   verify Tasmota MQTT protocol handling.
 ---
 
 # Tasmota MQTT Protocol Compliance Review
 
+## Objective
+
 Review the OpenHAP codebase for strict compliance with the Tasmota MQTT protocol
 specification.
 
-Document all findings in `SCRATCHPAD-<N>.md` (with N being the next available
-number).
+## Preconditions
 
-## Background
-
-Read `spec/README.md` to understand the context and available reference
-materials for the protocols OpenHAP implements.
+`spec/MQTT.md` must exist — regenerate it with the `spec-mqtt` skill if missing.
 
 ## Specification
 
@@ -75,5 +73,6 @@ affects MQTT/Tasmota compliance.
 
 ## Output
 
-Produce a compliance report that can guide remediation. Prioritize findings by
-impact on device interoperability and user experience.
+A compliance report that can guide remediation, recorded per the scratchpad
+convention in the root CLAUDE.md. Prioritize findings by impact on device
+interoperability and user experience.

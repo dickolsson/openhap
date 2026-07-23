@@ -3,18 +3,18 @@ name: robustness-openhvf
 description:
   Adversarial robustness testing of the openhvf VM harness CLI across 12 areas
   (CLI parsing, config, filesystem, VM lifecycle, signals, concurrency, and
-  more), writing findings to SCRATCHPAD-<N>.md. Use when asked to stress-test,
+  more), writing findings to a scratchpad file. Use when asked to stress-test,
   fuzz, or try to break openhvf.
 ---
 
 # Robustness Testing for openhvf
 
+## Objective
+
 Exercise the `openhvf` utility to find weaknesses in error handling, edge cases,
 and failure modes. Be creative and adversarial—try to break things in unexpected
-ways.
-
-Document all your findings in `SCRATCHPAD-<N>.md` (with N being the next
-available number).
+ways. For the command, option, and exit-code reference, see `openhvf(1)`
+(`man/openhvf/openhvf.1`).
 
 ## Philosophy
 
@@ -31,9 +31,6 @@ OpenBSD's approach to robustness:
 Your goal is not to follow a script, but to think like an attacker or a careless
 user. What would happen if someone made a typo? What if the system is in an
 unexpected state? What if two things happen at once?
-
-**IMPORTANT:** Use `explore/` for temporary scripts or testing purposes. Do NOT
-use `/tmp` in the filesystem root.
 
 ## Test Areas
 
@@ -163,9 +160,11 @@ characters in paths.
 Init should be safe to run repeatedly and should fail cleanly when it cannot
 proceed.
 
-## What to Report
+## Output
 
-For each issue found:
+Record findings per the scratchpad convention in the root CLAUDE.md (which also
+mandates `explore/`, never `/tmp`, for temporary test scripts). For each issue
+found, report:
 
 1. **Reproduction**: Exact steps or commands that trigger the problem
 2. **Expected**: What should have happened
