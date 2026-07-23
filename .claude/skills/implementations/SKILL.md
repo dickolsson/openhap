@@ -16,24 +16,15 @@ patterns in `spec/IMPLEMENTATIONS.md`. The goal is to help AI coding agents
 understand _how_ real projects solve HAP problems, not just _what_ the protocol
 requires.
 
-## Precondition
+## Preconditions
 
-`external/` is gitignored and not committed. If it is absent or empty, stop and
-tell the user it must be fetched first (see `spec/README.md` for the sources).
-
-## Background
-
-Read `spec/README.md` first — it explains what source material is available in
-`external/` and why certain implementations are preferred.
+If `external/` is absent or empty, run the `fetch-external` skill first.
 
 ## What to Analyze
 
-Explore the implementations in `external/` and extract practical knowledge:
-
-- **HAP-python** — Python implementation with JSON service/characteristic files
-- **HAP-NodeJS** — TypeScript implementation powering Homebridge
-- **HomeSpan** — ESP32 implementation with excellent documentation
-- **HomeKitADK** — Apple's official (archived) reference implementation
+Explore the four HAP implementations in `external/` — HAP-python, HAP-NodeJS,
+HomeSpan, and HomeKitADK (the source map in the `fetch-external` skill describes
+each) — and extract practical knowledge.
 
 Focus on IP transport only. Skip Bluetooth LE, Thread, cameras, and Matter.
 

@@ -15,37 +15,19 @@ Produce `spec/HAP.md` — a protocol reference that documents _what_ HAP require
 independent of any particular implementation. This should be the authoritative
 reference for building a HAP server.
 
-## Precondition
+## Preconditions
 
-`external/` is gitignored and not committed. If it is absent or empty, stop and
-tell the user it must be fetched first (see `spec/README.md` for the sources).
+If `external/` is absent or empty, run the `fetch-external` skill first.
 
-## Background
-
-Read `spec/README.md` to understand available sources. If
-`spec/IMPLEMENTATIONS.md` exists, use it to identify what protocol details
+If `spec/IMPLEMENTATIONS.md` exists, use it to identify what protocol details
 matter in practice.
 
 ## Source Strategy
 
 Extract specification details from multiple sources, cross-referencing to ensure
-accuracy:
-
-1. **HomeSpan documentation** (`external/HomeSpan/docs/`) — Best human-readable
-   protocol explanations, especially `ServiceList.md`, `TLV8.md`,
-   `Categories.md`
-
-2. **HAP-python resources** (`external/HAP-python/pyhap/resources/`) —
-   Machine-readable JSON with service/characteristic definitions
-
-3. **HAP-NodeJS definitions** (`external/HAP-NodeJS/src/lib/definitions/`) —
-   Complete TypeScript type definitions
-
-4. **HomeKitADK headers** (`external/HomeKitADK/HAP/`) — Apple's official
-   protocol constants in well-commented C headers
-
-When sources agree, that's the specification. When they differ, document the
-variation.
+accuracy — the source map in the `fetch-external` skill lists what each source
+under `external/` is best for. When sources agree, that's the specification.
+When they differ, document the variation.
 
 When extracting specific values (UUIDs, constants, parameters), cite the source
 file and line number (e.g., "from `HAPCharacteristic.h:142`") to enable later

@@ -34,14 +34,8 @@ See [INSTALL.md](INSTALL.md) for complete installation instructions.
 
 ## Development
 
-```sh
-make deps-develop  # Install all dependencies
-make test          # Run test suite
-make lint          # Check code style
-make man           # Build man pages
-```
-
-See [CLAUDE.md](CLAUDE.md) for coding style and development conventions.
+See [CLAUDE.md](CLAUDE.md) for development commands, coding style, and
+conventions.
 
 ## Architecture
 

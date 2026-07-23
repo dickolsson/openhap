@@ -8,9 +8,11 @@ description:
 
 # Commit and Push Changes
 
+## Objective
+
 Analyze the current uncommitted changes and create well-organized commits
-following the project's Conventional Commits standard (see CLAUDE.md for types,
-scopes, and examples).
+following the project's Conventional Commits standard (see the root CLAUDE.md
+for types, scopes, and examples).
 
 ## Workflow
 

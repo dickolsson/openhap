@@ -11,40 +11,8 @@ options, see `openhapd(8)` and `hapctl(8)`.
 
 ## Dependencies
 
-OpenHAP manages dependencies through `deps/*.txt` files (one per platform). Each
-line specifies an environment, package type, and package name:
-
-```
-<environment> <type> <package-name>
-```
-
-- **environment**: `runtime`, `test`, or `develop`
-- **type**: `pkg` (OS package) or `cpan` (CPAN module)
-- **package-name**: Name in the respective package system
-
-Example (`deps/OpenBSD.txt`):
-
-```
-runtime pkg mosquitto
-runtime pkg p5-JSON-XS
-runtime cpan Net::MQTT::Simple
-test pkg p5-Perl-Critic
-develop pkg p5-Net-SSH2
-```
-
-**Why this format?**
-
-- OS packages are preferred for production (better integration, security
-  updates)
-- CPAN modules used as fallback when OS packages unavailable
-- Platform-specific: Different availability on OpenBSD/Darwin/Linux
-
-The `make deps` command installs runtime dependencies using `scripts/deps.sh`.
-For development, use `make deps-develop`.
-
-**Note**: The `cpanfile` is maintained for development convenience and `carton`
-compatibility, but production deployments should use `deps/*.txt` with
-`make deps`.
+The `make deps` command installs the runtime dependencies listed in the
+per-platform manifests under `deps/` (e.g. `deps/OpenBSD.txt`).
 
 ## Install
 
