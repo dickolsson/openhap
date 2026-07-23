@@ -30,8 +30,10 @@ FTP				= scripts/ftp.sh
 DEPS			= scripts/deps.sh
 
 # Man pages
+MAN1			= man/openhvf/openhvf.1
 MAN5			= man/openhap/openhapd.conf.5
 MAN8			= man/openhap/openhapd.8 man/openhap/hapctl.8
+CATMAN1			= $(MAN1:.1=.cat1)
 CATMAN5			= $(MAN5:.5=.cat5)
 CATMAN8			= $(MAN8:.8=.cat8)
 
@@ -46,7 +48,7 @@ clean: clean-man
 	rm -f *.tmp
 
 clean-man:
-	rm -f $(CATMAN5) $(CATMAN8)
+	rm -f $(CATMAN1) $(CATMAN5) $(CATMAN8)
 
 deps:
 	$(DEPS) runtime
@@ -97,13 +99,16 @@ integration: vm-provision
 lint:
 	perl -MPerl::Critic::Command -e 'Perl::Critic::Command::run()' -- --severity 4 --verbose 8 lib/ bin/openhapd bin/hapctl
 
-man: $(CATMAN5) $(CATMAN8)
+man: $(CATMAN1) $(CATMAN5) $(CATMAN8)
 
 prettier:
 	@npx prettier --check '**/*.md' '**/*.json' '**/*.yml' || { echo "Run 'make prettier-fix' to fix formatting"; exit 1; }
 
 prettier-fix:
 	npx prettier --write '**/*.md' '**/*.json' '**/*.yml'
+
+%.cat1: %.1
+	$(MANDOC) -Tascii $< > $@
 
 %.cat5: %.5
 	$(MANDOC) -Tascii $< > $@
