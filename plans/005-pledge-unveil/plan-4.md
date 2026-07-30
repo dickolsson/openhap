@@ -4,7 +4,12 @@ Restrict the filesystem view. Depends on phase 3 for `FuguLib::Sandbox`, which
 already carries the `unveil` and `unveil_lock` API and the required/optional
 distinction; this phase builds the path inventory and calls them. It also
 depends on phase 1's measurement 6 — the `kdump` of the real path set — because
-an inventory derived by reading code is a guess.
+an inventory derived by reading code is a guess. That measurement was taken
+against the phase-1 daemon, which still spawned `mdnsctl` and never itself
+opened the mdnsd socket, so this phase re-validates it against the rewired
+daemon in the VM (where its acceptance criteria already run) before locking the
+inventory, using the per-pid attribution and pre-unveil-point marks phase 1
+recorded.
 
 At the end of this phase the claims in `README.md` and `web/index.body.html` are
 true.
@@ -13,10 +18,18 @@ true.
 
 ### 4.1 The path inventory
 
-Assembled in `bin/openhapd` from configuration where it is configurable. Every
-row carries a **disposition**: _required_ means absent is a broken install and
-startup fails with the path in the message; _optional_ means legitimately absent
-on a working system, so it is skipped with a debug line.
+Assembled by a builder sub on `OpenHAP::Config` — beside the values it reads,
+where the `.pod` sidecar and `t/openhap/config.t` already exist — taking the
+config values and the daemon's script directory as explicit parameters and
+returning the ordered `[path, perms, disposition]` list; `bin/openhapd` only
+calls it. It cannot live in `bin/openhapd` itself: the script runs top-to-bottom
+with no `caller()` guard, so no module-tier test can load it, and phase 5
+forbids test-only surface there. It cannot live in FuguLib either: the inventory
+is OpenHAP policy (`$db_path`, `openhapd.conf`, the mdnsd socket), and FuguLib
+is OpenHAP-agnostic. Every row carries a **disposition**: _required_ means
+absent is a broken install and startup fails with the path in the message;
+_optional_ means legitimately absent on a working system, so it is skipped with
+a debug line.
 
 The disposition column is the whole point of this task. Without it, three paths
 that are routinely absent would turn configurations that start today into
@@ -36,9 +49,13 @@ startup failures — which design goal 7 forbids.
 | `/etc/protocols`          | `r`   | optional | `getprotobyname` on the reconnect path          |
 | `/etc/localtime`          | `r`   | optional | `localtime` in log timestamps                   |
 
-**Add whatever measurement 6 found that this table does not list.** The table is
-a starting point, not the authority — that is the same discipline phase 1
-applies to the mdnsd ABI.
+**Add whatever measurement 6 found that this table does not list** — after
+applying its two recorded filters: records attributed to the deleted `mdnsctl`
+child and opens that precede the unveil point (the config load, daemonize's log
+open, `getpwnam`) are not inventory rows. The table is a starting point, not the
+authority — that is the same discipline phase 1 applies to the mdnsd ABI. The
+measured set itself, with provenance, is recorded here by phase 1 and
+re-validated against the rewired daemon by this phase (see above).
 
 Why each optional row is optional, since getting this wrong is the failure mode:
 
@@ -102,8 +119,13 @@ is wrong twice over:
 
 So: build an **explicit list** — the perl core library directories, the
 site_perl directory, and the daemon's own `lib` when running from a source
-checkout — and unveil those. Note in the comment why it is a list and not
-`@INC`, or someone will "simplify" it back.
+checkout — and unveil those. The checkout entry is detected by **content, never
+by existence**: include `$RealBin/../lib` only when it contains the daemon's own
+modules (`-f "$RealBin/../lib/OpenHAP/HAP.pm"`). On an installed layout
+`/usr/local/lib` _exists_, so a bare `-d` admits it and reintroduces exactly the
+widening this section forbids; the content probe is false there because
+installed modules live under `libdata/perl5/site_perl` (`Makefile:6`). Note in
+the comment why it is a list and not `@INC`, or someone will "simplify" it back.
 
 Keep the `@INC`-read-only trade-off itself, and say why in the code: Perl's lazy
 loading makes "prove nothing loads late" a claim no test can hold over time,
@@ -133,23 +155,32 @@ ordering is load-bearing and not locally obvious.
 
 ### 4.4 Tests
 
-`t/openhap/openhapd.t`-style coverage cannot exercise unveil without running the
+No module-tier test can load `bin/openhapd` — it runs top-to-bottom with no
+`caller()` guard — and unveil itself cannot be exercised without running the
 daemon, so split the work:
 
-- **The inventory builder is a unit test.** Factor path assembly into a small
-  testable sub that takes the config values and returns the ordered pair list
-  with dispositions, so the library-directory enumeration, the disposition
-  assignment and the config-derived paths can be asserted on any platform
-  without unveiling anything. Assert specifically that a missing `$config_file`
-  yields an optional entry (or none) and never a required one — that is the
-  regression that would reintroduce the startup failure.
+- **The inventory builder is a unit test**, in `t/openhap/config.t` against the
+  `OpenHAP::Config` builder sub (4.1), which takes the config values and the
+  script directory as parameters and returns the ordered pair list with
+  dispositions — so the library-directory enumeration, the disposition
+  assignment and the config-derived paths are asserted on any platform without
+  unveiling anything. Assert specifically that a missing `$config_file` yields
+  an optional entry (or none) and never a required one — that is the regression
+  that would reintroduce the startup failure. Assert the library-directory
+  predicate in both directions with fabricated script directories: one whose
+  `../lib` contains `OpenHAP/HAP.pm` (a checkout — included) and one whose
+  `../lib` exists but does not (an installed layout — excluded); the latter is
+  the exact `/usr/local/lib` regression.
 - `t/fugulib/sandbox.t` (extended from phase 3): on OpenBSD, a forked child
   unveils a temp directory `r`, locks, then fails to read a file outside it and
-  succeeds inside it — asserting in the parent, per phase 3. Also assert that a
-  missing **required** path dies and a missing **optional** path does not.
-- Integration (phase 5 expands this): the daemon runs, pairs, and serves with
-  unveil active — and starts successfully with no config file, with `mdnsd`
-  stopped, and in `-f` mode on a host with no log file.
+  succeeds inside it — asserting in the parent, per phase 3. Re-assert the
+  disposition semantics phase 3 introduced and tested (missing required dies,
+  missing optional does not) over this phase's real inventory shapes.
+- Integration: verified **manually in the VM** for this phase's acceptance — the
+  daemon runs, pairs, and serves with unveil active, and starts successfully
+  with no config file, with `mdnsd` stopped, and in `-f` mode on a host with no
+  log file. Phase 5 turns these into integration tests; the `mdnsd`-stopped case
+  extends phase 2's existing assertion rather than duplicating it.
 
 ### 4.5 Documentation
 
@@ -157,6 +188,17 @@ daemon, so split the work:
   marking which are required and which are optional, and note that `openhapd`
   cannot read anything else — an operator debugging "why can't it read my file"
   needs this to be findable.
+- Reconcile the existing FILES rows against the inventory while rewriting them.
+  `openhapd.8` lists `/var/run/openhapd.pid`, which nothing writes:
+  `bin/openhapd` never calls a pidfile writer, `daemonize` writes none without
+  an `on_fork` callback, and the rc script matches on `pexp` — so the row would
+  contradict the new "cannot touch anything else" paragraph. Drop it (no test
+  depends on the file; `daemon.t` tolerates its absence). `hapctl.8:84` lists
+  the same phantom file and `bin/hapctl:59-60` still reads it, so
+  `hapctl status` reports "not running" unconditionally; record that discrepancy
+  — both pages, the status code path, and `OpenHAP::Daemon`'s dead pidfile
+  wrappers — in the `hapctl` TODO item phase 5 adds (5.3), rather than fixing
+  `hapctl` in this plan.
 - `man/fugulib/Sandbox.3p`: document the required/optional semantics and the
   lock behaviour (phase 3 introduces them; this phase is their first real user).
 - `README.md`, `CLAUDE.md`, `web/`: unchanged here. As of this phase the
@@ -165,23 +207,32 @@ daemon, so split the work:
 
 ## Deliverables
 
-- Changes to `bin/openhapd` (inventory builder, unveil, lock, ordering comment)
-- The inventory builder factored into a testable sub, with its unit test
+- Changes to `bin/openhapd` (unveil, lock, ordering comment) and
+  `lib/OpenHAP/Config.pm` (the inventory builder sub), with the
+  `lib/OpenHAP/Config.pod` sidecar updated
+- The builder's unit test in `t/openhap/config.t`
 - Extended `t/fugulib/sandbox.t`
-- `man/openhap/openhapd.8` FILES section, `man/fugulib/Sandbox.3p` updates
+- `man/openhap/openhapd.8` FILES section (including the pidfile-row
+  reconciliation), `man/fugulib/Sandbox.3p` updates
 
 ## Acceptance criteria
 
 - On OpenBSD, `openhapd` completes a full pairing, serves characteristic reads
   and writes, publishes and updates mDNS, and reconnects to a restarted MQTT
   broker, all with unveil locked. The MQTT restart is the sharpest test: it is
-  the path that touches the resolver files and lazily `require`s
-  `Net::MQTT::Simple`.
+  the path that touches the resolver files and — when the module was absent at
+  startup — retries the `Net::MQTT::Simple` require.
 - **Every configuration that started before this phase still starts**: no config
   file, `mdnsd` stopped, and `openhapd -f` on a host with no
   `/var/log/openhapd.log`. Verified in the VM, not asserted in prose.
-- A file outside the unveiled set is unreadable by the running daemon, verified
-  from inside the VM.
+- Unveil enforcement is proven where it can be observed: by
+  `t/fugulib/sandbox.t`'s forked-child subtests, which `make integration` runs
+  inside the VM since phase 3, plus a manual `ktrace`/`kdump` of the started
+  daemon showing the `unveil` calls and the final argument-less lock (the
+  automated trace test is phase 5's deliverable). A through-the-daemon read
+  probe applies only if an operator-suppliable read path exists — today none
+  does: the config is read before daemonizing and no HAP request or MQTT message
+  ever reaches an `open`.
 - A missing _required_ path is fatal at startup with the path in the message; a
   missing _optional_ path is not.
 - The unveiled library directories are the enumerated list, not raw `@INC`:

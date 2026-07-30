@@ -38,10 +38,10 @@ provenance. Base-system `imsg` framing is not in openmdns at all — the install
 
 ### 1.2 Take the measurements
 
-Six measurements, all inside the OpenBSD VM (`make integration`, or the
-`openhvf` skill for an interactive shell). Their output is what the spec
-records, and items 2, 4 and 5 **gate phase 2's API** — phase 2 does not start
-until they are settled.
+Seven measurements, all inside the OpenBSD VM (`make integration`, or the
+`openhvf` skill for an interactive shell). Items 1–5 are what the spec records;
+items 2, 4 and 5 **gate phase 2's API** — phase 2 does not start until they are
+settled — and item 7 gates phase 5's test design the same way.
 
 1. **`struct mdns_service` ABI.** Compile a short C probe against the installed
    `/usr/local/include/mdns.h` printing `sizeof` and `offsetof` for every field.
@@ -81,13 +81,39 @@ until they are settled.
    _service's_ name, and `libmdns` appears to enforce
    `strcmp(group, ms->name) != 0`. If so, `FuguLib::MDNS` must not expose them
    as independent parameters.
-6. **The real path set**, for phase 4's unveil inventory: `kdump` a full pairing
-   plus an MQTT broker restart and list every path the daemon opens. This is the
-   only reliable way to catch resolver files (`/etc/hosts`, `/etc/resolv.conf`,
-   `/etc/services`, `/etc/protocols`), `/etc/localtime`, and whatever
-   `Net::MQTT::Simple` touches on reconnect. Record it here even though phase 4
-   consumes it — the VM run is the expensive part and this phase is already in
-   the VM.
+6. **The real path set**, for phase 4's unveil inventory: `ktrace -i` (the `-i`
+   is load-bearing — without it the `mdnsctl` child's opens are missed entirely)
+   a full pairing plus an MQTT broker restart, `kdump`, and list every path the
+   daemon opens, **attributed per pid**. This is the only reliable way to catch
+   resolver files (`/etc/hosts`, `/etc/resolv.conf`, `/etc/services`,
+   `/etc/protocols`), `/etc/localtime`, and whatever `Net::MQTT::Simple` touches
+   on reconnect. This daemon is two phases older than the one phase 4 restricts,
+   so record two filters with the data or phase 4's additive consumption imports
+   junk: mark the records that belong to the `mdnsctl` child (its exec,
+   `mdnsctl.log`, its socket connect — phase 2 deletes all three, though
+   `/var/run/mdnsd.sock` itself returns as the daemon's own optional row), and
+   mark opens that precede the eventual unveil point (the config file at
+   `bin/openhapd:32`, the log at `:42`, `getpwnam`'s passwd db at `:122`), which
+   must not become inventory rows. Record the result by updating `plan-4.md`
+   4.1's inventory in place, with provenance noted there — the VM run is the
+   expensive part and this phase is already in the VM, but a path inventory is
+   not a protocol fact and has no place in `spec/`. Phase 4 re-validates the set
+   against the rewired daemon before locking the inventory.
+
+7. **What the platform can observe about an applied pledge and unveil**, for
+   phase 5's proof tests: as root, `ktrace` a trivial pledged-and-unveiled perl
+   one-liner, then record exactly what `kdump` renders for the `pledge` and
+   `unveil` calls — does the promise string appear, do unveil's path and
+   permission arguments (expect the path as a NAMI record and the lock as an
+   argument-less call), and under which trace points — and whether
+   `ps -o pledge` exists on this release and what it prints (expect a decoded
+   promise set, not the input string, with input order lost). Confirm too that a
+   root-owned `ktrace` keeps tracing across the daemon's setuid privdrop. Phase
+   5's trace assertions are designed against this answer, exactly as phase 2's
+   API is designed against items 2, 4 and 5 — the earlier draft asserted
+   "`kdump` prints the string" unmeasured, the one observability claim in a plan
+   that gates every mdnsd claim on measurement. Record it by updating
+   `plan-5.md` 5.1 in place.
 
 Derived layout to check measurement 1 against (LP64; `MAXLABELLEN` 64,
 `MAXPROTOLEN` 4, `MAXHOSTNAMELEN` 256, `MAXCHARSTR` = `MAXHOSTNAMELEN`):
@@ -124,8 +150,9 @@ to cite must be `##` or `###`.
 Every claim cites the upstream file and line it came from, as the surrounding
 `spec/` files do. A provenance block near the top of `MDNS.md`, matching
 `MQTT.md`'s: the upstream repository and commit read, the installed port version
-(`pkg_info -Q openmdns`), the OpenBSD release and architecture measured on, and
-the `/usr/include/imsg.h` version. Measurements that a later edit does not redo
+(`pkg_info -I openmdns` — `-Q` queries the remote repository, not the installed
+set), the OpenBSD release and architecture measured on, and the
+`/usr/include/imsg.h` version. Measurements that a later edit does not redo
 carry forward with their provenance intact — say so explicitly, so a reader
 knows which numbers were re-measured and which were inherited.
 
@@ -155,15 +182,22 @@ what phase 2's conformance test replays.
 
 ### 1.4 Teach the tooling about the new family
 
-- `scripts/spec-coverage:109` — extend the citation pattern from
+- `scripts/spec-coverage:109-110` — extend the citation pattern from
   `(?:HAP|MQTT)[A-Za-z0-9-]*` to include `MDNS`. Without this, `[MDNS-Imsg §2]`
   never matches: the citation is not counted, and — worse — is not stale-checked
   either, so it silently rots when the spec changes.
-- `t/CLAUDE.md:70` documents that grep pattern; update it in lockstep, and
-  mention the new topic ↔ test mapping in the conformance section.
+- `t/CLAUDE.md:70` documents that grep pattern; update it in lockstep. Do
+  **not** document the topic ↔ test mapping yet: the conformance tests land in
+  phase 2, and `t/CLAUDE.md` must not name files that do not exist. Phase 2 adds
+  that mention (task 2.3).
 - `spec/CLAUDE.md` — add the `MDNS.md` / `MDNS-*.md` bullet to the Purpose list.
   Do **not** name an owning skill: that file states these are hand-maintained
-  documents edited in place, and there is no `spec-mdns` skill.
+  documents edited in place, and there is no `spec-mdns` skill. That file also
+  states that adding a topic file means adding its conformance test, which this
+  phase deliberately does not do: note the exception beside the new bullet — the
+  MDNS topic files' conformance tests land with the mDNS client implementation —
+  worded without plan numbering so it reads standalone. Phase 2 removes the note
+  when it closes the gap (task 2.3).
 
 No `Makefile` change: `spec-coverage` globs `spec/*.md` and picks the new files
 up on its own.
@@ -190,15 +224,19 @@ then destroys the evidence, shipping the new branch with no permanent coverage;
 
 ### 1.6 Verify the tooling sees the new files
 
-`make spec-coverage` must list the two new topic files. Coverage reads 0/N until
-phase 2 — that is correct and non-fatal: `scripts/spec-coverage:200` is
-`exit(@stale ? 1 : 0)`, so low coverage never fails the tool. That is what makes
-this phase shippable alone.
+`./scripts/spec-coverage`, run without `--quiet`, must list the two new topic
+files — the `make spec-coverage` target passes `--quiet`, which suppresses every
+per-file line and prints only the TOTAL, so it can decide the exit status but
+not the listing. Coverage reads 0/N until phase 2 — that is correct and
+non-fatal: `scripts/spec-coverage:200` is `exit(@stale ? 1 : 0)`, so low
+coverage never fails the tool. That is what makes this phase shippable alone.
 
 ## Deliverables
 
 - `spec/MDNS.md`, `spec/MDNS-Imsg.md`, `spec/MDNS-Control.md`
-- The six measurements from 1.2, recorded in the spec files with provenance
+- Measurements 1–5 from 1.2, recorded in the spec files with provenance;
+  measurement 6 recorded in `plan-4.md` 4.1 and measurement 7 in `plan-5.md`
+  5.1, each with its provenance
 - Changes to `scripts/spec-coverage`, `t/scripts/spec-coverage.t`,
   `t/CLAUDE.md`, `spec/CLAUDE.md`
 
@@ -213,10 +251,14 @@ this phase shippable alone.
 - `spec/MDNS-Control.md` contains a byte-exact publish conversation captured
   from a real `mdnsctl`, with sender-specific bytes marked, sufficient for phase
   2 to replay without re-deriving anything.
+- The measured path set (measurement 6) is recorded in `plan-4.md` 4.1 with
+  per-pid attribution and both staleness filters applied, and the observability
+  answer (measurement 7) in `plan-5.md` 5.1 — each where its consuming phase
+  reads it.
 - Every section a conformance test will cite is a numbered `##` or `###`
   heading.
-- `make spec-coverage` lists both topic files, reports 0 covered sections, and
-  exits zero.
+- `./scripts/spec-coverage` (no `--quiet`) lists both topic files and reports 0
+  covered sections for them; `make spec-coverage` exits zero.
 - `t/scripts/spec-coverage.t` covers the `MDNS` citation branch and passes; the
   fixture stem is split so it does not self-match.
 - `make check` green. This phase **does** change Perl that `make check` gates:

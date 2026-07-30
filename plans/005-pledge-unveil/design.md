@@ -66,8 +66,11 @@ CLI, no config, no user of its own. Precedent also says FuguLib _absorbs_
 outside this repo, or a `bin/` tool.
 
 FuguLib going from six modules to nine is a documentation change too:
-`CLAUDE.md:14-15` enumerates the namespace's concerns and
-`web/fugulib.body.html:8` states "Six modules". Phase 5 owns both.
+`CLAUDE.md:13-14` enumerates the namespace's concerns and
+`web/fugulib.body.html:8` states "Six modules". Each phase that changes the fact
+updates both in the same change — phase 2 to eight, phase 3 to nine — a module
+count is not a hedge: it has a final true value at every phase, and `web.yml`
+deploys the site on any `man/**.3p` push. Phase 5 verifies.
 
 ## Architecture
 
@@ -109,7 +112,10 @@ layout written here is a guess); whether same-socket `GROUP_RESET` actually
 replaces a TXT record, or silently re-announces the stale one, or crashes mdnsd;
 and whether the group name must equal the service instance name. Phase 1 also
 captures a byte-exact publish conversation, the `struct mdns_service` offsets,
-and the daemon's real path set — the last being phase 4's input.
+the daemon's real path set — phase 4's input — and what the platform's tooling
+can observe about an applied pledge and unveil (what `kdump` renders for each
+call's arguments, whether `ps -o pledge` exists), which phase 5's proof tests
+are designed against.
 
 ### `FuguLib::Imsg` and `FuguLib::MDNS`
 
@@ -133,7 +139,7 @@ protocol layer: `connect`, `publish_service`, `update_txt`, `withdraw` (close),
 `is_published`, and translation of reply and error types into reported outcomes.
 
 `update_txt`'s mechanism is decided by measurement. If same-socket `GROUP_RESET`
-does not work it reconnects and republishes — which is what `MDNS.pm:176-183`
+does not work it reconnects and republishes — which is what `MDNS.pm:177-185`
 does today, and which keeps `unix` in the promise set for a reason that outlives
 startup.
 
@@ -183,12 +189,21 @@ stdio rpath wpath cpath fattr flock inet dns unix
 | ------------- | ---------------------------------------------------------------- |
 | `stdio`       | always                                                           |
 | `rpath`       | `/dev/urandom` (`Crypto.pm:35`), `Storage` reads, lazy `require` |
-| `wpath cpath` | `Storage` writes, `make_path` (`Storage.pm:14`), log file        |
+| `wpath cpath` | `Storage` creating and rewriting db files after startup          |
 | `fattr`       | `chmod 0600` (`Storage.pm:158`, `:240`)                          |
 | `flock`       | `Storage.pm:62,82,139,155`                                       |
 | `inet`        | listen socket built in `HAP::run` (`HAP.pm:158`), MQTT reconnect |
 | `dns`         | MQTT reconnect resolving `mqtt_host` when it is a name           |
 | `unix`        | reconnecting to mdnsd, **if** `update_txt` must republish        |
+
+`wpath cpath` are exercised after the pledge by `Storage`'s `open '>'` calls —
+pairings.db on the first pairing (`Storage.pm:131`), `config_number` and
+`auth_attempts` (`Storage.pm:236`), the accessory keys on factory reset
+(`HAP.pm:1128`) — and Perl's `>` always passes `O_CREAT`, so `cpath` is needed
+on every such write, not only on a fresh install. `make_path` (`Storage.pm:14`)
+and the daemon log's open both complete before the pledge point: they are
+context, not justification, and post-pledge log writes go to the already-open fd
+under `stdio`.
 
 `unix` is the one conditional entry. An already-connected socket needs only
 `stdio` to read and write — `PLEDGE_UNIX` gates `socket`, `connect` and `bind`,
@@ -211,16 +226,21 @@ dependency is pulled in by a compile-time `use` on the graph reachable from
 `import`, not at first arithmetic, so GMP's shared object is open before
 `GetOptions` runs; there is no pairing-time load to preload.
 
-The one genuine late load is `require Net::MQTT::Simple` at `MQTT.pm:50`,
-deferred to the first reconnect when the startup connection fails. It is **pure
-Perl**, so it needs no `prot_exec` — only `rpath` and a reachable library tree.
-So: unveil the library directories read-only, and resolve it before the pledge
-under `eval` so its transitive dependencies load while loading is unrestricted.
-It stays optional — the only `cpan` runtime line in `deps/OpenBSD.txt`, and
-`bin/openhapd:88-97` deliberately keeps serving HomeKit without it. Unveiling
-the library tree read-only is the deliberate simplicity trade: weaker than
-proving no module ever loads late, far more robust than discovering a missed
-`require` in production.
+The one `require` not settled at compile time is `Net::MQTT::Simple` at
+`MQTT.pm:50` — and it is not deferred by a broker that is down: the require
+completes before the connect attempt (`MQTT.pm:57`) inside the same `eval`, and
+`bin/openhapd:88` runs `mqtt_connect` unconditionally at startup, so an
+installed module is in `%INC` pre-pledge in every scenario. The genuinely late
+case is the module being absent at startup and installed while the daemon runs:
+the next reconnect's require then succeeds post-pledge. It is **pure Perl**, so
+it needs no `prot_exec` — only `rpath` and a reachable library tree, which that
+case is the standing reason for. So: unveil the library directories read-only,
+and resolve it before the pledge under `eval` so its transitive dependencies
+load while loading is unrestricted. It stays optional — the only `cpan` runtime
+line in `deps/OpenBSD.txt`, and `bin/openhapd:88-97` deliberately keeps serving
+HomeKit without it. Unveiling the library tree read-only is the deliberate
+simplicity trade: weaker than proving no module ever loads late, far more robust
+than discovering a missed `require` in production.
 
 ### The unveil view
 

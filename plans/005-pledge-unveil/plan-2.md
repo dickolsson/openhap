@@ -94,7 +94,7 @@ The mdnsd group protocol, OpenHAP-agnostic:
   that. If it was shown to re-announce the stale record or to crash mdnsd — the
   likely outcome from reading `control_group_reset`'s `pg_get(0, msg, NULL)`
   lookup — then `update_txt` closes and republishes, which is what
-  `MDNS.pm:176-183` does today and what `control_close` cleans up correctly.
+  `MDNS.pm:177-185` does today and what `control_close` cleans up correctly.
   Retain `name`/`app`/`proto`/`port` from `publish_service` so `update_txt` can
   re-send `GROUP_ADD_SERVICE` without them being passed again. Whichever path is
   taken, comment it with the spec citation, because the wrong one fails
@@ -108,6 +108,10 @@ The mdnsd group protocol, OpenHAP-agnostic:
   constants in one place, so an openmdns change is a one-line edit next to a
   citation. Include the architecture the layout was measured on in that comment
   — the `LIST_ENTRY` width and the 864-byte total are LP64-specific.
+- On an OpenBSD host whose architecture does not match the ABI the spec was
+  measured on (non-LP64), `publish_service` refuses and returns `undef` rather
+  than encoding garbage for a differently-laid-out mdnsd — the caller logs and
+  HAP keeps serving, the usual `FuguLib::MDNS` failure contract.
 - No logging, for the reasons in 2.1.
 
 Ships with `man/fugulib/MDNS.3p`, a `MAN3P` entry, and `t/fugulib/mdns.t`. The
@@ -153,11 +157,21 @@ Two constraints on "byte-exact" that the spec's worked example must respect:
   by field — a field-by-field check passes even when the total size or padding
   is wrong. This is the assertion that matters most: it is the only thing
   standing between an openmdns layout change and a daemon that silently
-  advertises garbage. Guard it on LP64 so it fails as a skip with a reason on a
-  32-bit OpenBSD rather than as a mysterious 8-byte mismatch.
+  advertises garbage. No architecture guard: the encoder is built from fixed
+  spec constants (2.2), so it emits identical bytes on every host and this test
+  passes or fails identically everywhere — a skip would have nothing to prevent.
+  The real non-LP64 risk is the _module_ speaking the measured LP64 ABI to a
+  differently-laid-out mdnsd, and that is handled where it lives: the spec names
+  the measured architecture (1.3) and `FuguLib::MDNS` refuses to publish on a
+  non-LP64 OpenBSD host (2.2).
 
-`make spec-coverage` should now report real coverage for both topic files where
-it reported 0 in phase 1.
+Also update `t/CLAUDE.md`'s conformance section with the new topic ↔ test
+mapping, and remove the temporary exception note phase 1 left in
+`spec/CLAUDE.md` — this task closes the gap it described.
+
+`./scripts/spec-coverage` (no `--quiet`; the `make` target suppresses per-file
+lines) should now report real coverage for both topic files where it reported 0
+in phase 1.
 
 ### 2.4 Rewire `openhapd`, move the TXT formatting, and delete `OpenHAP::MDNS`
 
@@ -195,17 +209,20 @@ it reported 0 in phase 1.
 
 ### 2.5 The full consumer inventory
 
-Deleting `lib/OpenHAP/MDNS.pm` and `.pod` breaks five other files. Every one
-needs a disposition **in this phase**, or neither `make check` nor
-`make integration` can be green as the acceptance criteria require:
+This phase breaks six other files — five by deleting `lib/OpenHAP/MDNS.pm` and
+`.pod`, a sixth by 2.4's own rewiring of `_refresh_mdns`, which is why a grep
+for the module name does not find it. Every one needs a disposition **in this
+phase**, or neither `make check` nor `make integration` can be green as the
+acceptance criteria require:
 
-| file                                   | disposition                                                                                                                                                                                                                                                        |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `t/openhap/mdns.t`                     | Delete. Move the TXT-ordering coverage (`:239`) to `t/openhap/hap.t` against the new formatter.                                                                                                                                                                    |
-| `t/conformance/hap-mdns.t`             | **Rewrite, do not delete.** `:23` does `use_ok('OpenHAP::MDNS')` and `:37`, `:94`, `:181`, `:190` construct it. Re-point those four subtests at `OpenHAP::HAP`'s TXT formatter and the `FuguLib::MDNS` call arguments. See the note below.                         |
-| `t/openhap/integration/mdns-cleanup.t` | **Rewrite or delete — its premise is inverted.** `:32` asserts `mdnsctl_count > 0` and `:37` asserts captured mdnsctl PIDs. Integration tests never skip, so this fails deterministically after this phase. Fold whatever survives into the new assertions in 2.6. |
-| `t/openhap/integration/mdns.t`         | `:19-22` dies unless the `mdnsctl` _binary_ exists. Change the precondition to `mdnsd` running; `mdnsctl` is now only a test tool for browsing.                                                                                                                    |
-| `scripts/integration`                  | Still `pkill`s `mdnsctl` as pre-run cleanup (`:41-49`) and greps for it in failure diagnostics (`:98`). Both become dead; remove them.                                                                                                                             |
+| file                                   | disposition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `t/openhap/mdns.t`                     | Delete. Move the TXT-ordering coverage (`:239`) to `t/openhap/hap.t` against the new formatter.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `t/conformance/hap-mdns.t`             | **Rewrite, do not delete.** `:23` does `use_ok('OpenHAP::MDNS')` and `:37`, `:94`, `:181`, `:190` construct it. Re-point those four subtests at `OpenHAP::HAP`'s TXT formatter and the `FuguLib::MDNS` call arguments. See the note below.                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `t/openhap/integration/mdns-cleanup.t` | **Rewrite or delete — its premise is inverted.** `:32` asserts `mdnsctl_count > 0` and `:37` asserts captured mdnsctl PIDs. Integration tests never skip, so this fails deterministically after this phase. Fold whatever survives into the new assertions in 2.7.                                                                                                                                                                                                                                                                                                                                                                                |
+| `t/openhap/hap.t`                      | **Rewrite the `MockMDNS` package** — broken by 2.4's rewiring, not the deletion: `_refresh_mdns` gains an `is_published` guard the mock lacks (the first state-changing refresh dies with "Can't locate object method"), and `update_txt_records($hashref)` becomes `update_txt(txt => $string)`. Give the mock the `FuguLib::MDNS` surface — `is_published` toggleable and returning true so updates flow, `update_txt` taking the formatted string — assert on string content (`sf=0`/`sf=1`), keep the `[HAP-mDNS §8]` citations on the rewritten assertions, and add an `is_published`-false case: the natural unit test for 2.4's new guard. |
+| `t/openhap/integration/mdns.t`         | `:19-22` dies unless the `mdnsctl` _binary_ exists. Change the precondition to `mdnsd` running; `mdnsctl` is now only a test tool for browsing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `scripts/integration`                  | Still `pkill`s `mdnsctl` as pre-run cleanup (`:41-49`) and greps for it in failure diagnostics (`:98`). Both become dead; remove them.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 `t/conformance/hap-mdns.t` deserves care beyond "make it compile":
 **`[HAP-mDNS §10]` is cited nowhere else in the tree** — only at
@@ -215,7 +232,11 @@ and otherwise only in `t/openhap/integration/mdns.t`, which moves them out of
 `make check` and into the VM. So a careless rewrite silently lowers HAP-mDNS
 coverage, and phase 5's "coverage no lower than phase 2 left it" would then
 measure against an already-regressed baseline. **Record HAP-mDNS coverage before
-and after this phase and keep it equal.**
+and after this phase and keep it equal.** At this plan's revision the baseline
+is `spec/HAP-mDNS.md` 17/20 sections cited (TOTAL 153/171), with
+`[HAP-mDNS §10]` held solely by `t/conformance/hap-mdns.t:89`; re-measure at
+phase start with `./scripts/spec-coverage` — without `--quiet`, which hides the
+per-file lines — in case the tree has moved.
 
 ### 2.6 Ordering, privileges, and documentation
 
@@ -224,19 +245,61 @@ and after this phase and keep it equal.**
   child process.
 - **Do not assert the wheel privilege model without measuring it.** The comment
   at `:116` says `_openhap` must be in `wheel` to reach `/var/run/mdnsd.sock`
-  (root:wheel 0660). But `FuguLib::Privdrop::drop_privileges` calls only
-  `POSIX::setgid`/`setuid` and never `setgroups`/`initgroups`, and Perl's
-  `$) = $gid` assignment at `Privdrop.pm:73` itself invokes `setgroups` — which
-  would _drop_ wheel rather than keep it. Whatever actually grants access today,
-  it is not obviously the stated mechanism. Measure it in the VM (`id` as the
-  running daemon, plus an `unveil`-free connect attempt) and write down what is
-  true. Phase 5 documents this in `openhapd.8`, so a false claim here becomes a
-  false claim about a privilege boundary in an installed man page.
+  (root:wheel 0660). That claim is doubly unverified.
+  `FuguLib::Privdrop::drop_privileges` calls only `POSIX::setgid`/`setuid` and
+  never `setgroups`/`initgroups` — and a single-value `$) = $gid` assignment
+  (`Privdrop.pm:73`) does not invoke `setgroups` either: perlvar passes only the
+  numbers _after_ the first to `setgroups()`. So the drop leaves supplementary
+  groups untouched — a root-started daemon _retains_ whatever its parent had,
+  typically including wheel (gid 0), and `_openhap`'s `/etc/group` membership
+  never reaches the daemon's credentials at all. That retained-groups mechanism
+  is exactly what `man/fugulib/Privdrop.3p` CAVEATS already documents for
+  reaching the mdnsd socket. Measure rather than argue, with an instrument that
+  can see process credentials — `id` cannot; it would only echo the `/etc/group`
+  database that `INSTALL.md:31` pre-seeds. A probe started the same way the
+  daemon is (rc at boot inherits differently from a `doas` shell) performs the
+  same `drop_privileges` call as root, prints `$)` after the drop (its trailing
+  numbers are the live `getgroups` list; core `POSIX` exposes no `getgroups()`),
+  then makes the `unveil`-free connect attempt. Write down what is true, and
+  disposition the two operator-facing restatements of the wheel model in the
+  same change: `INSTALL.md:31` (`usermod -G wheel _openhap`, rendered to the
+  public site) and `scripts/vm-provision:169-171`, which seeds the same
+  membership into the VM — where it can keep integration green for the wrong
+  reason. Update or delete both per the measurement. The companion comment at
+  `bin/openhapd:156` carries the same claim and disappears with the `mdnsctl`
+  spawn it annotates — do not leave it half-corrected. Phase 5 documents the
+  result in `openhapd.8`, so a false claim here becomes a false claim about a
+  privilege boundary in an installed man page.
 - `man/openhap/openhapd.8`: the daemon no longer spawns a child and needs
   `mdnsd(8)` running rather than `mdnsctl(8)` installed. Add `mdnsd(8)` to SEE
-  ALSO. Note that neither this page nor `.claude/skills/openhapd/SKILL.md`
-  currently mentions `mdnsctl` or `mdnsctl.log`, so there is no stale text to
-  fix there — only the new requirement to state.
+  ALSO, state that registration is a held control-socket connection with no
+  child process, and tighten the existing CAVEATS wording: it already says a
+  running mDNS daemon is required, so the requirement itself is not new, but
+  after this phase the dependency is specifically openmdns's `mdnsd` and its
+  control protocol, not any substitutable mDNS daemon. Neither this page nor
+  `.claude/skills/openhapd/SKILL.md` mentions `mdnsctl` or `mdnsctl.log`, so
+  there is no stale child-process text to fix.
+- Two FuguLib documents narrate the pattern this phase deletes; rewrite both
+  alongside the stale comment above. The usage example at
+  `lib/FuguLib/Privdrop.pm:38` says
+  `$mdns->register_service();  # Forks mdnsctl as root` — wrong today
+  (registration runs after the drop, `bin/openhapd:157`) and doubly wrong after
+  this phase — and while in that file, fix the comments at `Privdrop.pm:72-73`,
+  which gloss `$(` and `$)` backwards (`$(` is the real gid, `$)` the
+  effective). The EXAMPLES section of `man/fugulib/Process.3p` spawns
+  `mdnsctl publish`; the API it demonstrates is unchanged, so re-point the
+  example at a neutral long-lived command rather than enshrining the pattern
+  this plan exists to remove. Leave `Privdrop.3p`'s CAVEATS alone — it concerns
+  groups, not the child, and is the subject of the measurement above.
+- The FuguLib module count and scope change in this phase, and the documentation
+  changes with the fact, not in phase 5: `web/fugulib.body.html:8` goes from
+  "Six modules" to eight, with `Imsg` and `MDNS` added to the `<dl>` and the
+  page's intro enumeration extended to match; `CLAUDE.md:13-14`'s FuguLib scope
+  line gains the mdnsd client and imsg framing; and `CLAUDE.md:45`'s
+  `lib/OpenHAP/` layout enumeration drops `MDNS.pm`, which this phase deletes.
+  `web.yml` deploys the site on any `man/**.3p` push, so shipping this phase
+  without the count fix publishes a manuals index listing eight FuguLib pages
+  beside a body claiming six.
 - `deps/OpenBSD.txt` keeps `openmdns` — the daemon is still required; only the
   CLI is no longer invoked by `openhapd`. It remains a test dependency for
   browsing.
@@ -249,9 +312,20 @@ and after this phase and keep it equal.**
 Extend `t/openhap/integration/` (which never skips — see
 `t/openhap/integration/CLAUDE.md`) to assert, inside the VM:
 
-- `mdnsctl browse _hap._tcp` sees the advertised service after `openhapd`
-  starts.
-- No child process at all: `pgrep -P $(pgrep openhapd)` is empty, and no
+- `mdnsctl browse hap tcp` sees the advertised service after `openhapd` starts —
+  bare app and proto words, the syntax the existing test already uses at
+  `t/openhap/integration/mdns.t:40`; `_hap._tcp` is dns-sd syntax and means
+  nothing to `mdnsctl`. TXT assertions use the resolving form,
+  `mdnsctl browse -r hap tcp`, as `browse_txt()` does today (`mdns.t:88-91`).
+- No child process at all. Not via `pgrep -P $(pgrep openhapd)`: the daemon's
+  p_comm is `perl` (shebang exec), so bare `pgrep openhapd` matches nothing, the
+  outer `pgrep -P` errors with empty output, and the check passes
+  unconditionally — the tree already knows this, matching the daemon with
+  `pexp="perl ${daemon}.*"` in `etc/rc.d/openhapd` and `pkill -f` in
+  `scripts/integration`. Instead: resolve
+  `pid=$(pgrep -f 'perl.*/bin/openhapd')`, assert **exactly one** pid was found
+  — the guard that keeps the test non-vacuous and catches over-matching — then
+  assert `pgrep -P $pid` prints nothing and exits 1. Also assert no
   `mdnsctl.log` is created.
 - The TXT record changes after a pairing state change (`sf` flips). This is the
   assertion that catches a broken `update_txt` — and given measurement 4, it is
@@ -272,24 +346,31 @@ Assert on observable behaviour, not on log contents —
 - `t/fugulib/imsg.t`, `t/fugulib/mdns.t`
 - `t/conformance/mdns-imsg.t`, `t/conformance/mdns-control.t`
 - A TXT formatter on `OpenHAP::HAP` plus its test in `t/openhap/hap.t`
-- Rewritten `t/conformance/hap-mdns.t`; rewritten or deleted
+- Rewritten `t/conformance/hap-mdns.t` and the `MockMDNS` package in
+  `t/openhap/hap.t`; rewritten or deleted
   `t/openhap/integration/mdns-cleanup.t`; changed
   `t/openhap/integration/mdns.t`, `scripts/integration`
 - New integration assertions in `t/openhap/integration/`
 - Changes to `bin/openhapd`, `lib/OpenHAP/HAP.pm`, `man/openhap/openhapd.8`
+- Changes to `lib/FuguLib/Privdrop.pm` (usage example, `$(`/`$)` comments),
+  `man/fugulib/Process.3p` (EXAMPLES), `INSTALL.md` and `scripts/vm-provision`
+  (wheel-model disposition per the 2.6 measurement), `web/fugulib.body.html`
+  (eight modules), `CLAUDE.md` (FuguLib scope line, `lib/OpenHAP/` layout line),
+  `t/CLAUDE.md` (topic ↔ test mapping), `spec/CLAUDE.md` (exception note
+  removed)
 - Deleted: `lib/OpenHAP/MDNS.pm`, `lib/OpenHAP/MDNS.pod`, `t/openhap/mdns.t`
 
 ## Acceptance criteria
 
 - `t/conformance/mdns-control.t` asserts the whole encoded `struct mdns_service`
   against a literal; changing any offset constant makes it fail.
-- `make spec-coverage` reports non-zero coverage for `MDNS-Imsg` and
-  `MDNS-Control`, exits zero, and **HAP-mDNS coverage is unchanged from before
-  this phase**.
+- `./scripts/spec-coverage` (no `--quiet`) reports non-zero coverage for
+  `MDNS-Imsg` and `MDNS-Control`, and **HAP-mDNS coverage is unchanged from the
+  baseline recorded in 2.5**; `make spec-coverage` exits zero.
 - `mdnsctl browse` in the VM sees the service, the browsed TXT updates on a
   pairing state change, and the advertisement disappears when the daemon exits.
-- `openhapd` spawns no child process at all: `pgrep -P $(pgrep openhapd)` is
-  empty.
+- `openhapd` spawns no child process at all: with the daemon's pid resolved by
+  `pgrep -f` and asserted unique, `pgrep -P $pid` prints nothing and exits 1.
 - A missing or unreachable `/var/run/mdnsd.sock` logs a warning and leaves the
   HAP server serving; pairing while unpublished does not kill the daemon.
 - `make check` green on Linux (tests use `socketpair`/`AF_UNIX` and need no
